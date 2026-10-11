@@ -26,7 +26,6 @@ Lagen (afhankelijkheden alleen naar beneden; `tools/check.sh` controleert de reg
 | `domain/catalog.lua` | OPDS-item → map/boek, beste download-link (EPUB eerst), bestandsnaam |
 | `domain/reading_time.lua` | gelezen/resterende tijd uit statistieken |
 | `domain/layout.lua` | tikzone-geometrie, rasterrijen vanaf y = 0 |
-| `domain/battery.lua` | batterij-icoon bij percentage en laden (Material Symbols `battery_*`) |
 | `app/sync_service.lua` | reconcile, sync-knop, beleid voor automatische momenten |
 | `app/account_service.lua` | inloggen: controleren en opslaan |
 | `app/library_service.lua` | Mijn boeken: cache, synchroniseren, downloaden, omslagen |

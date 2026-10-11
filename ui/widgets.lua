@@ -295,9 +295,16 @@ function Row:onTapRow(_, ges)
     return true
 end
 
---- Batterij-icoon (Material Symbols) bij percentage en laden; keuze in domain/battery.lua.
+--- Batterij-icoon (Material Symbols): laden, vol vanaf 95%, anders 0..6 streepjes.
 function Widgets.battery(percent, charging, size)
-    local icon_file = require("lingering.domain.battery").icon(percent, charging)
+    local icon_file
+    if charging then
+        icon_file = "battery_charging_full.svg"
+    elseif percent >= 95 then
+        icon_file = "battery_full.svg"
+    else
+        icon_file = "battery_" .. math.floor(math.max(0, percent) * 7 / 95) .. "_bar.svg"
+    end
     return Widgets.icon({ icon_file = icon_file }, size or Screen:scaleBySize(24))
 end
 
