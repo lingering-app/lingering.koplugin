@@ -103,12 +103,16 @@ function TestSyncService:test_syncknop_wifi_uit_gaat_aan_en_weer_uit()
     SyncService.syncNow({ kosync = handle }, function(ok) result = ok end)
     lu.assertTrue(result)
     lu.assertEquals(Fakes.calls.turn_on_wifi, 1)
+    -- Eerst klaar melden (icoon stopt), wifi pas daarna uit.
+    lu.assertNil(Fakes.calls.disable_wifi)
+    Fakes.runScheduled()
     lu.assertEquals(Fakes.calls.disable_wifi, 1)
 end
 
 function TestSyncService:test_syncknop_wifi_aan_blijft_aan()
     Fakes.state.record = { percent = 0.5 }
     SyncService.syncNow({ kosync = handle }, function() end)
+    Fakes.runScheduled()
     lu.assertNil(Fakes.calls.disable_wifi)
 end
 
@@ -117,5 +121,6 @@ function TestSyncService:test_syncknop_zonder_verbinding()
     local result
     SyncService.syncNow({ kosync = handle }, function(ok) result = ok end)
     lu.assertFalse(result)
+    Fakes.runScheduled()
     lu.assertEquals(Fakes.calls.disable_wifi, 1)
 end

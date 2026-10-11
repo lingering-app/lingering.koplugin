@@ -30,6 +30,7 @@ local AboutScreen = InputContainer:extend{
 }
 Widgets.guardPaint(AboutScreen, "over lingering")
 Widgets.guardEvents(AboutScreen, "over lingering")
+Widgets.followRotation(AboutScreen)
 
 function AboutScreen:init()
     local width, height = Screen:getWidth(), Screen:getHeight()

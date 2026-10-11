@@ -55,6 +55,7 @@ local Background = InputContainer:extend{
 }
 Widgets.guardPaint(Background, "inlogscherm")
 Widgets.guardEvents(Background, "inlogscherm")
+Widgets.followRotation(Background)
 
 -- Zo lang "Lingering" ingedrukt houden opent het volledige menu (na de hold-drempel),
 -- net als de statusregel op het homescreen. Bewust onzichtbaar.

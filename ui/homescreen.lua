@@ -110,6 +110,7 @@ local HomeScreen = InputContainer:extend{
 }
 Widgets.guardPaint(HomeScreen, "homescreen")
 Widgets.guardEvents(HomeScreen, "homescreen")
+Widgets.followRotation(HomeScreen)
 
 function HomeScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }

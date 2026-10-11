@@ -45,6 +45,16 @@ function Smoke.filemanager(plugin)
             assert(plugin.home.shelf_dimen and plugin.home.shelf_dimen.h > 0, "geen mapblokken getoond")
             shot("1b-home-collections")
         end },
+        { name = "draaien binnen portrait", fn = function()
+            local Event = require("ui/event")
+            UIManager:sendEvent(Event:new("SetRotationMode", Screen.DEVICE_ROTATED_UPSIDE_DOWN))
+            assert(Screen:getRotationMode() == Screen.DEVICE_ROTATED_UPSIDE_DOWN, "niet gedraaid")
+            shot("1a-home-upside-down")
+            UIManager:sendEvent(Event:new("SetRotationMode", Screen.DEVICE_ROTATED_CLOCKWISE))
+            assert(Screen:getRotationMode() == Screen.DEVICE_ROTATED_UPSIDE_DOWN, "naar landscape gedraaid")
+            UIManager:sendEvent(Event:new("SetRotationMode", Screen.DEVICE_ROTATED_UPRIGHT))
+            assert(Screen:getRotationMode() == Screen.DEVICE_ROTATED_UPRIGHT, "niet teruggedraaid")
+        end },
         { name = "blok openen", fn = function()
             local Library = require("lingering.app.library_service")
             local title = require("lingering.config").collections[1]

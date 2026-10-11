@@ -71,6 +71,17 @@ function Widgets.guardEvents(class, label)
     end
 end
 
+--[[--
+Volledige schermen draaien mee binnen portrait (rechtop ↔ ondersteboven). KOReader stuurt
+SetRotationMode (g-sensor, gebaren) alleen naar het bovenste venster; zonder handler blijft
+het scherm vast staan.
+]]
+function Widgets.followRotation(class)
+    class.onSetRotationMode = function(_, mode)
+        return require("lingering.koreader.device").rotateWithinOrientation(mode)
+    end
+end
+
 --- Omslag uit de cache van Mijn boeken als BlitBuffer, of nil. Zelf decoderen in een pcall:
 --- een kapotte afbeelding mag het scherm niet breken (en wordt verwijderd).
 function Widgets.loadCover(library, url, w, h)

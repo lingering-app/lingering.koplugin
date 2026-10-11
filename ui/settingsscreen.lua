@@ -30,6 +30,7 @@ local SettingsScreen = InputContainer:extend{
 }
 Widgets.guardPaint(SettingsScreen, "instellingen")
 Widgets.guardEvents(SettingsScreen, "instellingen")
+Widgets.followRotation(SettingsScreen)
 
 local function toggleIcon(on)
     return { icon_file = on and "toggle-on.svg" or "toggle-off.svg" }

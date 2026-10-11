@@ -8,6 +8,52 @@ local try = require("lingering.koreader.try")
 local M = {}
 
 --[[--
+Draaien binnen dezelfde stand (portrait ↔ omgekeerd portrait, of landscape ↔ omgekeerd
+landscape), zoals Input:handleGyroEv bij een vergrendelde g-sensor: Screen:setRotationMode +
+UIManager:onRotation, zonder nieuwe layout (breedte en hoogte blijven gelijk). Een draai naar
+de andere stand wordt genegeerd: onze schermen zijn alleen voor portrait opgemaakt.
+Bewaart fm_rotation_mode, zodat FileManager:setRotationMode na het sluiten van een boek
+dezelfde kant op terugkomt. Geeft true (event afgehandeld).
+]]
+function M.rotateWithinOrientation(mode)
+    try("rotateWithinOrientation", function()
+        local Screen = require("device").screen
+        local UIManager = require("ui/uimanager")
+        local old_mode = Screen:getRotationMode()
+        if mode == nil or mode == old_mode or mode % 2 ~= old_mode % 2 then return end
+        Screen:setRotationMode(mode)
+        G_reader_settings:saveSetting("fm_rotation_mode", mode)
+        UIManager:onRotation()
+    end)
+    return true
+end
+
+--- Heeft het apparaat een g-sensor (automatisch draaien)?
+function M.hasGSensor()
+    local ok, has = try("hasGSensor", function() return require("device"):hasGSensor() end)
+    return ok and has or false
+end
+
+--- Automatisch draaien aan? (KOReader-instelling input_ignore_gsensor, zoals DeviceListener:onToggleGSensor)
+function M.isAutoRotateOn()
+    local ok, on = try("isAutoRotateOn", function()
+        return not G_reader_settings:isTrue("input_ignore_gsensor")
+    end)
+    return ok and on or false
+end
+
+--[[--
+Automatisch draaien aan/uit, zoals DeviceListener:onToggleGSensor maar zonder melding:
+input_ignore_gsensor bewaren en Device:toggleGSensor (Input:toggleGyroEvents).
+]]
+function M.setAutoRotate(on)
+    return try("setAutoRotate", function()
+        G_reader_settings:saveSetting("input_ignore_gsensor", not on)
+        require("device"):toggleGSensor(on and true or false)
+    end)
+end
+
+--[[--
 KOReaders helderheidsscherm (Device:showLightDialog → ui/widget/frontlightwidget).
 KOReader onthoudt de helderheid zelf (Kobo: frontlight_intensity in settings.reader.lua);
 aan/uit gaat terug naar de laatste helderheid. Wijzigingen worden gemeld met het event

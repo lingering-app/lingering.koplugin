@@ -18,7 +18,7 @@ end
 --[[--
 Zet wifi aan zonder te vragen en voert fn uit zodra er verbinding is
 (NetworkMgr:turnOnWifiAndWaitForConnection). Al online: fn meteen.
-Geeft false als verbinden direct mislukt.
+Geeft false als verbinden direct mislukt of al een poging loopt (fn komt dan niet).
 ]]
 function M.turnOnWifiThen(fn)
     local ok, started = try("turnOnWifiThen", function()
@@ -27,7 +27,14 @@ function M.turnOnWifiThen(fn)
             fn()
             return true
         end
-        return NetworkMgr:turnOnWifiAndWaitForConnection(fn) ~= false
+        -- Geeft het "Verbinden…"-venster als hij gaat verbinden; nil als fn al direct liep of
+        -- bij EBUSY (fn komt dan nooit), false als verbinden mislukte.
+        local called = false
+        local result = NetworkMgr:turnOnWifiAndWaitForConnection(function()
+            called = true
+            fn()
+        end)
+        return called or (result ~= nil and result ~= false)
     end)
     return ok and started
 end

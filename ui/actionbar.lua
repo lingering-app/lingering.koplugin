@@ -106,10 +106,10 @@ function Item:setState(state)
     self:redraw()
 end
 
-function Item:redraw()
+-- Alleen dit vak verversen; standaard met de snelle e-ink-modus (laat wat schaduw achter).
+function Item:redraw(mode)
     self:build()
-    -- Alleen dit vak verversen, met de snelle e-ink-modus.
-    UIManager:setDirty(self.show_parent, "fast", self.dimen)
+    UIManager:setDirty(self.show_parent, mode or "fast", self.dimen)
 end
 
 function Item:startTask()
@@ -165,7 +165,8 @@ function Item:stopTask()
     self.busy = false
     if self.frame ~= 0 then
         self.frame = 0
-        if not self.closed then self:redraw() end
+        -- Schone verversing, zodat duidelijk is dat het icoon stilstaat.
+        if not self.closed then self:redraw("ui") end
     end
 end
 

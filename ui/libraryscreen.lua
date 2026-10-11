@@ -203,6 +203,7 @@ local LibraryScreen = InputContainer:extend{
 }
 Widgets.guardPaint(LibraryScreen, "mijn boeken")
 Widgets.guardEvents(LibraryScreen, "mijn boeken")
+Widgets.followRotation(LibraryScreen)
 
 function LibraryScreen:init()
     local width, height = Screen:getWidth(), Screen:getHeight()

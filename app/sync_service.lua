@@ -67,20 +67,26 @@ function SyncService.syncNow(ui, done)
         done(false)
         return
     end
-    if not Network.isWifiOn() then
-        local finish = done
-        done = function(ok)
-            logger.info("Lingering: wifi weer uit na synchroniseren")
-            Network.disableWifi()
-            finish(ok)
+    local wifi_was_off = not Network.isWifiOn()
+    local reported = false
+    local function finish(ok)
+        if reported then return end
+        reported = true
+        -- Eerst melden (het icoon stopt), daarna pas wifi uit: dat blokkeert op een Kobo even.
+        done(ok)
+        if wifi_was_off then
+            UIManager:scheduleIn(0.5, function()
+                logger.info("Lingering: wifi weer uit na synchroniseren")
+                Network.disableWifi()
+            end)
         end
     end
     -- Ook vóór de verbinding er is: kosync's pull bij NetworkConnected mag niet tegelijk.
     Kosync.markActivity(kosync)
     local started = Network.turnOnWifiThen(function()
-        SyncService.reconcile(kosync, { jump = true }, done)
+        SyncService.reconcile(kosync, { jump = true }, finish)
     end)
-    if not started then done(false) end
+    if not started then finish(false) end
 end
 
 SyncService.policy = {}

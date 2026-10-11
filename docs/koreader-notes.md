@@ -291,6 +291,8 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/kosync.ensureBinary` | `kosync.settings.checksum_method = 0` (binary) | Digest op bestandsnaam |
 | `koreader/device.isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
 | `koreader/device.toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
+| `koreader/device.rotateWithinOrientation` | `Screen:setRotationMode` + `UIManager:onRotation` (zoals `Input:handleGyroEv` met vergrendelde g-sensor); `fm_rotation_mode` voor `FileManager:setRotationMode`. Aangeroepen vanuit `onSetRotationMode` van onze schermen (`Widgets.followRotation`): `SetRotationMode` gaat alleen naar het bovenste venster. Alleen binnen dezelfde stand | Scherm draait niet mee |
+| `koreader/device.setAutoRotate` / `isAutoRotateOn` | `input_ignore_gsensor` + `Device:toggleGSensor` (zoals `DeviceListener:onToggleGSensor`, zonder melding) | Schakelaar doet niets |
 | Actiebalk (`actionbar.lua`) | geen haak: eigen `InputContainer` met `Button`s, getoond met `UIManager:show` | — |
 | `koreader/navigation.showFullMenu` | `FileManagerMenu:onShowMenu()` | Noodluik opent niet; de gewone bestandsbeheerder blijft zichtbaar |
 | `koreader/global_settings.enforce` | `G_reader_settings`: `start_with` (`reader.lua`), `screensaver_type`, `screensaver_show_message`, `screensaver_hide_cover_in_filemanager`, `screensaver_hide_fallback_msg` (`frontend/ui/screensaver.lua`, `Screensaver:setup`). Eenmalige back-up `settings.reader.lua.lingering-backup` | Instellingen blijven zoals ze waren |

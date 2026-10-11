@@ -67,6 +67,18 @@ local function showActionBar(ui)
                     DeviceAdapter.toggleFrontlight()
                 end,
             },
+            {
+                name = "automatisch draaien",
+                switch = true,
+                icon_on = "rotate-on.svg",
+                icon_off = "rotate-off.svg",
+                enabled = DeviceAdapter.hasGSensor(),
+                state = DeviceAdapter.isAutoRotateOn(),
+                on_toggle = function(on)
+                    logger.info("Lingering: actiebalk, automatisch draaien", on and "aan" or "uit")
+                    DeviceAdapter.setAutoRotate(on)
+                end,
+            },
         },
     }:show()
 end
