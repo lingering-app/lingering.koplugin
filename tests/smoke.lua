@@ -63,6 +63,13 @@ function Smoke.filemanager(plugin)
         { name = "instellingen getekend", wait = 1, fn = function()
             shot("4-settings")
         end },
+        { name = "over lingering", fn = function()
+            require("lingering.ui.aboutscreen"):new{}:show()
+        end },
+        { name = "over lingering getekend", fn = function()
+            shot("4c-about")
+            UIManager:close(UIManager:getTopmostVisibleWidget())
+        end },
         { name = "inlogscherm (account)", fn = function()
             plugin:showSetup(false)
         end },

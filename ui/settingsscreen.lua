@@ -103,6 +103,15 @@ function SettingsScreen:init()
         callback = function() self:runUpdate() end,
     }
     table.insert(top_rows, update_row)
+    table.insert(top_rows, Widgets.Row:new{
+        width = width,
+        text = _("Over Lingering"),
+        icon = { icon = "info" },
+        right = { icon = "chevron.right" },
+        callback = function()
+            require("lingering.ui.aboutscreen"):new{}:show()
+        end,
+    })
 
     local advanced = Widgets.Row:new{
         width = width,
