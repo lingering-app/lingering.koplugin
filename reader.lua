@@ -52,7 +52,7 @@ local function showActionBar(ui)
                 state = Compat.isFrontlightOn(),
                 on_toggle = function(on)
                     logger.info("Lingering: actiebalk, licht", on and "aan" or "uit")
-                    Compat.toggleFrontlight(ui)
+                    Compat.toggleFrontlight()
                 end,
             },
         },

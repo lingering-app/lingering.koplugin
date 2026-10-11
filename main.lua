@@ -48,6 +48,7 @@ function Lingering:onReaderReady()
     -- (<datadir>/plugins) komt vóór plugins/kosync.koplugin, dus ui.kosync bestaat in
     -- init nog niet. KOSync plant zijn eerste ophaalpoging pas op de volgende tik.
     require("lingering_compat").guardKosyncNetworking(self.ui)
+    require("lingering_compat").ensureKosyncBinary(self.ui)
     require("lingering_reader").install(self.ui)
 end
 

@@ -364,13 +364,6 @@ function Compat.enforceGlobalSettings()
     end)
 end
 
---- Stuurt een event naar de lezer; geeft true terug als een module het afhandelde.
-local function sendEvent(name, ui, event_name)
-    local Event = require("ui/event")
-    local ok, handled = try(name, ui.handleEvent, ui, Event:new(event_name))
-    return ok and handled and true or false
-end
-
 local function kosyncLoggedIn(kosync)
     return kosync and kosync.settings and kosync.settings.username and kosync.settings.userkey
 end
@@ -472,6 +465,22 @@ function Compat.syncNow(ui, done)
 end
 
 --[[--
+Sync herkent een boek altijd aan de inhoud: checksum_method = BINARY (0), zoals
+KOSync:getDocumentDigest het leest. Zet het terug als het (bijv. via het volledige menu)
+op bestandsnaam (1) staat.
+]]
+function Compat.ensureKosyncBinary(ui)
+    return try("ensureKosyncBinary", function()
+        local kosync = assert(ui.kosync, "kosync niet geladen")
+        if kosync.settings and kosync.settings.checksum_method ~= 0 then
+            logger.info("Lingering: kosync checksum_method = binary")
+            kosync.settings.checksum_method = 0
+            kosync.updated = true
+        end
+    end)
+end
+
+--[[--
 Geen wifi: automatisch ophalen stil overslaan. KOSync roept bij openen (onReaderReady) en
 ontwaken (_onResume) getProgress(true, false) aan; met ensure_networking zou dat wifi
 aanzetten. Zonder verbinding slaan we dat over; de sync-knop in het boek haalt het op.
@@ -488,6 +497,24 @@ function Compat.guardKosyncNetworking(ui)
             end
             return getProgress(this, ensure_networking, interactive)
         end
+    end)
+end
+
+--[[--
+Licht aan/uit, rechtstreeks via BasePowerD:toggleFrontlight (frontend/device/generic/powerd.lua),
+zoals DeviceListener:onToggleFrontlight het doet, maar zonder melding en zonder omweg via een
+event, zodat het in de lezer en op het homescreen hetzelfde werkt. done() volgt als het licht
+klaar is (een ramp kan even duren).
+]]
+function Compat.toggleFrontlight(done)
+    return try("toggleFrontlight", function()
+        local Device = require("device")
+        local powerd = Device:getPowerDevice()
+        local changed = powerd:toggleFrontlight(done)
+        if powerd.updateResumeFrontlightState then
+            powerd:updateResumeFrontlightState()
+        end
+        if changed == false and done then done() end
     end)
 end
 
@@ -813,7 +840,8 @@ end
 --[[--
 Schrijft de kosync-instellingen in <settings>/kosync.lua (sleutel "settings"):
 custom_server, username, userkey = md5(wachtwoord), auto_sync aan,
-sync_forward = SILENT (2), sync_backward = PROMPT (1) (SYNC_STRATEGY in kosync main.lua).
+sync_forward = SILENT (2), sync_backward = PROMPT (1) (SYNC_STRATEGY in kosync main.lua),
+checksum_method = BINARY (0) (CHECKSUM_METHOD in kosync main.lua).
 Gebruikt het gedeelde KOSync.settings_obj als kosync dat deze sessie al opende.
 ]]
 function Compat.writeKosyncAccount(sync_url, username, password)
@@ -833,6 +861,8 @@ function Compat.writeKosyncAccount(sync_url, username, password)
         settings.auto_sync = true
         settings.sync_forward = 2
         settings.sync_backward = 1
+        -- Boek herkennen aan de inhoud (CHECKSUM_METHOD.BINARY = 0), niet aan de bestandsnaam.
+        settings.checksum_method = 0
         store:saveSetting("settings", settings)
         store:flush()
         logger.info("Lingering: kosync ingesteld voor gebruiker", username)

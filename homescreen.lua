@@ -113,7 +113,9 @@ function HomeScreen:buildStatus(width)
         state = Compat.isFrontlightOn(),
         on_toggle = function(on)
             logger.info("Lingering: homescreen, licht", on and "aan" or "uit")
-            Compat.toggleFrontlight(self.fm)
+            Compat.toggleFrontlight(function()
+                self.light_item:setState(Compat.isFrontlightOn())
+            end)
         end,
     }
     self.wifi_item = item{
