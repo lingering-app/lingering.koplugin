@@ -263,7 +263,9 @@ function LibraryScreen:message(text, width, height)
     }
 end
 
-function LibraryScreen:render()
+-- partial = true: alleen het raster verversen (omslagen binnen, sync klaar); anders het
+-- hele scherm (andere map).
+function LibraryScreen:render(partial)
     local width, height = self.dimen.w, self.dimen.h
     local current = self:current()
     self:setTitle(current.title)
@@ -368,7 +370,11 @@ function LibraryScreen:render()
         self.scroll:initState()
         self.scroll:setScrolledOffset(current.offset)
     end
-    UIManager:setDirty(self, "ui")
+    if partial then
+        UIManager:setDirty(self, "ui", Geom:new{ x = 0, y = self.header_h, w = width, h = body_h })
+    else
+        UIManager:setDirty(self, "ui")
+    end
     self:queueCovers()
 end
 
@@ -424,7 +430,7 @@ function LibraryScreen:syncCurrent(done)
     local started = Compat.turnOnWifiThen(function()
         self.library:sync(url, function(ok)
             if ok then self.synced[url] = true end
-            if not self.closed then self:render() end
+            if not self.closed then self:render(true) end
             done(ok)
         end)
     end)
@@ -473,12 +479,12 @@ function LibraryScreen:queueCovers()
             -- Per zes omslagen één verversing, zodat ze geleidelijk verschijnen.
             if fetched >= 6 then
                 fetched = 0
-                self:render()
+                self:render(true)
                 return -- render() start een nieuwe ronde voor de rest
             end
             UIManager:scheduleIn(0.05, step)
         elseif fetched > 0 then
-            self:render()
+            self:render(true)
         end
     end
     UIManager:scheduleIn(0.1, step)

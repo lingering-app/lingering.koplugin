@@ -691,13 +691,6 @@ function Compat.isOnline()
     return ok and online or false
 end
 
---- Voert fn uit zodra er netwerk is; zet wifi zo nodig aan (NetworkMgr:runWhenOnline).
-function Compat.runWhenOnline(fn)
-    return try("runWhenOnline", function()
-        require("ui/network/manager"):runWhenOnline(fn)
-    end)
-end
-
 --[[--
 Controle van de OPDS-catalogus voor het inlogscherm: één GET met inloggegevens.
 Bewust geen OPDSBrowser:fetchFeed, want die toont zelf een melding; hier willen we

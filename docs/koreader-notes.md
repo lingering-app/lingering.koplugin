@@ -6,6 +6,41 @@ elke haak hieronder hoort in `compat.lua` terug te komen.
 
 Paden zijn relatief aan de KOReader-bron.
 
+## Bestanden
+
+| Bestand | Inhoud |
+|---|---|
+| `_meta.lua` | naam en omschrijving voor het pluginbeheer (zonder `name`, zie boven) |
+| `main.lua` | laden (modules via `package.preload` als `lingering_<naam>`), schakelen tussen schermen, menu-item "Lingering UI uitschakelen" |
+| `compat.lua` | **alle** haken in KOReader-internals, elk via `try()` (pcall) |
+| `config.lua` | vaste adressen van OPDS en de syncserver |
+| `settings.lua` | eigen instellingen in `<settings>/lingering.lua` + sessiestatus (uitgeschakeld) |
+| `setup.lua` | inlogscherm (eerste start en Account) |
+| `homescreen.lua` | homescreen: statusregel, huidig boek, navigatiebalk |
+| `settingsscreen.lua` | Instellingen: wifi, Account, Geavanceerd (noodluik) |
+| `library.lua` | Mijn boeken, gegevens: OPDS ophalen, cache, omslagen, downloaden |
+| `libraryscreen.lua` | Mijn boeken, scherm: raster, mappen, schuiven |
+| `reader.lua` | leesscherm: tikzones, actiebalk |
+| `actionbar.lua` | actiebalk bovenaan het boek + `Item` (icoonknop/schakelaar/draaiende taak) |
+| `widgets.lua` | gedeelde bouwstenen (rij, navigatiebalk, batterij-icoon, vangnetten) |
+| `icons/` | eigen SVG-iconen (48×48, lijn 2) |
+| `tools/check.sh` | syntaxcontrole met de LuaJIT uit de Flatpak |
+
+Afwijkingen van de voorgestelde indeling:
+- `localbooks.lua` vervallen: "Mijn boeken" is de OPDS-catalogus (op verzoek); lokale
+  bestanden buiten de catalogus worden niet getoond.
+- `library.lua` gesplitst in gegevens (`library.lua`) en scherm (`libraryscreen.lua`).
+- Extra: `settingsscreen.lua`, `actionbar.lua`, `widgets.lua`, `icons/`, `tools/`.
+
+## Testen in de emulator
+
+- Schermformaten: `EMULATE_READER_W`, `EMULATE_READER_H`, `EMULATE_READER_DPI` als
+  `flatpak run --env=…`. Getest: 1072×1448 @ 300 dpi (Clara) en 758×1024 @ 212 dpi (Nia).
+- `EMULATE_BW_SCREEN=1` laat KOReader v2026.07.1 in de Flatpak meteen afsluiten (los van
+  Lingering); grijstinten daarom achteraf met ImageMagick bekeken.
+- In de emulator (SDL) zijn `hasWifiToggle` en `hasFrontlight` onwaar: wifi- en
+  lichtknoppen staan grijs. Wifi, licht, slaapstand en offline-gedrag alleen op de Kobo te testen.
+
 ## Pluginladen
 
 `frontend/pluginloader.lua`
@@ -235,7 +270,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `turnOnWifiThen` | `NetworkMgr:isOnline()`, anders `NetworkMgr:turnOnWifiAndWaitForConnection(cb)` (zonder te vragen) | Melding "Geen wifi-verbinding" |
 | `ensureAutoWifi` | `wifi_enable_action = "turn_on"` alleen als `Device:hasSeamlessWifiToggle()` (zie `KOSync:init`) | Auto-sync kan door kosync worden uitgezet |
 | `opdsCredentials`, `opdsClient`, `opdsFetchPage`, `opdsFiletype`, `opdsDownload` | `opds.lua`-servers; kaal object met metatable `OPDSBrowser` (`sync = true`); `genItemTableFromURL`, `OPDSBrowser.getFiletype`, `downloadFile` | Mijn boeken toont alleen de cache / downloaden mislukt |
-| `homeFolder`, `isOnline`, `runWhenOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()`, `NetworkMgr:runWhenOnline()` | Downloads in `./Lingering`; geen automatische sync |
+| `homeFolder`, `isOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()` | Downloads in `./Lingering`; geen automatische sync |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak in compat: standaard plugin-API |
 
 Bewuste keuzes in het leesscherm:
