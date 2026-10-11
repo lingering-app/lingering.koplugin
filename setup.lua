@@ -37,7 +37,7 @@ local LoginDialog = MultiInputDialog:extend{}
 
 function LoginDialog:init()
     MultiInputDialog.init(self)
-    Compat.plainDialog(self)
+    Compat.plainDialog(self, "login")
 end
 
 -- Witte achtergrond bij de eerste keer, zodat de bestandsbeheerder niet zichtbaar is.
@@ -215,6 +215,7 @@ function Setup.show(opts)
     end
     table.insert(row, {
         text = _("Inloggen"),
+        id = "login",
         is_enter_default = true,
         callback = function()
             Widgets.safeCall("inloggen", login)
