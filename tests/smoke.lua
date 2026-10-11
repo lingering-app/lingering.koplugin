@@ -40,7 +40,7 @@ function Smoke.filemanager(plugin)
         end },
         { name = "mijn boeken", fn = function()
             local LibraryScreen = require("lingering.ui.libraryscreen")
-            lib = LibraryScreen:new{ library = require("lingering.app.library"), on_open_book = function() end }
+            lib = LibraryScreen:new{ library = require("lingering.app.library_service"), on_open_book = function() end }
             lib:show()
         end },
         { name = "mijn boeken getekend", wait = 2, fn = function()

@@ -2,35 +2,52 @@
 
 Gelezen in KOReader **v2026.07.1** (tag bestaat; kloon in `~/Projects/koreader-src`,
 alleen om te lezen). Dit document is de kaart voor reparaties na een KOReader-update:
-elke haak hieronder hoort in `compat.lua` terug te komen.
+elke haak hieronder hoort in `koreader/` terug te komen.
 
 Paden zijn relatief aan de KOReader-bron.
 
-## Bestanden
+## Architectuur en bestanden
+
+Lagen (afhankelijkheden alleen naar beneden; `tools/check.sh` controleert de regels):
+
+| Laag | Inhoud | Mag gebruiken |
+|---|---|---|
+| `ui/` | schermen met KOReader-widgets | `app/`, `koreader/` (weergave-data), `domain/`, widgets |
+| `app/` | use cases en beleid | `domain/`, `koreader/`, algemene KOReader-bibliotheken (logger, UIManager, LuaSettings, DataStorage, util, lfs, sha2, time) — geen internals van plugins/widgets |
+| `koreader/` | **anti-corruption layer**: het enige dat KOReader-internals kent; geeft gewone data terug | alles van KOReader, `domain/` |
+| `domain/` | business rules, pure Lua | alleen `domain/` |
 
 | Bestand | Inhoud |
 |---|---|
-| `_meta.lua` | naam en omschrijving voor het pluginbeheer (zonder `name`, zie boven) |
-| `main.lua` | laden (modules via `package.preload` als `lingering_<naam>`), schakelen tussen schermen, menu-item "Lingering UI uitschakelen" |
-| `compat.lua` | **alle** haken in KOReader-internals, elk via `try()` (pcall) |
-| `config.lua` | vaste adressen van OPDS en de syncserver |
-| `settings.lua` | eigen instellingen in `<settings>/lingering.lua` + sessiestatus (uitgeschakeld) |
-| `setup.lua` | inlogscherm (eerste start en Account) |
-| `homescreen.lua` | homescreen: statusregel, huidig boek, navigatiebalk |
-| `settingsscreen.lua` | Instellingen: wifi, Account, Geavanceerd (noodluik) |
-| `library.lua` | Mijn boeken, gegevens: OPDS ophalen, cache, omslagen, downloaden |
-| `libraryscreen.lua` | Mijn boeken, scherm: raster, mappen, schuiven |
-| `reader.lua` | leesscherm: tikzones, actiebalk |
-| `actionbar.lua` | actiebalk bovenaan het boek + `Item` (icoonknop/schakelaar/draaiende taak) |
-| `widgets.lua` | gedeelde bouwstenen (rij, navigatiebalk, batterij-icoon, vangnetten) |
-| `icons/` | eigen SVG-iconen (48×48, lijn 2) |
-| `tools/check.sh` | syntaxcontrole met de LuaJIT uit de Flatpak |
+| `_meta.lua`, `main.lua` | plugin (moeten bovenin); `main.lua`: module-lader voor `lingering.<map>.<naam>`, bedraden, menu-item |
+| `config.lua` | vaste adressen |
+| `domain/sync_rules.lua` | "verder wint, nooit blind wegschrijven" |
+| `domain/catalog.lua` | OPDS-item → map/boek, beste download-link (EPUB eerst), bestandsnaam |
+| `domain/reading_time.lua` | gelezen/resterende tijd uit statistieken |
+| `domain/layout.lua` | tikzone-geometrie, rasterrijen vanaf y = 0 |
+| `app/sync_service.lua` | reconcile, sync-knop, beleid voor automatische momenten |
+| `app/account_service.lua` | inloggen: controleren en opslaan |
+| `app/library_service.lua` | Mijn boeken: cache, synchroniseren, downloaden, omslagen |
+| `app/session.lua` | eigen instellingen (`lingering.lua`), sessiestatus |
+| `koreader/try.lua` | pcall-hulp voor elke haak |
+| `koreader/reader.lua` | tikzones + overrides, menu blokkeren, bladeren, inhoudsopgave |
+| `koreader/navigation.lua` | boek openen/sluiten, volledig menu |
+| `koreader/kosync.lua` | sessie (ophalen/wegschrijven/springen), haken → beleid, binary, account |
+| `koreader/opds.lua` | inloggegevens, client, ophalen, downloaden, omslag, account |
+| `koreader/network.lua` | wifi, online, netwerkscherm |
+| `koreader/device.lua` | licht, helderheid, batterij |
+| `koreader/books.lua` | huidig boek, omslag, statistieken (ruw), thuismap |
+| `koreader/global_settings.lua` | afgedwongen KOReader-instellingen, back-ups |
+| `koreader/dialogs.lua` | kaal invoervenster |
+| `ui/*.lua` | homescreen, Mijn boeken, Instellingen, inlogscherm, leesscherm, actiebalk, gedeelde widgets |
+| `icons/` | eigen SVG-iconen |
+| `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
+| `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |
+| `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
+| `tools/smoke.sh` | rooktest in de emulator (`LINGERING_TEST=fm|reader`), met schermafdrukken |
 
-Afwijkingen van de voorgestelde indeling:
-- `localbooks.lua` vervallen: "Mijn boeken" is de OPDS-catalogus (op verzoek); lokale
-  bestanden buiten de catalogus worden niet getoond.
-- `library.lua` gesplitst in gegevens (`library.lua`) en scherm (`libraryscreen.lua`).
-- Extra: `settingsscreen.lua`, `actionbar.lua`, `widgets.lua`, `icons/`, `tools/`.
+Na een KOReader-update: `tools/check.sh`, `tools/test.sh`, `tools/smoke.sh`; bij fouten eerst
+`koreader/` (en de tabel "Haken" hieronder), daarna `ui/`.
 
 ## Testen in de emulator
 
@@ -240,42 +257,42 @@ markeringen gaan standaard dus vóór bladeren.
 
 ## Haken die Lingering gebruikt
 
-(Wordt per fase aangevuld; elke haak staat in `compat.lua` in een `pcall`.)
+(Elke haak staat in `koreader/` en loopt via `koreader/try.lua`.)
 
-| Haak (`compat.lua`) | Waar in KOReader | Terugval als het faalt |
+| Haak (`koreader/<bestand>.<functie>`) | Waar in KOReader | Terugval als het faalt |
 |---|---|---|
-| `buildReaderZones` + `registerReaderZones` | `InputContainer:registerTouchZones` met `overrides`; zone-id's uit de tabel hierboven; maten uit `G_defaults` (`DTAP_ZONE_MENU`, `_MENU_EXT`, `_CONFIG`) | Zones weer verwijderd; standaard tikzones van KOReader; menu **niet** geblokkeerd |
-| `verifyZoneOrder` | leest `InputContainer._ordered_touch_zones` (intern) | Alleen een waarschuwing in de log |
-| `blockReaderMenu` | vervangt `onShowMenu`, `onTapShowMenu`, `onSwipeShowMenu` op de `ReaderMenu`-instantie (`ui.menu`) | Bovenmenu blijft bereikbaar via andere routes dan onze zones |
-| `closeBook` | `ReaderUI:onHome()`, anders `ReaderUI:onClose()` + `showFileManager()` | Tik in het midden doet niets |
-| `turnPage` | event `GotoViewRel` (afgehandeld door `ReaderRolling`/`ReaderPaging:onGotoViewRel`) | Tik links/rechts doet niets |
-| `reconcile` | "verder wint, nooit blind wegschrijven": momentopname (digest/progress/percent/metadata) → `KOSyncClient:get_progress` → server verder: `kosync:syncToProgress` (als springen mag), apparaat verder of geen stand: `update_progress`, ophalen mislukt: niets | Niet gesynchroniseerd (veilig) |
-| `syncNow` (sync-knop) | wifi aan (`turnOnWifiThen`), `reconcile` met springen, wifi weer uit als hij uit stond | Melding "Synchroniseren mislukt" |
-| `installKosyncRules` | op de kosync-instantie: `getProgress` (openen/ontwaken/nieuwe verbinding) → offline overslaan, anders `reconcile` (1× opnieuw na 3 s); `updateProgress` (slaapstand/tussentijds) → alleen met verbinding `reconcile` zonder springen, nooit wifi aan; `_onCloseDocument` → online `reconcile`, offline niets; `drainQueue` → niets. Interactief (kosync-menu) blijft origineel | Kosync-standaard: "nieuwer wint", blind wegschrijven |
-| `ensureKosyncBinary` | `kosync.settings.checksum_method = 0` (binary) | Digest op bestandsnaam |
-| `isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
-| `toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
+| `koreader/reader.buildZones` + `koreader/reader.registerZones` | `InputContainer:registerTouchZones` met `overrides`; zone-id's uit de tabel hierboven; maten uit `G_defaults` (`DTAP_ZONE_MENU`, `_MENU_EXT`, `_CONFIG`) | Zones weer verwijderd; standaard tikzones van KOReader; menu **niet** geblokkeerd |
+| `koreader/reader.verifyZoneOrder` | leest `InputContainer._ordered_touch_zones` (intern) | Alleen een waarschuwing in de log |
+| `koreader/reader.blockMenu` | vervangt `onShowMenu`, `onTapShowMenu`, `onSwipeShowMenu` op de `ReaderMenu`-instantie (`ui.menu`) | Bovenmenu blijft bereikbaar via andere routes dan onze zones |
+| `koreader/navigation.closeBook` | `ReaderUI:onHome()`, anders `ReaderUI:onClose()` + `showFileManager()` | Tik in het midden doet niets |
+| `koreader/reader.turnPage` | event `GotoViewRel` (afgehandeld door `ReaderRolling`/`ReaderPaging:onGotoViewRel`) | Tik links/rechts doet niets |
+| `app/sync_service.reconcile` | "verder wint, nooit blind wegschrijven": momentopname (digest/progress/percent/metadata) → `KOSyncClient:get_progress` → server verder: `kosync:syncToProgress` (als springen mag), apparaat verder of geen stand: `update_progress`, ophalen mislukt: niets | Niet gesynchroniseerd (veilig) |
+| `app/sync_service.syncNow` (sync-knop) | wifi aan (`turnOnWifiThen`), `reconcile` met springen, wifi weer uit als hij uit stond | Melding "Synchroniseren mislukt" |
+| `koreader/kosync.installRules` | op de kosync-instantie: `getProgress` (openen/ontwaken/nieuwe verbinding) → offline overslaan, anders `reconcile` (1× opnieuw na 3 s); `updateProgress` (slaapstand/tussentijds) → alleen met verbinding `reconcile` zonder springen, nooit wifi aan; `_onCloseDocument` → online `reconcile`, offline niets; `drainQueue` → niets. Interactief (kosync-menu) blijft origineel | Kosync-standaard: "nieuwer wint", blind wegschrijven |
+| `koreader/kosync.ensureBinary` | `kosync.settings.checksum_method = 0` (binary) | Digest op bestandsnaam |
+| `koreader/device.isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
+| `koreader/device.toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
 | Actiebalk (`actionbar.lua`) | geen haak: eigen `InputContainer` met `Button`s, getoond met `UIManager:show` | — |
-| `showFileManagerMenu` | `FileManagerMenu:onShowMenu()` | Noodluik opent niet; de gewone bestandsbeheerder blijft zichtbaar |
-| `enforceGlobalSettings` | `G_reader_settings`: `start_with` (`reader.lua`), `screensaver_type`, `screensaver_show_message`, `screensaver_hide_cover_in_filemanager`, `screensaver_hide_fallback_msg` (`frontend/ui/screensaver.lua`, `Screensaver:setup`). Eenmalige back-up `settings.reader.lua.lingering-backup` | Instellingen blijven zoals ze waren |
-| `currentBook` | `ReadHistory.hist` (eerste bestaande, geen `<datadir>/help/quickstart-*.html`), `BookList.getDocSettings(file):readSetting("percent_finished")`, `fm.bookinfo:getDocProps(file, nil, true)`, `fm.bookinfo:getCoverImage(nil, file)` | Homescreen zonder boek ("Nog geen boek"), of zonder omslag |
-| `bookStats` | statistics-plugin: alleen als `fm.statistics.settings.is_enabled`; database `<settings>/statistics.sqlite3` (`lua-ljsqlite3/init`), tabel `book` op `md5 = partial_md5_checksum`, gecapte totalen zoals `STATISTICS_SQL_BOOK_CAPPED_TOTALS_QUERY` met `settings.max_sec`; resterend = (pages − percent×pages) × gemiddelde (zoals `getCurrentStat`) | Regel met "x% gelezen" in plaats van tijden |
-| `openBook` | `ReaderUI:showReader(file)` | Tik op het boek doet niets |
-| `batteryPercent`, `isWifiOn`, `isWifiConnected`, `setWifi` | `Device:getPowerDevice():getCapacity()`, `NetworkMgr:isWifiOn()` (radio, voor de schakelaar), `NetworkMgr:isConnected()` (verbinding, voor het icoon; op Kobo `ifHasAnAddress`), `NetworkMgr:toggleWifiOn/Off` | Statusregel zonder batterij/wifi; wifi-schakelaar doet niets |
+| `koreader/navigation.showFullMenu` | `FileManagerMenu:onShowMenu()` | Noodluik opent niet; de gewone bestandsbeheerder blijft zichtbaar |
+| `koreader/global_settings.enforce` | `G_reader_settings`: `start_with` (`reader.lua`), `screensaver_type`, `screensaver_show_message`, `screensaver_hide_cover_in_filemanager`, `screensaver_hide_fallback_msg` (`frontend/ui/screensaver.lua`, `Screensaver:setup`). Eenmalige back-up `settings.reader.lua.lingering-backup` | Instellingen blijven zoals ze waren |
+| `koreader/books.currentBook` | `ReadHistory.hist` (eerste bestaande, geen `<datadir>/help/quickstart-*.html`), `BookList.getDocSettings(file):readSetting("percent_finished")`, `fm.bookinfo:getDocProps(file, nil, true)`, `fm.bookinfo:getCoverImage(nil, file)` | Homescreen zonder boek ("Nog geen boek"), of zonder omslag |
+| `koreader/books.stats` | statistics-plugin: alleen als `fm.statistics.settings.is_enabled`; database `<settings>/statistics.sqlite3` (`lua-ljsqlite3/init`), tabel `book` op `md5 = partial_md5_checksum`, gecapte totalen zoals `STATISTICS_SQL_BOOK_CAPPED_TOTALS_QUERY` met `settings.max_sec`; resterend = (pages − percent×pages) × gemiddelde (zoals `getCurrentStat`) | Regel met "x% gelezen" in plaats van tijden |
+| `koreader/navigation.openBook` | `ReaderUI:showReader(file)` | Tik op het boek doet niets |
+| `koreader/device.batteryPercent`, `koreader/network.isWifiOn`, `koreader/network.isConnected`, `koreader/network.setWifi` | `Device:getPowerDevice():getCapacity()`, `NetworkMgr:isWifiOn()` (radio, voor de schakelaar), `NetworkMgr:isConnected()` (verbinding, voor het icoon; op Kobo `ifHasAnAddress`), `NetworkMgr:toggleWifiOn/Off` | Statusregel zonder batterij/wifi; wifi-schakelaar doet niets |
 | Statusregel homescreen | lamp: `toggleFrontlight(fm)` (FileManager heeft ook een `DeviceListener`); wifi: `setWifi` + `isWifiOn`/`isWifiConnected`; iconen via `ActionBar.Item` (switch met `icon_spec`) | Iconen grijs/zonder effect |
 | Homescreen tonen | eigen widget via `UIManager:show` vanuit `init` in FileManager-context (`nextTick`); sluit zichzelf bij event `ShowingReader` | Gewone bestandsbeheerder blijft zichtbaar |
-| `checkOpds` | eigen GET met `socket.http` + `socketutil` (zoals `OPDSBrowser:fetchFeed`, maar zonder eigen melding) | Inloggen meldt "mislukt bij de bibliotheek" |
-| `checkKosync` | `KOSyncClient:new{custom_url, service_spec}` + `client:authorize(user, md5(pass))`; `api.json` naast `KOSyncClient.lua` (`package.searchpath`) | Inloggen meldt "mislukt bij de syncserver" |
-| `writeOpdsAccount` | `<settings>/opds.lua` → `servers` (bijwerken op gelijk adres, anders toevoegen); geladen `fm.opds.servers` krijgt dezelfde wijziging | Melding "kon niet worden opgeslagen" |
-| `writeKosyncAccount` | `<settings>/kosync.lua` → `settings`; gedeeld `KOSync.settings_obj` via `PluginLoader.enabled_plugins` als kosync al geladen was | idem |
-| `plainDialog` | na `MultiInputDialog:init`: `dialog_frame.bordersize = 0`, `title_bar` uit de eerste `VerticalGroup` (subklasse `LoginDialog` in `setup.lua`, zodat het ook na een herbouw geldt) | Gewoon KOReader-venster met rand en titel |
-| `turnOnWifiThen` | `NetworkMgr:isOnline()`, anders `NetworkMgr:turnOnWifiAndWaitForConnection(cb)` (zonder te vragen) | Melding "Geen wifi-verbinding" |
-| `showLightDialog` | `Device:showLightDialog()` (KOReaders `FrontLightWidget`); helderheid onthoudt KOReader zelf (`frontlight_intensity`); iconen volgen het event `FrontlightStateChanged` (`BasePowerD:stateChanged`) | Rij "Licht" doet niets |
-| `showNetworkList` | KOReaders netwerkscherm (`ui/widget/networksetting`) zoals lang drukken op "Wi-Fi connection" (`NetworkMgr:getWifiToggleMenuTable`): wifi uit → `toggleWifiOn(cb, true, true)`; wifi aan → `wifi_toggle_long_press = true` + `reconnectOrShowNetworkMenu(cb, true)` | Rij "Wifi" doet niets |
-| `ensureAutoWifi` | `wifi_enable_action = "turn_on"` alleen als `Device:hasSeamlessWifiToggle()` (zie `KOSync:init`) | Auto-sync kan door kosync worden uitgezet |
-| `opdsCredentials`, `opdsClient`, `opdsFetchPage`, `opdsFiletype`, `opdsDownload` | `opds.lua`-servers; kaal object met metatable `OPDSBrowser` (`sync = true`); `genItemTableFromURL`, `OPDSBrowser.getFiletype`, `downloadFile` | Mijn boeken toont alleen de cache / downloaden mislukt |
-| `homeFolder`, `isOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()` | Downloads in `./Lingering`; geen automatische sync |
-| Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak in compat: standaard plugin-API |
+| `koreader/opds.check` | eigen GET met `socket.http` + `socketutil` (zoals `OPDSBrowser:fetchFeed`, maar zonder eigen melding) | Inloggen meldt "mislukt bij de bibliotheek" |
+| `koreader/kosync.check` | `KOSyncClient:new{custom_url, service_spec}` + `client:authorize(user, md5(pass))`; `api.json` naast `KOSyncClient.lua` (`package.searchpath`) | Inloggen meldt "mislukt bij de syncserver" |
+| `koreader/opds.writeAccount` | `<settings>/opds.lua` → `servers` (bijwerken op gelijk adres, anders toevoegen); geladen `fm.opds.servers` krijgt dezelfde wijziging | Melding "kon niet worden opgeslagen" |
+| `koreader/kosync.writeAccount` | `<settings>/kosync.lua` → `settings`; gedeeld `KOSync.settings_obj` via `PluginLoader.enabled_plugins` als kosync al geladen was | idem |
+| `koreader/dialogs.plainDialog` | na `MultiInputDialog:init`: `dialog_frame.bordersize = 0`, `title_bar` uit de eerste `VerticalGroup` (subklasse `LoginDialog` in `setup.lua`, zodat het ook na een herbouw geldt) | Gewoon KOReader-venster met rand en titel |
+| `koreader/network.turnOnWifiThen` | `NetworkMgr:isOnline()`, anders `NetworkMgr:turnOnWifiAndWaitForConnection(cb)` (zonder te vragen) | Melding "Geen wifi-verbinding" |
+| `koreader/device.showLightDialog` | `Device:showLightDialog()` (KOReaders `FrontLightWidget`); helderheid onthoudt KOReader zelf (`frontlight_intensity`); iconen volgen het event `FrontlightStateChanged` (`BasePowerD:stateChanged`) | Rij "Licht" doet niets |
+| `koreader/network.showNetworkList` | KOReaders netwerkscherm (`ui/widget/networksetting`) zoals lang drukken op "Wi-Fi connection" (`NetworkMgr:getWifiToggleMenuTable`): wifi uit → `toggleWifiOn(cb, true, true)`; wifi aan → `wifi_toggle_long_press = true` + `reconnectOrShowNetworkMenu(cb, true)` | Rij "Wifi" doet niets |
+| `koreader/global_settings.ensureAutoWifi` | `wifi_enable_action = "turn_on"` alleen als `Device:hasSeamlessWifiToggle()` (zie `KOSync:init`) | Auto-sync kan door kosync worden uitgezet |
+| `koreader/opds.credentials`, `koreader/opds.client`, `koreader/opds.fetchPage`, `koreader/opds.filetype`, `koreader/opds.download` | `opds.lua`-servers; kaal object met metatable `OPDSBrowser` (`sync = true`); `genItemTableFromURL`, `OPDSBrowser.getFiletype`, `downloadFile` | Mijn boeken toont alleen de cache / downloaden mislukt |
+| `koreader/books.homeFolder`, `koreader/network.isOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()` | Downloads in `./Lingering`; geen automatische sync |
+| Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak: standaard plugin-API |
 
 Bewuste keuzes in het leesscherm:
 - Onze tikzones gaan ook vóór `tap_link` en `readerhighlight_tap`: een tik doet altijd wat

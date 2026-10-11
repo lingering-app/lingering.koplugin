@@ -102,7 +102,7 @@ end
 function Lingering:showLibrary()
     local LibraryScreen = require("lingering.ui.libraryscreen")
     LibraryScreen:new{
-        library = require("lingering.app.library"),
+        library = require("lingering.app.library_service"),
         on_open_book = function(path)
             require("lingering.koreader.navigation").openBook(path)
         end,
