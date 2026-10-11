@@ -286,6 +286,11 @@ verdwijnen dialogen van KOReader eronder.
   decoderen met `RenderImage:renderImageFile` in een `pcall` (kapotte afbeelding wordt
   verwijderd in plaats van het scherm te breken).
 - `Item.on_tap` (actionbar.lua) loopt nu ook via `safeCall`.
+- Taak-iconen (sync): eerste frame tekenen met `UIManager:forceRePaint()`, de taak pas in
+  `UIManager:nextTick` starten, en minstens 1,2 s laten draaien. Netwerkverzoeken via
+  `socket.http` blokkeren de enige thread; tijdens één verzoek staat het icoon stil.
+- Raster: boeken in 4 kolommen zonder titel (titel en auteur alleen in het vak van een boek
+  zonder omslag), collecties in 2 kolommen met naam.
 
 ## Tekenen en vangnetten
 
