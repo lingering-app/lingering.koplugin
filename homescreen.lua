@@ -76,7 +76,8 @@ function HomeScreen:buildStatus(width)
     local gap = Size.padding.large * 2
     local right = HorizontalGroup:new{ align = "center" }
     table.insert(right, TextWidget:new{ text = time, face = face })
-    if Compat.isWifiOn() then
+    -- Icoon alleen bij echte verbinding, niet als alleen de radio aan staat.
+    if Compat.isWifiConnected() then
         table.insert(right, HorizontalSpan:new{ width = gap })
         table.insert(right, Widgets.icon({ icon = "wifi" }, Screen:scaleBySize(18)))
     end

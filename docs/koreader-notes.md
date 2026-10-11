@@ -222,7 +222,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `enforceGlobalSettings` | `G_reader_settings`: `start_with` (`reader.lua`), `screensaver_type`, `screensaver_show_message`, `screensaver_hide_cover_in_filemanager`, `screensaver_hide_fallback_msg` (`frontend/ui/screensaver.lua`, `Screensaver:setup`). Eenmalige back-up `settings.reader.lua.lingering-backup` | Instellingen blijven zoals ze waren |
 | `currentBook` | `ReadHistory.hist` (eerste bestaande, geen `<datadir>/help/quickstart-*.html`), `BookList.getDocSettings(file):readSetting("percent_finished")`, `fm.bookinfo:getDocProps(file, nil, true)`, `fm.bookinfo:getCoverImage(nil, file)` | Homescreen zonder boek ("Nog geen boek"), of zonder omslag |
 | `openBook` | `ReaderUI:showReader(file)` | Tik op het boek doet niets |
-| `batteryPercent`, `isWifiOn`, `setWifi` | `Device:getPowerDevice():getCapacity()`, `NetworkMgr:isWifiOn()`, `NetworkMgr:toggleWifiOn/Off` | Statusregel zonder batterij/wifi; wifi-schakelaar doet niets |
+| `batteryPercent`, `isWifiOn`, `isWifiConnected`, `setWifi` | `Device:getPowerDevice():getCapacity()`, `NetworkMgr:isWifiOn()` (radio, voor de schakelaar), `NetworkMgr:isConnected()` (verbinding, voor het icoon; op Kobo `ifHasAnAddress`), `NetworkMgr:toggleWifiOn/Off` | Statusregel zonder batterij/wifi; wifi-schakelaar doet niets |
 | Homescreen tonen | eigen widget via `UIManager:show` vanuit `init` in FileManager-context (`nextTick`); sluit zichzelf bij event `ShowingReader` | Gewone bestandsbeheerder blijft zichtbaar |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak in compat: standaard plugin-API |
 
@@ -246,6 +246,13 @@ Slaapscherm (`Screensaver:setup`): bij `screensaver_type = "cover"` wordt de oms
 KOReader `random_image`, met `resources/koreader.png` als laatste terugval. In de
 bestandsbeheerder (dus op het homescreen) sluit `screensaver_hide_cover_in_filemanager` de
 omslag uit; Lingering zet die op false.
+
+Netwerk-events (`NetworkConnected`, `NetworkDisconnected`, `NetworkConnecting`,
+`NetworkDisconnecting`) en `Suspend`/`Resume` gaan via `UIManager:broadcastEvent` naar
+**alle** vensters, ook als een ander scherm erbovenop ligt
+(`frontend/ui/network/manager.lua`, `frontend/device/generic/device.lua`).
+Op de desktop (SDL) geven `isWifiOn`/`isConnected` altijd `true` en is
+`hasWifiToggle` onwaar.
 
 ## Tekenen en vangnetten
 

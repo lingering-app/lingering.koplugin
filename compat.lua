@@ -488,12 +488,20 @@ function Compat.batteryPercent()
     return ok and capacity or nil
 end
 
---- Wifi aan? (NetworkMgr:isWifiOn)
+--- Wifi-radio aan? (NetworkMgr:isWifiOn)
 function Compat.isWifiOn()
     local ok, on = try("isWifiOn", function()
         return require("ui/network/manager"):isWifiOn()
     end)
     return ok and on or false
+end
+
+--- Verbonden met een netwerk? (NetworkMgr:isConnected; op Kobo ifHasAnAddress)
+function Compat.isWifiConnected()
+    local ok, connected = try("isConnected", function()
+        return require("ui/network/manager"):isConnected()
+    end)
+    return ok and connected or false
 end
 
 --- Wifi aan/uit (NetworkMgr:toggleWifiOn/toggleWifiOff). Alleen als het apparaat het kan.
