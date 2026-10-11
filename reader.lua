@@ -26,6 +26,14 @@ local function showActionBar(ui)
                 end,
             },
             {
+                name = "inhoudsopgave",
+                icon = "appbar.navigation",
+                callback = function()
+                    logger.info("Lingering: actiebalk, inhoudsopgave")
+                    Compat.showToc(ui)
+                end,
+            },
+            {
                 name = "synchroniseren",
                 task = true,
                 icon_file = "sync.svg",

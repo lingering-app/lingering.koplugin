@@ -500,6 +500,12 @@ function Compat.guardKosyncNetworking(ui)
     end)
 end
 
+--- Inhoudsopgave van het boek (event ShowToc, ReaderToc:onShowToc; Dispatcher-actie "toc").
+function Compat.showToc(ui)
+    local Event = require("ui/event")
+    return try("ShowToc", ui.handleEvent, ui, Event:new("ShowToc"))
+end
+
 --[[--
 Licht aan/uit, rechtstreeks via BasePowerD:toggleFrontlight (frontend/device/generic/powerd.lua),
 zoals DeviceListener:onToggleFrontlight het doet, maar zonder melding en zonder omweg via een
