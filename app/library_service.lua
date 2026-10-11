@@ -15,7 +15,6 @@ local md5 = require("ffi/sha2").md5
 local util = require("util")
 
 local Books = require("lingering.koreader.books")
-local Kosync = require("lingering.koreader.kosync")
 local Opds = require("lingering.koreader.opds")
 local Config = require("lingering.config")
 local Catalog = require("lingering.domain.catalog")
@@ -116,101 +115,72 @@ function Library:sync(feed_url, done)
 end
 
 --[[--
-Plank "aan het lezen" (config.reading_shelf) voor het homescreen.
-readingBooks(exclude_file): boeken op die plank uit de cache, zonder het boek op exclude_file.
-refreshReadingShelf(done): met verbinding hoofdpagina (zo nodig) en plank verversen, hooguit
-  eens per READING_REFRESH_SECONDS; done(changed).
+Mappen voor het homescreen (config.collections), op naam in de hoofdpagina van de catalogus.
+collectionUrl(title)            → adres van de map, of nil
+collectionBooks(title)          → boeken in die map (uit de cache)
+refreshCollections(titles, done)→ met verbinding: hoofdpagina (zo nodig) en mappen verversen
+                                  (hooguit eens per COLLECTION_REFRESH_SECONDS) plus de eerste
+                                  omslagen; done(changed)
 ]]
-local READING_REFRESH_SECONDS = 600
+local COLLECTION_REFRESH_SECONDS = 600
+local COVERS_PER_COLLECTION = 3
 
-function Library:readingShelfUrl()
+function Library:collectionUrl(title)
     local root = self:cached(self:rootUrl())
-    local folder = Catalog.findFolder(root and root.items, Config.reading_shelf)
+    local folder = Catalog.findFolder(root and root.items, title)
     return folder and folder.url
 end
 
-function Library:readingBooks(exclude_file)
-    local url = self:readingShelfUrl()
+function Library:collectionBooks(title)
+    local url = self:collectionUrl(title)
     local feed = url and self:cached(url)
     local books = {}
     for _, entry in ipairs(feed and feed.items or {}) do
-        if entry.kind == "book" and (self:bookPath(entry)) ~= exclude_file then
-            table.insert(books, entry)
-        end
+        if entry.kind == "book" then table.insert(books, entry) end
     end
     return books
 end
 
-function Library:refreshReadingShelf(done)
-    local function syncShelf()
-        local url = self:readingShelfUrl()
-        if not url then
-            done(false)
-            return
-        end
-        local feed = self:cached(url)
-        if feed and feed.fetched and os.time() - feed.fetched < READING_REFRESH_SECONDS then
-            done(false)
-            return
-        end
-        self:sync(url, done)
-    end
-    if self:readingShelfUrl() then
-        syncShelf()
-    else
-        -- Plank nog onbekend: eerst de hoofdpagina van de catalogus.
-        self:sync(self:rootUrl(), function(ok)
-            if ok then syncShelf() else done(false) end
-        end)
-    end
-end
-
---[[--
-Voortgang op de server van boeken die op het apparaat staan maar hier nog nooit geopend zijn
-(dan heeft KOReader zelf nog geen voortgang). Onthouden per bestand in de cache, zodat het
-balkje ook zonder wifi blijft.
-]]
-function Library:serverPercent(entry)
-    self:open()
-    local progress = self.store:readSetting("server_progress") or {}
-    local item = progress[(self:bookPath(entry))]
-    return item and item.percent
-end
-
---- Met verbinding: serverstand ophalen voor gedownloade, hier nooit geopende boeken. done(changed).
-function Library:refreshServerProgress(books, done)
-    local pending, changed = 0, false
-    local progress = (function()
-        self:open()
-        return self.store:readSetting("server_progress") or {}
-    end)()
-    local function finish()
-        if pending > 0 then return end
-        if changed then
-            self.store:saveSetting("server_progress", progress)
-            self.store:flush()
-        end
-        done(changed)
-    end
-    for _, entry in ipairs(books or {}) do
-        local path = self:bookPath(entry)
-        if self:isDownloaded(entry) and Books.percent(path) == nil then
-            local digest = Books.partialDigest(path)
-            if digest then
-                pending = pending + 1
-                Kosync.fetchStored(digest, function(ok, record)
-                    pending = pending - 1
-                    if ok and record and record.percent then
-                        local old = progress[path]
-                        if not old or old.percent ~= record.percent then changed = true end
-                        progress[path] = { percent = record.percent, fetched = os.time() }
-                    end
-                    finish()
-                end)
+function Library:refreshCollections(titles, done)
+    local changed = false
+    local index = 0
+    local function covers(title)
+        local count = 0
+        for _, entry in ipairs(self:collectionBooks(title)) do
+            if entry.thumbnail then
+                if not self:hasCover(entry.thumbnail) and self:fetchCover(entry.thumbnail) then
+                    changed = true
+                end
+                count = count + 1
+                if count == COVERS_PER_COLLECTION then break end
             end
         end
     end
-    finish()
+    local function step()
+        index = index + 1
+        local title = titles[index]
+        if not title then return done(changed) end
+        local url = self:collectionUrl(title)
+        local feed = url and self:cached(url)
+        if not url or (feed and feed.fetched and os.time() - feed.fetched < COLLECTION_REFRESH_SECONDS) then
+            covers(title)
+            return UIManager:scheduleIn(0.05, step)
+        end
+        self:sync(url, function(ok)
+            if ok then changed = true end
+            covers(title)
+            UIManager:scheduleIn(0.05, step)
+        end)
+    end
+    local root = self:cached(self:rootUrl())
+    if root and root.fetched and os.time() - root.fetched < COLLECTION_REFRESH_SECONDS then
+        step()
+    else
+        self:sync(self:rootUrl(), function(ok)
+            if ok then changed = true end
+            step()
+        end)
+    end
 end
 
 --- Pad waar dit boek staat of komt te staan.

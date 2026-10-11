@@ -41,22 +41,23 @@ function Smoke.filemanager(plugin)
             assert(plugin.home, "geen homescreen")
             shot("1-home")
         end },
-        { name = "aan het lezen (nep-plank)", fn = function()
-            -- Alleen in deze test: de plank vullen met kopieën van het eerste boek.
-            local Library = require("lingering.app.library_service")
-            local book = Smoke.firstBook(Library)
-            assert(book, "geen boek in de catalogus")
-            local real = Library.readingBooks
-            Library.readingBooks = function() return { book, book, book, book } end
-            plugin.home:build()
-            Library.readingBooks = real
-            UIManager:setDirty(plugin.home, "ui")
+        { name = "mappen op het homescreen", fn = function()
+            assert(plugin.home.shelf_dimen and plugin.home.shelf_dimen.h > 0, "geen mapblokken getoond")
+            shot("1b-home-collections")
         end },
-        { name = "aan het lezen getekend", fn = function()
-            assert(plugin.home.shelf_dimen and plugin.home.shelf_dimen.h > 0, "rij niet getoond")
-            shot("1b-home-shelf")
-            plugin.home:build()
-            UIManager:setDirty(plugin.home, "ui")
+        { name = "blok openen", fn = function()
+            local Library = require("lingering.app.library_service")
+            local title = require("lingering.config").collections[1]
+            local url = assert(Library:collectionUrl(title), "map niet gevonden: " .. tostring(title))
+            plugin.home.on_open_collection(url, title)
+        end },
+        { name = "map geopend vanaf homescreen", fn = function()
+            local top = UIManager:getTopmostVisibleWidget()
+            assert(top and top.stack and top.stack[1] and top.stack[1].url ==
+                require("lingering.app.library_service"):collectionUrl(require("lingering.config").collections[1]),
+                "Mijn boeken niet in de map geopend")
+            shot("1c-collection-opened")
+            top:close()
         end },
         { name = "mijn boeken", fn = function()
             local LibraryScreen = require("lingering.ui.libraryscreen")
@@ -166,24 +167,6 @@ function Smoke.filemanager(plugin)
             assert(ok and bb, "omslag niet opgehaald of onleesbaar")
             logger.info("Lingering: SMOKE omslag", bb:getWidth(), "x", bb:getHeight())
             bb:free()
-        end },
-        { name = "serverstand zonder openen", fn = function()
-            local Library = require("lingering.app.library_service")
-            local Books = require("lingering.koreader.books")
-            local book = Smoke.firstBook(Library)
-            assert(book and Library:isDownloaded(book), "eerste boek staat niet op dit apparaat")
-            local path = Library:bookPath(book)
-            local digest = Books.partialDigest(path)
-            local saved = require("ui/widget/booklist").getDocSettings(path):readSetting("partial_md5_checksum")
-            assert(digest and (not saved or digest == saved), "sleutel wijkt af van KOReader: " .. tostring(digest) .. " / " .. tostring(saved))
-            require("lingering.koreader.kosync").fetchStored(digest, function(ok, record)
-                state.server_ok, state.server_record = ok, record
-            end)
-        end },
-        { name = "serverstand ontvangen", wait = 3, fn = function()
-            assert(state.server_ok, "ophalen mislukt")
-            assert(state.server_record and state.server_record.percent, "geen stand op de server")
-            logger.info("Lingering: SMOKE serverstand", state.server_record.percent)
         end },
         { name = "update zoeken", fn = function()
             require("lingering.app.update_service").check(function(result)

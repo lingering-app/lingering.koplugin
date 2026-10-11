@@ -117,26 +117,6 @@ function M.homeFolder()
     return ok and dir or "."
 end
 
---- Voortgang (0..1) van een boek op dit apparaat, of nil als het nooit geopend is.
-function M.percent(file)
-    local ok, percent = try("books.percent", function()
-        local BookList = require("ui/widget/booklist")
-        if not BookList.hasBookBeenOpened(file) then return nil end
-        return BookList.getDocSettings(file):readSetting("percent_finished")
-    end)
-    return ok and percent or nil
-end
 
---[[--
-Sleutel van een boekbestand zoals kosync die in binary-modus gebruikt:
-util.partialMD5(bestand) = partial_md5_checksum in de boekinstellingen (ReaderUI:init,
-KOSync:getFileDigest). Werkt zonder het boek te openen.
-]]
-function M.partialDigest(file)
-    local ok, digest = try("books.partialDigest", function()
-        return require("util").partialMD5(file)
-    end)
-    return ok and digest or nil
-end
 
 return M

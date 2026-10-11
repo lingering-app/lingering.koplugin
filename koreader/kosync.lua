@@ -216,36 +216,5 @@ function M.writeAccount(sync_url, username, password)
     end)
 end
 
---[[--
-Serverstand van een document ophalen zonder geopend boek (bijv. op het homescreen), met
-de opgeslagen kosync-gegevens (<settings>/kosync.lua, of KOSync.settings_obj als kosync deze
-sessie al geladen was). cb(ok, record) met record = nil | { percent, progress, device }.
-]]
-function M.fetchStored(digest, cb)
-    local ok = try("kosync.fetchStored", function()
-        local DataStorage = require("datastorage")
-        local LuaSettings = require("luasettings")
-        local KOSyncClient = require("KOSyncClient")
-        local class = pluginClass("kosync")
-        local store = (class and class.settings_obj) or LuaSettings:open(DataStorage:getSettingsDir() .. "/kosync.lua")
-        local settings = store:readSetting("settings") or {}
-        if not (settings.username and settings.userkey and settings.custom_server) then
-            cb(false)
-            return
-        end
-        local client = KOSyncClient:new{
-            custom_url = settings.custom_server,
-            service_spec = kosyncServiceSpec(),
-        }
-        client:get_progress(settings.username, settings.userkey, digest, function(success, body)
-            local record
-            if success and type(body) == "table" and body.percentage ~= nil then
-                record = { percent = tonumber(body.percentage), progress = body.progress, device = body.device }
-            end
-            cb(success and true or false, record)
-        end)
-    end)
-    if not ok then cb(false) end
-end
 
 return M

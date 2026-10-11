@@ -32,7 +32,6 @@ local T = require("ffi/util").template
 local Screen = Device.screen
 
 local Books = require("lingering.koreader.books")
-local BookOpener = require("lingering.ui.book_opener")
 local ReadingTime = require("lingering.domain.reading_time")
 local DeviceAdapter = require("lingering.koreader.device")
 local Navigation = require("lingering.koreader.navigation")
@@ -52,77 +51,54 @@ local function formatDuration(secs)
 end
 
 --[[--
-Tegel in de rij "Aan het lezen": omslag (of titel in een vak) met een dun voortgangsbalkje
-voor boeken die al op het apparaat staan. Een tik roept callback(entry) aan.
+Blok voor een map op het homescreen: stapel omslagen (Widgets.coverStack) met de naam
+eronder; zonder omslagen een klein mapicoon. Een tik roept callback() aan.
 ]]
-local ShelfTile = InputContainer:extend{
-    entry = nil,
-    library = nil,
-    cover_w = nil,
-    cover_h = nil,
+local CollectionTile = InputContainer:extend{
+    title = nil,
+    covers = nil,       -- BlitBuffers (voorste eerst), of leeg
+    width = nil,
+    stack_w = nil,
+    stack_h = nil,
     callback = nil,
 }
 
-function ShelfTile:init()
-    local entry, w, h = self.entry, self.cover_w, self.cover_h
-    local cover
-    local bb = Widgets.loadCover(self.library, entry.thumbnail, w, h)
-    if bb then
-        cover = ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 }
-    else
-        cover = FrameContainer:new{
-            width = w, height = h, padding = 0,
-            bordersize = Size.border.thin, color = Blitbuffer.COLOR_GRAY,
-            CenterContainer:new{
-                dimen = Geom:new{ w = w - 2 * Size.border.thin, h = h - 2 * Size.border.thin },
-                TextBoxWidget:new{
-                    text = entry.title,
-                    face = Font:getFace("cfont", 12),
-                    bold = true,
-                    width = w - 2 * Size.padding.default,
-                    alignment = "center",
-                    height = math.floor(h * 0.8),
-                    height_adjust = true,
-                    height_overflow_show_ellipsis = true,
-                },
-            },
+function CollectionTile:init()
+    local stack = Widgets.coverStack(self.covers, self.stack_w, self.stack_h)
+        or CenterContainer:new{
+            dimen = Geom:new{ w = self.stack_w, h = self.stack_h },
+            Widgets.icon({ icon_file = "folder.svg" }, math.floor(math.min(self.stack_w, self.stack_h) * 0.4)),
         }
-    end
-    -- Eigen voortgang als het boek hier al geopend is, anders de serverstand (als bekend).
-    local percent
-    if self.library:isDownloaded(entry) then
-        percent = Books.percent((self.library:bookPath(entry))) or self.library:serverPercent(entry)
-    end
-    local bar_h = Screen:scaleBySize(5)
-    local group = VerticalGroup:new{
-        align = "center",
-        CenterContainer:new{ dimen = Geom:new{ w = w, h = h }, cover },
-        VerticalSpan:new{ width = Size.padding.default },
+    self[1] = CenterContainer:new{
+        dimen = Geom:new{ w = self.width, h = self.stack_h + Size.padding.large + Screen:scaleBySize(24) },
+        ignore = "height",
+        VerticalGroup:new{
+            align = "center",
+            stack,
+            VerticalSpan:new{ width = Size.padding.large },
+            TextWidget:new{
+                text = self.title,
+                face = Font:getFace("cfont", 16),
+                bold = true,
+                max_width = self.width,
+            },
+        },
     }
-    if percent then
-        table.insert(group, ProgressWidget:new{
-            width = w, height = bar_h, percentage = percent,
-            margin_h = 0, margin_v = 0, radius = 0, bordersize = 0,
-            bgcolor = Blitbuffer.COLOR_LIGHT_GRAY, fillcolor = Blitbuffer.COLOR_DARK_GRAY,
-        })
-    else
-        table.insert(group, VerticalSpan:new{ width = bar_h })
-    end
-    self[1] = group
     self.ges_events = {
         TapTile = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
     }
 end
 
-function ShelfTile:onTapTile()
-    if self.callback then Widgets.safeCall("aan het lezen", self.callback, self.entry) end
+function CollectionTile:onTapTile()
+    if self.callback then Widgets.safeCall("map " .. tostring(self.title), self.callback) end
     return true
 end
 
 local HomeScreen = InputContainer:extend{
     fm = nil,               -- FileManager-instantie
-    library = nil,          -- app/library_service (plank "aan het lezen")
-    on_open_book = nil,     -- function(pad)
+    library = nil,          -- app/library_service (mappen in de catalogus)
+    collections = nil,      -- namen van mappen voor de blokken (config.collections)
+    on_open_collection = nil, -- function(adres, naam)
     on_local_books = nil,
     on_settings = nil,
     on_emergency = nil,
@@ -376,8 +352,8 @@ function HomeScreen:build()
     local status_h = status:getSize().h
     local area_h = height - status_h - nav:getSize().h
 
-    -- Rij "Aan het lezen" onder het huidige boek, als er boeken zijn en het past.
-    local shelf = self:buildShelf(width)
+    -- Blokken met mappen (stapels omslagen) onder het huidige boek, als ze passen.
+    local shelf = self:buildCollections(width)
     local shelf_h = shelf and shelf:getSize().h or 0
     if shelf and area_h - shelf_h < Screen:scaleBySize(240) then
         shelf, shelf_h = nil, 0
@@ -390,7 +366,7 @@ function HomeScreen:build()
     self.book_dimen = Geom:new{ x = 0, y = status_h, w = width, h = card_h }
     self.shelf_dimen = Geom:new{ x = 0, y = status_h + card_h, w = width, h = shelf_h }
 
-    -- Statusregel boven (zonder lijn), huidig boek, rij "Aan het lezen", navigatiebalk onderaan.
+    -- Statusregel boven (zonder lijn), huidig boek, mappen, navigatiebalk onderaan.
     self.layout_group = VerticalGroup:new{
         align = "left",
         status,
@@ -409,30 +385,48 @@ function HomeScreen:build()
     }
 end
 
--- Rij "Aan het lezen": klein kopje en tot vier omslagen uit de plank (cache).
-local SHELF_COLUMNS = 4
-
-function HomeScreen:buildShelf(width)
-    if not self.library then return nil end
-    local ok, books = pcall(self.library.readingBooks, self.library, self.book and self.book.file)
-    if not ok or not books or #books == 0 then return nil end
-    self.shelf_books = books
+--[[--
+Blokken naast elkaar voor de mappen uit config.collections (alleen mappen die in de
+catalogus bestaan): stapel van de eerste drie omslagen uit de cache, naam eronder.
+]]
+function HomeScreen:buildCollections(width)
+    if not (self.library and self.collections) then return nil end
+    local found = {}
+    for _, title in ipairs(self.collections) do
+        local ok, url = pcall(self.library.collectionUrl, self.library, title)
+        if ok and url then table.insert(found, { title = title, url = url }) end
+    end
+    if #found == 0 then return nil end
 
     local padding = Size.padding.large * 2
     local gap = Size.padding.large * 2
-    local cover_w = math.floor((width - 2 * padding - (SHELF_COLUMNS - 1) * gap) / SHELF_COLUMNS)
+    local tile_w = math.floor((width - 2 * padding - (#found - 1) * gap) / #found)
+    -- Stapel: omslag hooguit 40% van de blokbreedte.
+    local cover_w = math.floor(tile_w * 0.4)
     local cover_h = math.floor(cover_w * 3 / 2)
+    local stack_w, stack_h = Widgets.stackSize(cover_w, cover_h)
 
     local row = HorizontalGroup:new{ align = "top" }
-    for i = 1, math.min(SHELF_COLUMNS, #books) do
+    for i, collection in ipairs(found) do
         if i > 1 then table.insert(row, HorizontalSpan:new{ width = gap }) end
-        table.insert(row, ShelfTile:new{
-            entry = books[i],
-            library = self.library,
-            cover_w = cover_w,
-            cover_h = cover_h,
+        local covers = {}
+        local ok, books = pcall(self.library.collectionBooks, self.library, collection.title)
+        for _, entry in ipairs(ok and books or {}) do
+            local bb = entry.thumbnail and Widgets.loadCover(self.library, entry.thumbnail, cover_w, cover_h)
+            if bb then table.insert(covers, bb) end
+            if #covers == 3 then break end
+        end
+        table.insert(row, CollectionTile:new{
+            title = collection.title,
+            covers = covers,
+            width = tile_w,
+            stack_w = stack_w,
+            stack_h = stack_h,
             show_parent = self,
-            callback = function(entry) self:openShelfBook(entry) end,
+            callback = function()
+                logger.info("Lingering: homescreen, map", collection.title)
+                if self.on_open_collection then self.on_open_collection(collection.url, collection.title) end
+            end,
         })
     end
     return FrameContainer:new{
@@ -441,64 +435,22 @@ function HomeScreen:buildShelf(width)
         padding_right = padding,
         padding_bottom = padding,
         bordersize = 0,
-        VerticalGroup:new{
-            align = "left",
-            TextWidget:new{
-                text = _("Aan het lezen"),
-                face = Font:getFace("cfont", 16),
-                fgcolor = Blitbuffer.COLOR_DARK_GRAY,
-            },
-            VerticalSpan:new{ width = Size.padding.large },
-            row,
-        },
+        row,
     }
 end
 
-function HomeScreen:openShelfBook(entry)
-    logger.info("Lingering: homescreen, boek uit 'aan het lezen'")
-    BookOpener.open(self.library, entry, function(path)
-        self:close()
-        if self.on_open_book then self.on_open_book(path) end
-    end)
-end
-
 --[[--
-Met verbinding: plank verversen (hooguit eens per tien minuten) en ontbrekende omslagen
-ophalen, daarna alleen de rij opnieuw tekenen.
+Met verbinding: mappen verversen (hooguit eens per tien minuten) en hun eerste omslagen
+ophalen; daarna alleen het deel onder het huidige boek opnieuw tekenen.
 ]]
-function HomeScreen:refreshShelf()
-    if self.closed or not self.library or not Network.isOnline() then return end
-    self.library:refreshReadingShelf(function(changed)
-        if self.closed then return end
-        local missing = {}
-        for _, entry in ipairs(self.library:readingBooks(self.book and self.book.file)) do
-            if entry.thumbnail and not self.library:hasCover(entry.thumbnail) then
-                table.insert(missing, entry.thumbnail)
-            end
-        end
-        local function redraw()
-            if self.closed then return end
-            self:build()
-            UIManager:setDirty(self, "ui", Geom:new{ x = 0, y = self.book_dimen.y, w = self.dimen.w, h = self.dimen.h - self.book_dimen.y })
-        end
-        local function afterCovers()
-            -- Serverstand voor gedownloade, hier nooit geopende boeken.
-            self.library:refreshServerProgress(self.library:readingBooks(self.book and self.book.file), function(progress_changed)
-                if changed or #missing > 0 or progress_changed then redraw() end
-            end)
-        end
-        local index = 0
-        local function next_cover()
-            if self.closed then return end
-            index = index + 1
-            if missing[index] then
-                pcall(self.library.fetchCover, self.library, missing[index])
-                UIManager:scheduleIn(0.05, next_cover)
-            else
-                afterCovers()
-            end
-        end
-        next_cover()
+function HomeScreen:refreshCollections()
+    if self.closed or not (self.library and self.collections) or not Network.isOnline() then return end
+    self.library:refreshCollections(self.collections, function(changed)
+        if self.closed or not changed then return end
+        self:build()
+        UIManager:setDirty(self, "ui", Geom:new{
+            x = 0, y = self.book_dimen.y, w = self.dimen.w, h = self.dimen.h - self.book_dimen.y,
+        })
     end)
 end
 
@@ -571,7 +523,7 @@ end
 function HomeScreen:show()
     UIManager:show(self, "full")
     UIManager:scheduleIn(1, function()
-        Widgets.safeCall("aan het lezen verversen", function() self:refreshShelf() end)
+        Widgets.safeCall("mappen verversen", function() self:refreshCollections() end)
     end)
 end
 

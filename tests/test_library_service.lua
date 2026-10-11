@@ -8,15 +8,13 @@ local function book(title)
     return { kind = "book", title = title, author = "A", filetype = "epub", href = "h/" .. title, thumbnail = "t/" .. title }
 end
 
-local function path(title)
-    return "/boeken/Lingering/" .. title .. " - A.epub"
-end
-
--- Catalogus in de cache: hoofdpagina met de plank, en de plank met boeken.
-local function catalog(books)
-    Library.store = nil
-    Library:saveFeed(ROOT, { { kind = "folder", title = "Aan het lezen", url = "plank" } })
-    Library:saveFeed("plank", books)
+local function catalog()
+    Library:saveFeed(ROOT, {
+        { kind = "folder", title = "Aan het lezen", url = "lezen" },
+        { kind = "folder", title = "Al mijn boeken", url = "alles" },
+    })
+    Library:saveFeed("lezen", { book("Een"), { kind = "folder", title = "Sub", url = "s" } })
+    Library:saveFeed("alles", { book("Een"), book("Twee") })
 end
 
 TestLibraryService = {}
@@ -24,57 +22,49 @@ TestLibraryService = {}
 function TestLibraryService:setUp()
     Fakes.reset()
     Library.store = nil
+    self.synced = {}
+    Library.sync = function(_, url, done)
+        table.insert(self.synced, url)
+        done(true)
+    end
+    Library.fetchCover = function() return false end
 end
 
-function TestLibraryService:test_plank_zonder_huidig_boek_en_mappen()
-    catalog({ book("Een"), { kind = "folder", title = "Map", url = "m" }, book("Twee") })
-    local books = Library:readingBooks(path("Een"))
+function TestLibraryService:test_map_op_naam()
+    catalog()
+    lu.assertEquals(Library:collectionUrl("al MIJN boeken"), "alles")
+    lu.assertNil(Library:collectionUrl("Gelezen"))
+end
+
+function TestLibraryService:test_boeken_uit_map_zonder_submappen()
+    catalog()
+    local books = Library:collectionBooks("Aan het lezen")
     lu.assertEquals(#books, 1)
-    lu.assertEquals(books[1].title, "Twee")
+    lu.assertEquals(books[1].title, "Een")
+    lu.assertEquals(Library:collectionBooks("Bestaat niet"), {})
 end
 
-function TestLibraryService:test_geen_plank_geen_boeken()
-    Library:saveFeed(ROOT, { { kind = "folder", title = "Gelezen", url = "g" } })
-    lu.assertEquals(Library:readingBooks(nil), {})
-end
-
-function TestLibraryService:test_serverstand_alleen_voor_gedownload_en_nooit_geopend()
-    catalog({ book("Nieuw"), book("Geopend"), book("NietGedownload") })
-    Fakes.state.files[path("Nieuw")] = true
-    Fakes.state.files[path("Geopend")] = true
-    Fakes.state.local_percents[path("Geopend")] = 0.2
-    Fakes.state.server_records["digest:" .. path("Nieuw")] = { percent = 0.4 }
+function TestLibraryService:test_verse_cache_wordt_niet_opnieuw_opgehaald()
+    catalog()
     local changed
-    Library:refreshServerProgress(Library:readingBooks(nil), function(c) changed = c end)
+    Library:refreshCollections({ "Aan het lezen", "Al mijn boeken" }, function(c) changed = c end)
+    Fakes.runScheduled()
+    Fakes.runScheduled()
+    Fakes.runScheduled()
+    lu.assertEquals(self.synced, {})
+    lu.assertFalse(changed)
+end
+
+function TestLibraryService:test_verouderde_mappen_worden_ververst()
+    catalog()
+    -- Cache tien minuten en een seconde oud maken.
+    local all = Library.store:readSetting("feeds")
+    for _, feeds in pairs(all) do
+        for _, feed in pairs(feeds) do feed.fetched = os.time() - 601 end
+    end
+    local changed
+    Library:refreshCollections({ "Aan het lezen", "Al mijn boeken" }, function(c) changed = c end)
+    for _ = 1, 5 do Fakes.runScheduled() end
+    lu.assertEquals(self.synced, { ROOT, "lezen", "alles" })
     lu.assertTrue(changed)
-    lu.assertEquals(Fakes.calls.fetch_stored, 1)
-    lu.assertEquals(Library:serverPercent(book("Nieuw")), 0.4)
-    lu.assertNil(Library:serverPercent(book("Geopend")))
-    lu.assertNil(Library:serverPercent(book("NietGedownload")))
-end
-
-function TestLibraryService:test_zelfde_stand_is_geen_wijziging()
-    catalog({ book("Nieuw") })
-    Fakes.state.files[path("Nieuw")] = true
-    Fakes.state.server_records["digest:" .. path("Nieuw")] = { percent = 0.4 }
-    Library:refreshServerProgress(Library:readingBooks(nil), function() end)
-    local changed
-    Library:refreshServerProgress(Library:readingBooks(nil), function(c) changed = c end)
-    lu.assertFalse(changed)
-end
-
-function TestLibraryService:test_ophalen_mislukt_verandert_niets()
-    catalog({ book("Nieuw") })
-    Fakes.state.files[path("Nieuw")] = true
-    Fakes.state.fetch_ok = false
-    local changed
-    Library:refreshServerProgress(Library:readingBooks(nil), function(c) changed = c end)
-    lu.assertFalse(changed)
-    lu.assertNil(Library:serverPercent(book("Nieuw")))
-end
-
-function TestLibraryService:test_niets_te_doen_meldt_meteen_klaar()
-    local changed = "nog niet"
-    Library:refreshServerProgress({}, function(c) changed = c end)
-    lu.assertFalse(changed)
 end

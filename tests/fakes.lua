@@ -82,14 +82,6 @@ Fakes.opds = { filetype = function() return "epub" end, credentials = function()
 
 Fakes.books = {}
 function Fakes.books.homeFolder() return "/boeken" end
-function Fakes.books.percent(path) return Fakes.state.local_percents[path] end
-function Fakes.books.partialDigest(path) return "digest:" .. path end
-
-function Fakes.kosync.fetchStored(digest, cb)
-    Fakes.calls.fetch_stored = (Fakes.calls.fetch_stored or 0) + 1
-    local record = Fakes.state.server_records[digest]
-    cb(Fakes.state.fetch_ok, record)
-end
 
 function Fakes.reset()
     Fakes.scheduled = {}
@@ -99,7 +91,7 @@ function Fakes.reset()
         online = true, wifi_on = true, wifi_fails = false,
         logged_in = true, local_percent = 0.5,
         fetch_ok = true, record = nil, store_ok = true,
-        files = {}, local_percents = {}, server_records = {},
+        files = {},
     }
     Fakes.store = newStore()
 end

@@ -43,7 +43,7 @@ Lagen (afhankelijkheden alleen naar beneden; `tools/check.sh` controleert de reg
 | `koreader/update.lua` | zelf-update: tags (GitHub-API), zip van een tag (codeload), uitpakken (`ffi/archiver`), controleren, verwisselen, opruimen, herstarten |
 | `app/update_service.lua` | zelf-update: zoeken, installeren (alleen tags), restanten opruimen bij de volgende start |
 | `domain/release.lua` | versies lezen/vergelijken, nieuwste tag, welke paden bij de plugin horen |
-| `ui/*.lua` | homescreen (met rij "Aan het lezen" uit de OPDS-plank `config.reading_shelf`), Mijn boeken, Instellingen, Over Lingering (met update-knop, `ui/update_flow.lua`), inlogscherm, leesscherm, actiebalk, `book_opener.lua` (openen of downloaden-en-openen), gedeelde widgets |
+| `ui/*.lua` | homescreen (blokken met stapels omslagen voor de mappen in `config.collections`; tik opent die map in Mijn boeken), Mijn boeken, Instellingen, Over Lingering (met update-knop, `ui/update_flow.lua`), inlogscherm, leesscherm, actiebalk, `book_opener.lua` (openen of downloaden-en-openen), gedeelde widgets |
 | `icons/` | eigen SVG-iconen |
 | `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
 | `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |

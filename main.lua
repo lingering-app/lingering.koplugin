@@ -84,7 +84,8 @@ function Lingering:showHomeScreen()
         local home = HomeScreen:new{
             fm = self.ui,
             library = require("lingering.app.library_service"),
-            on_open_book = function(path) require("lingering.koreader.navigation").openBook(path) end,
+            collections = require("lingering.config").collections,
+            on_open_collection = function(url, title) self:showLibrary{ url = url, title = title } end,
             on_local_books = function() self:showLibrary() end,
             on_settings = function() self:showSettings() end,
             on_emergency = function() self:openEmergencyMenu() end,
@@ -105,9 +106,10 @@ function Lingering:showHomeScreen()
 end
 
 --- Mijn boeken: de OPDS-catalogus, gecachet; tik op een boek opent of downloadt het.
-function Lingering:showLibrary()
+function Lingering:showLibrary(start)
     local LibraryScreen = require("lingering.ui.libraryscreen")
     LibraryScreen:new{
+        start = start,
         library = require("lingering.app.library_service"),
         on_open_book = function(path)
             require("lingering.koreader.navigation").openBook(path)

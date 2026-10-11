@@ -197,6 +197,7 @@ end
 local LibraryScreen = InputContainer:extend{
     library = nil,
     on_open_book = nil,     -- function(path)
+    start = nil,            -- optioneel { url, title }: in deze map beginnen
     covers_fullscreen = true,
     stop_events_propagation = true,
 }
@@ -206,7 +207,8 @@ Widgets.guardEvents(LibraryScreen, "mijn boeken")
 function LibraryScreen:init()
     local width, height = Screen:getWidth(), Screen:getHeight()
     self.dimen = Geom:new{ x = 0, y = 0, w = width, h = height }
-    self.stack = { { url = self.library:rootUrl(), title = _("Mijn boeken") } }
+    -- Start in een map (bijv. vanaf een blok op het homescreen); terug sluit dan het scherm.
+    self.stack = { self.start or { url = self.library:rootUrl(), title = _("Mijn boeken") } }
     self.synced = {}
     self.cover_failed = {}
 

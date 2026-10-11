@@ -2,9 +2,9 @@
 return {
     opds_url = "https://opds.lingering.app",
     sync_url = "https://koreader.lingering.app",
-    -- Naam van de plank in de OPDS-catalogus met boeken die je aan het lezen bent
-    -- (rij omslagen op het homescreen).
-    reading_shelf = "Aan het lezen",
+    -- Mappen uit de OPDS-catalogus die als blok (stapel omslagen) op het homescreen staan;
+    -- een tik opent die map in Mijn boeken. Op naam (hoofdletters maken niet uit).
+    collections = { "Aan het lezen", "Al mijn boeken" },
     -- Openbare GitHub-repo voor zelf-update (Instellingen → Update); tags als v1.2.3.
     update_repo = "lingering-app/lingering.koplugin",
 }
