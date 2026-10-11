@@ -66,26 +66,71 @@ function HomeScreen:init()
     }
 end
 
+--[[--
+Statusregel: "Lingering" links; rechts lamp en wifi (aantikbaar), tijd en batterij.
+De iconen blijven bestaan; refreshStatus werkt ze en de teksten ter plekke bij.
+]]
 function HomeScreen:buildStatus(width)
     local padding = Size.padding.large * 2
     local face = Font:getFace("cfont", 16)
-    local height = Screen:scaleBySize(36)
+    local height = Screen:scaleBySize(48)
     local inner = Geom:new{ w = width - 2 * padding, h = height }
+    local Item = require("lingering_actionbar").Item
 
-    local time = datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
-    local gap = Size.padding.large * 2
-    local right = HorizontalGroup:new{ align = "center" }
-    table.insert(right, TextWidget:new{ text = time, face = face })
-    -- Icoon alleen bij echte verbinding, niet als alleen de radio aan staat.
-    if Compat.isWifiConnected() then
-        table.insert(right, HorizontalSpan:new{ width = gap })
-        table.insert(right, Widgets.icon({ icon = "wifi" }, Screen:scaleBySize(18)))
+    -- Ruim tikvlak per icoon (de hele hoogte van de statusregel).
+    local function item(action)
+        return Item:new{
+            action = action,
+            width = height,
+            height = height,
+            icon_size = Screen:scaleBySize(26),
+            show_parent = self,
+        }
     end
-    local battery = Compat.batteryPercent()
-    if battery then
-        table.insert(right, HorizontalSpan:new{ width = gap })
-        table.insert(right, TextWidget:new{ text = T(_("%1%"), battery), face = face })
-    end
+
+    self.light_item = item{
+        name = "licht",
+        switch = true,
+        icon_on = "light-on.svg",
+        icon_off = "light-off.svg",
+        enabled = Device:hasFrontlight(),
+        state = Compat.isFrontlightOn(),
+        on_toggle = function(on)
+            logger.info("Lingering: homescreen, licht", on and "aan" or "uit")
+            Compat.toggleFrontlight(self.fm)
+        end,
+    }
+    self.wifi_item = item{
+        name = "wifi",
+        switch = true,
+        enabled = Device:hasWifiToggle(),
+        state = Compat.isWifiOn(),
+        -- Uit: doorgestreept. Aan zonder verbinding: grijs. Verbonden: zwart.
+        icon_spec = function(on)
+            if not on then
+                return { icon_file = "wifi-off.svg" }
+            end
+            return { icon_file = "wifi-on.svg", dim = not Compat.isWifiConnected() }
+        end,
+        on_toggle = function(on)
+            logger.info("Lingering: homescreen, wifi", on and "aan" or "uit")
+            Compat.setWifi(on, function()
+                self.wifi_item:setState(Compat.isWifiOn())
+            end)
+        end,
+    }
+
+    self.status_right = HorizontalGroup:new{
+        align = "center",
+        self.light_item,
+        self.wifi_item,
+        HorizontalSpan:new{ width = Size.padding.large },
+        TextWidget:new{ text = "", face = face },      -- tijd, zie updateStatusTexts
+        HorizontalSpan:new{ width = padding },
+        TextWidget:new{ text = "", face = face },      -- batterij
+    }
+    self.status_face = face
+    self:updateStatusTexts()
 
     return FrameContainer:new{
         padding = 0,
@@ -95,9 +140,17 @@ function HomeScreen:buildStatus(width)
         OverlapGroup:new{
             dimen = inner,
             LeftContainer:new{ dimen = inner, TextWidget:new{ text = "Lingering", face = face, bold = true } },
-            RightContainer:new{ dimen = inner, right },
+            RightContainer:new{ dimen = inner, self.status_right },
         },
     }
+end
+
+function HomeScreen:updateStatusTexts()
+    local time = datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
+    local battery = Compat.batteryPercent()
+    self.status_right[4] = TextWidget:new{ text = time, face = self.status_face }
+    self.status_right[6] = TextWidget:new{ text = battery and T(_("%1%"), battery) or "", face = self.status_face }
+    self.status_right:resetLayout()
 end
 
 function HomeScreen:buildBook(width, height)
@@ -276,8 +329,9 @@ end
 
 -- Statusregel bijwerken bij ontwaken en netwerkwissels; verder geen verversingen.
 function HomeScreen:refreshStatus()
-    self.layout_group[1] = self:buildStatus(self.dimen.w)
-    self.layout_group:resetLayout()
+    self:updateStatusTexts()
+    self.wifi_item:setState(Compat.isWifiOn())
+    self.light_item:setState(Compat.isFrontlightOn())
     UIManager:setDirty(self, "ui", self.status_dimen)
 end
 HomeScreen.onResume = HomeScreen.refreshStatus

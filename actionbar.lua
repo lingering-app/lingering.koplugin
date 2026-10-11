@@ -43,6 +43,7 @@ local Item = InputContainer:extend{
     action = nil,
     width = nil,
     height = nil,
+    icon_size = nil,    -- standaard 40 (geschaald)
     on_tap = nil,
 }
 
@@ -61,31 +62,44 @@ function Item:init()
     }
 end
 
+-- Geeft { icon = naam } of { icon_file = bestand }, optioneel met dim = true.
+-- Een schakelaar kan icon_spec(state) meegeven voor meer dan twee toestanden.
 function Item:currentIcon()
     local action = self.action
     if action.switch then
-        return nil, self.state and action.icon_on or action.icon_off
+        if action.icon_spec then
+            return action.icon_spec(self.state)
+        end
+        return { icon_file = self.state and action.icon_on or action.icon_off }
     end
     if action.task and self.frame > 0 then
-        return nil, action.frames[self.frame]
+        return { icon_file = action.frames[self.frame] }
     end
-    return action.icon, action.icon_file
+    return { icon = action.icon, icon_file = action.icon_file }
 end
 
 function Item:build()
-    local icon_name, icon_file = self:currentIcon()
-    local icon_size = Screen:scaleBySize(40)
+    local spec = self:currentIcon()
+    local icon_size = self.icon_size or Screen:scaleBySize(40)
     self[1] = CenterContainer:new{
         dimen = Geom:new{ w = self.width, h = self.height },
         IconWidget:new{
-            icon = icon_name,
-            file = icon_file and (plugin_dir .. "/icons/" .. icon_file) or nil,
+            icon = spec.icon,
+            file = spec.icon_file and (plugin_dir .. "/icons/" .. spec.icon_file) or nil,
             width = icon_size,
             height = icon_size,
             alpha = true,
-            dim = not self.enabled,
+            dim = spec.dim or not self.enabled,
         },
     }
+end
+
+--- Stand van buitenaf bijwerken (bijv. na een netwerk-event), zonder on_toggle.
+function Item:setState(state)
+    state = state and true or false
+    if state == self.state and not self.action.icon_spec then return end
+    self.state = state
+    self:redraw()
 end
 
 function Item:redraw()
@@ -239,5 +253,7 @@ end
 function ActionBar:dismiss()
     UIManager:close(self, "ui", self.dimen)
 end
+
+ActionBar.Item = Item
 
 return ActionBar
