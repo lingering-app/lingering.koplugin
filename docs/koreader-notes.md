@@ -39,15 +39,33 @@ Lagen (afhankelijkheden alleen naar beneden; `tools/check.sh` controleert de reg
 | `koreader/books.lua` | huidig boek, omslag, statistieken (ruw), thuismap |
 | `koreader/global_settings.lua` | afgedwongen KOReader-instellingen, back-ups |
 | `koreader/dialogs.lua` | kaal invoervenster |
+| `koreader/update.lua` | zelf-update: tags (GitHub-API), zip van een tag (codeload), uitpakken (`ffi/archiver`), controleren, verwisselen, opruimen, herstarten |
+| `app/update_service.lua` | zelf-update: zoeken, installeren (alleen tags), restanten opruimen bij de volgende start |
+| `domain/release.lua` | versies lezen/vergelijken, nieuwste tag, welke paden bij de plugin horen |
 | `ui/*.lua` | homescreen, Mijn boeken, Instellingen, inlogscherm, leesscherm, actiebalk, gedeelde widgets |
 | `icons/` | eigen SVG-iconen |
 | `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
 | `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |
 | `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
+| `tools/deploy.sh` | plugin op een aangesloten Kobo zetten (zonder ontwikkelbestanden), na controles en tests |
+| `tools/release.sh` | nieuwe versie: versie in `_meta.lua`, controles, commit, tag `v<versie>`, optioneel `--push` |
 | `tools/smoke.sh` | rooktest in de emulator (`LINGERING_TEST=fm|reader`), met schermafdrukken: homescreen, Mijn boeken, map, Instellingen, Account, inloggen (goed én fout wachtwoord), downloaden naar een tijdelijk pad, omslag zonder cache; in het boek actiebalk, inhoudsopgave, sync, springen, wegschrijven (**schrijft echte voortgang naar het account**), sluiten |
 
 Na een KOReader-update: `tools/check.sh`, `tools/test.sh`, `tools/smoke.sh`; bij fouten eerst
 `koreader/` (en de tabel "Haken" hieronder), daarna `ui/`.
+
+## Zelf-update
+
+Instellingen → Update: wifi aan → tags van `config.update_repo` via
+`https://api.github.com/repos/<repo>/tags` → hoogste `vX.Y.Z` (`domain/release.lua`) →
+nieuwer dan `version` in `_meta.lua`? → vragen → zip van de tag
+(`https://codeload.github.com/<repo>/zip/refs/tags/<tag>`) naar `<pluginmap>.update.zip` →
+uitpakken naar `<pluginmap>.new` (alleen `_meta.lua`, `main.lua`, `config.lua`, `app/`,
+`domain/`, `koreader/`, `ui/`, `icons/`; libarchive weigert `..`-paden) → alle Lua-bestanden
+`loadfile` → `<pluginmap>` → `<pluginmap>.bak`, `.new` → `<pluginmap>` → zip weg →
+`UIManager:askForRestart`. Bij de eerste start van de nieuwe versie ruimt `main.lua` `.bak`,
+`.new` en de zip op (tot dan is `.bak` de weg terug). Is de pluginmap een symlink
+(ontwikkelopstelling), dan wordt niet bijgewerkt. Alleen tags, geen branches.
 
 ## Testen in de emulator
 

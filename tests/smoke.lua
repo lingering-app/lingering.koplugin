@@ -35,6 +35,7 @@ local Smoke = {}
 
 function Smoke.filemanager(plugin)
     local lib
+    local state = {}
     run{
         { name = "homescreen", wait = 2, fn = function()
             assert(plugin.home, "geen homescreen")
@@ -118,6 +119,56 @@ function Smoke.filemanager(plugin)
             assert(ok and bb, "omslag niet opgehaald of onleesbaar")
             logger.info("Lingering: SMOKE omslag", bb:getWidth(), "x", bb:getHeight())
             bb:free()
+        end },
+        { name = "update zoeken", fn = function()
+            require("lingering.app.update_service").check(function(result)
+                state.update = result
+            end)
+        end },
+        { name = "update gezocht", wait = 3, fn = function()
+            assert(state.update and state.update.status ~= "error", "update zoeken mislukt")
+            logger.info("Lingering: SMOKE update:", state.update.status, "geïnstalleerd", tostring(state.update.installed), "nieuwste", tostring(state.update.latest))
+        end },
+        { name = "update installeren in tijdelijke kopie", fn = function()
+            -- Alleen in deze test: een kopie van de plugin bijwerken naar de nieuwste tag.
+            local tag = state.update and state.update.latest
+            if not tag then
+                logger.info("Lingering: SMOKE nog geen tag in de repo, installeren overgeslagen")
+                return
+            end
+            local UpdateService = require("lingering.app.update_service")
+            local plugin = require("lingering.plugin")
+            local real_dir = plugin.dir
+            local tmp = os.tmpname()
+            os.remove(tmp)
+            os.execute("cp -rL '" .. real_dir .. "' '" .. tmp .. "'")
+            state.update_tmp = tmp
+            plugin.dir = tmp
+            UpdateService._install(tag, function(ok, reason)
+                plugin.dir = real_dir
+                state.update_ok, state.update_reason = ok, reason
+            end)
+        end },
+        { name = "update geïnstalleerd", wait = 3, fn = function()
+            local lfs = require("libs/libkoreader-lfs")
+            local tmp = state.update_tmp
+            if not tmp then return end
+            local ok = state.update_ok
+            local has_main = lfs.attributes(tmp .. "/main.lua", "mode") == "file"
+            local has_backup = lfs.attributes(tmp .. ".bak/main.lua", "mode") == "file"
+            local no_tests = lfs.attributes(tmp .. "/tests", "mode") == nil
+            local no_zip = lfs.attributes(tmp .. ".update.zip", "mode") == nil
+            -- Opruimen zoals bij de volgende start, daarna controleren dat het weg is.
+            local plugin = require("lingering.plugin")
+            local real_dir = plugin.dir
+            plugin.dir = tmp
+            require("lingering.app.update_service").cleanup()
+            plugin.dir = real_dir
+            local backup_gone = lfs.attributes(tmp .. ".bak", "mode") == nil
+            require("ffi/util").purgeDir(tmp)
+            assert(ok, "installeren mislukt: " .. tostring(state.update_reason))
+            assert(has_main and has_backup and no_tests and no_zip, "onverwachte mappen na installeren")
+            assert(backup_gone, "reservekopie niet opgeruimd")
         end },
     }
 end

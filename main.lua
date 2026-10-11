@@ -47,6 +47,10 @@ function Lingering:init()
         require("lingering.koreader.global_settings").enforce()
     end
     if not self.in_reader then
+        -- Deze versie start: restanten van een vorige update (zip, .new, .bak) opruimen.
+        require("lingering.app.update_service").cleanup()
+    end
+    if not self.in_reader then
         if self.ui.menu then
             self.ui.menu:registerToMainMenu(self)
         end
