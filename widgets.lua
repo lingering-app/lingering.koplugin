@@ -150,4 +150,78 @@ function Row:onTapRow()
     return true
 end
 
+--[[--
+Navigatiebalk onderaan: vakken van gelijke breedte met icoon en klein label.
+items: { { text = "...", icon = {...}, callback = fn }, ... }
+]]
+local NavButton = InputContainer:extend{
+    width = nil,
+    height = nil,
+    text = nil,
+    icon = nil,
+    callback = nil,
+}
+
+function NavButton:init()
+    local VerticalGroup = require("ui/widget/verticalgroup")
+    local VerticalSpan = require("ui/widget/verticalspan")
+    local CenterContainer = require("ui/widget/container/centercontainer")
+    self[1] = CenterContainer:new{
+        dimen = Geom:new{ w = self.width, h = self.height },
+        VerticalGroup:new{
+            align = "center",
+            Widgets.icon(self.icon, Screen:scaleBySize(30)),
+            VerticalSpan:new{ width = Size.padding.small },
+            TextWidget:new{
+                text = self.text,
+                face = Font:getFace("cfont", 14),
+                max_width = self.width - 2 * Size.padding.default,
+            },
+        },
+    }
+    self.ges_events = {
+        TapNav = {
+            GestureRange:new{
+                ges = "tap",
+                range = function() return self.dimen end,
+            },
+        },
+    }
+end
+
+function NavButton:onTapNav()
+    if self.callback then
+        Widgets.safeCall("navigatie " .. tostring(self.text), self.callback)
+    end
+    return true
+end
+
+function Widgets.navBar(width, items)
+    local VerticalGroup = require("ui/widget/verticalgroup")
+    local height = Screen:scaleBySize(72)
+    local cell_w = math.floor(width / #items)
+    local row = HorizontalGroup:new{}
+    for _, item in ipairs(items) do
+        table.insert(row, NavButton:new{
+            width = cell_w,
+            height = height,
+            text = item.text,
+            icon = item.icon,
+            callback = item.callback,
+        })
+    end
+    return VerticalGroup:new{
+        LineWidget:new{
+            dimen = Geom:new{ w = width, h = Size.line.thick },
+            background = Blitbuffer.COLOR_BLACK,
+        },
+        FrameContainer:new{
+            padding = 0,
+            bordersize = 0,
+            background = Blitbuffer.COLOR_WHITE,
+            row,
+        },
+    }
+end
+
 return Widgets

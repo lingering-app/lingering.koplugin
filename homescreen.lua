@@ -1,5 +1,6 @@
 --[[--
-Homescreen: statusregel, huidig boek, grote rijen (Mijn boeken, Instellingen).
+Homescreen: statusregel, huidig boek in het midden, navigatiebalk onder
+(Mijn boeken, Instellingen).
 Ligt schermvullend over de bestandsbeheerder; vangt alle gebaren af, zodat het menu
 van de bestandsbeheerder niet open kan.
 ]]
@@ -248,44 +249,35 @@ end
 function HomeScreen:build()
     local width, height = self.dimen.w, self.dimen.h
 
-    local rows = {
-        Widgets.Row:new{
-            width = width,
+    local nav = Widgets.navBar(width, {
+        {
             text = _("Mijn boeken"),
             icon = { icon = "book.opened" },
-            right = { icon = "chevron.right" },
             callback = function() self.on_local_books() end,
         },
-        Widgets.Row:new{
-            width = width,
+        {
             text = _("Instellingen"),
             icon = { icon = "appbar.settings" },
-            right = { icon = "chevron.right" },
             callback = function() self.on_settings() end,
         },
-    }
-    local rows_group = VerticalGroup:new{ Widgets.line(width) }
-    for _, row in ipairs(rows) do
-        table.insert(rows_group, row)
-        table.insert(rows_group, Widgets.line(width))
-    end
+    })
 
     local status = self:buildStatus(width)
     local status_h = status:getSize().h
-    local rows_h = rows_group:getSize().h
-    local bottom_space = Size.padding.large * 4
-    local book_h = height - status_h - Size.line.medium - rows_h - bottom_space
+    local line_h = Widgets.line(width):getSize().h
+    local book_h = height - status_h - line_h - nav:getSize().h
     local book = self:buildBook(width, book_h)
 
     self.status_dimen = Geom:new{ x = 0, y = 0, w = width, h = status_h }
-    self.book_dimen = Geom:new{ x = 0, y = status_h, w = width, h = book_h }
+    self.book_dimen = Geom:new{ x = 0, y = status_h + line_h, w = width, h = book_h }
 
+    -- Statusregel boven, huidig boek in het midden, navigatiebalk onder.
     self.layout_group = VerticalGroup:new{
         align = "left",
         status,
         Widgets.line(width),
         CenterContainer:new{ dimen = Geom:new{ w = width, h = book_h }, book },
-        rows_group,
+        nav,
     }
     self[1] = FrameContainer:new{
         width = width,
