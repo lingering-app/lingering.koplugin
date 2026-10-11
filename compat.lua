@@ -9,13 +9,14 @@ local logger = require("logger")
 
 local Compat = {}
 
+-- Geeft true plus álle resultaten van fn terug, of false bij een fout.
 local function try(name, fn, ...)
-    local ok, result = pcall(fn, ...)
-    if not ok then
-        logger.warn("Lingering: haak", name, "mislukt, standaardgedrag van KOReader blijft:", result)
+    local results = { pcall(fn, ...) }
+    if not results[1] then
+        logger.warn("Lingering: haak", name, "mislukt, standaardgedrag van KOReader blijft:", results[2])
         return false
     end
-    return true, result
+    return unpack(results, 1, table.maxn(results))
 end
 Compat.try = try
 

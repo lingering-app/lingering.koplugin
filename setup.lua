@@ -3,7 +3,8 @@ Inlogscherm: gebruikersnaam en wachtwoord. Bij "Inloggen":
 1. wifi aan zonder te vragen (NetworkMgr:turnOnWifiAndWaitForConnection), 2. OPDS-catalogus en syncserver controleren,
 3. gegevens wegschrijven naar de OPDS- en kosync-instellingen, automatische sync aan,
 4. setup als voltooid markeren.
-Bij een fout blijven de velden ingevuld en staat er welke van de twee mislukte, en waarom.
+Bij een fout blijven de velden ingevuld en staat er kort "Inloggen mislukt."; welke van de twee
+mislukte en waarom staat in de log (op verzoek, i.p.v. op het scherm).
 ]]
 local Blitbuffer = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
@@ -21,7 +22,6 @@ local VerticalSpan = require("ui/widget/verticalspan")
 local logger = require("logger")
 local util = require("util")
 local _ = require("gettext")
-local T = require("ffi/util").template
 local Screen = Device.screen
 
 local Compat = require("lingering_compat")
@@ -142,10 +142,11 @@ function Setup.show(opts)
         UIManager:close(background, "full")
     end
 
+    -- Kort voor de gebruiker; welke server en waarom staat in de log.
     local function fail(service, reason)
-        logger.warn("Lingering: inloggen mislukt bij", service, reason)
+        logger.warn("Lingering: inloggen mislukt bij", service, tostring(reason))
         UIManager:show(InfoMessage:new{
-            text = T(_("Inloggen mislukt bij %1:\n%2"), service, reason),
+            text = _("Inloggen mislukt."),
         })
     end
 
@@ -177,10 +178,10 @@ function Setup.show(opts)
             UIManager:close(busy)
 
             if not opds_ok then
-                fail(_("de bibliotheek (OPDS)"), opds_reason)
+                fail("OPDS", opds_reason)
                 return
             elseif not sync_ok then
-                fail(_("de syncserver"), sync_reason)
+                fail("kosync", sync_reason)
                 return
             end
 
