@@ -251,7 +251,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `turnPage` | event `GotoViewRel` (afgehandeld door `ReaderRolling`/`ReaderPaging:onGotoViewRel`) | Tik links/rechts doet niets |
 | `reconcile` | "verder wint, nooit blind wegschrijven": momentopname (digest/progress/percent/metadata) → `KOSyncClient:get_progress` → server verder: `kosync:syncToProgress` (als springen mag), apparaat verder of geen stand: `update_progress`, ophalen mislukt: niets | Niet gesynchroniseerd (veilig) |
 | `syncNow` (sync-knop) | wifi aan (`turnOnWifiThen`), `reconcile` met springen, wifi weer uit als hij uit stond | Melding "Synchroniseren mislukt" |
-| `installKosyncRules` | op de kosync-instantie: `getProgress` (openen/ontwaken/nieuwe verbinding) → offline overslaan, anders `reconcile` (1× opnieuw na 3 s); `updateProgress` (slaapstand/tussentijds) → `reconcile` zonder springen; `_onCloseDocument` → online `reconcile`, offline niets; `drainQueue` → niets. Interactief (kosync-menu) blijft origineel | Kosync-standaard: "nieuwer wint", blind wegschrijven |
+| `installKosyncRules` | op de kosync-instantie: `getProgress` (openen/ontwaken/nieuwe verbinding) → offline overslaan, anders `reconcile` (1× opnieuw na 3 s); `updateProgress` (slaapstand/tussentijds) → alleen met verbinding `reconcile` zonder springen, nooit wifi aan; `_onCloseDocument` → online `reconcile`, offline niets; `drainQueue` → niets. Interactief (kosync-menu) blijft origineel | Kosync-standaard: "nieuwer wint", blind wegschrijven |
 | `ensureKosyncBinary` | `kosync.settings.checksum_method = 0` (binary) | Digest op bestandsnaam |
 | `isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
 | `toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
@@ -333,7 +333,8 @@ sluiten/slaapstand/wachtrij blind weg; dat is via `installKosyncRules` vervangen
 | Sync-knop | wifi aan → `reconcile` met springen → wifi uit (als hij uit stond) |
 | Sluiten met verbinding | `reconcile` zonder springen |
 | Sluiten zonder verbinding | niets (geen wachtrij) |
-| Slaapstand | wifi aan → `reconcile` zonder springen → wifi uit |
+| Slaapstand met verbinding | `reconcile` zonder springen → wifi uit |
+| Slaapstand zonder verbinding | niets (wifi gaat niet aan; op verzoek) |
 
 Getest tegen een echte server: gelijk → niets; 5 pagina's verder → wegschrijven;
 5 pagina's terug → vooruit springen.

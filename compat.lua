@@ -521,8 +521,8 @@ Kosync volgt "verder wint" en schrijft nooit blind weg. Vervangt op deze kosync-
 (vóór KOSync:onReaderReady, dat registerEvents aanroept):
 - getProgress (openen via onReaderReady, ontwaken via _onResume, nieuwe verbinding via
   _onNetworkConnected): zonder verbinding stil overslaan, anders reconcile met springen;
-- updateProgress (slaapstand via _onSuspend, tussentijds, sluiten): reconcile zonder springen;
-  met ensure_networking eerst wifi aan; bij slaapstand daarna wifi weer uit;
+- updateProgress (slaapstand via _onSuspend, tussentijds): alleen met verbinding reconcile
+  zonder springen, nooit wifi aanzetten; bij slaapstand daarna wifi uit (zoals kosync);
 - _onCloseDocument: alleen met verbinding reconcile; offline niets (geen blinde wachtrij);
 - drainQueue: niets (de wachtrij zou blind wegschrijven).
 Interactieve aanroepen (kosync-menu) blijven bij kosync zelf.
@@ -555,12 +555,10 @@ function Compat.installKosyncRules(ui)
             local function afterwards()
                 if on_suspend then Compat.disableWifi() end
             end
+            -- Nooit wifi aanzetten voor automatisch wegschrijven (ook niet bij slaapstand,
+            -- waar kosync ensure_networking vraagt): alleen als er al verbinding is.
             if Compat.isOnline() then
                 Compat.reconcile(this, { jump = false }, afterwards)
-            elseif ensure_networking then
-                if not Compat.turnOnWifiThen(function()
-                    Compat.reconcile(this, { jump = false }, afterwards)
-                end) then afterwards() end
             else
                 logger.info("Lingering: geen verbinding, voortgang wegschrijven overgeslagen")
             end
