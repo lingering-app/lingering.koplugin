@@ -99,7 +99,7 @@ function HomeScreen:buildStatus(width)
             action = action,
             width = height,
             height = height,
-            icon_size = Screen:scaleBySize(26),
+            icon_size = Screen:scaleBySize(30),
             show_parent = self,
         }
     end

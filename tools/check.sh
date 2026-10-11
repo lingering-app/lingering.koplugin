@@ -17,7 +17,9 @@ missing=0
 for module in Compat Widgets; do
     file=compat.lua; [ "$module" = Widgets ] && file=widgets.lua
     defined="$(grep -ohE "^function $module[.:][A-Za-z_]+|^$module\.[A-Za-z_]+ *=" "$dir/$file" | sed -E "s/^function $module[.:]//; s/^$module\.//; s/ *=.*//" | sort -u)"
-    used="$(grep -ohE "\b$module[.:][A-Za-z_]+\(" "$dir"/*.lua | sed -E "s/^$module[.:]//; s/\($//" | sort -u)"
+    req="lingering_$(echo "$module" | tr 'A-Z' 'a-z')"
+    used="$( { grep -ohE "\b$module[.:][A-Za-z_]+\(" "$dir"/*.lua | sed -E "s/^$module[.:]//; s/\($//";
+               grep -ohE "require\(\"$req\"\)[.:][A-Za-z_]+" "$dir"/*.lua | sed -E 's/.*\)[.:]//'; } | sort -u)"
     for name in $used; do
         if ! printf '%s\n' "$defined" | grep -qx "$name"; then
             echo "FOUT $module.$name wordt aangeroepen maar bestaat niet"

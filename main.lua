@@ -46,8 +46,9 @@ function Lingering:onReaderReady()
     if not Settings:isActive() then return end
     -- Hier en niet in init: plugins worden op volgorde van pad geladen en onze map
     -- (<datadir>/plugins) komt vóór plugins/kosync.koplugin, dus ui.kosync bestaat in
-    -- init nog niet. KOSync plant zijn eerste ophaalpoging pas op de volgende tik.
-    require("lingering_compat").guardKosyncNetworking(self.ui)
+    -- init nog niet, en onze onReaderReady draait vóór die van kosync (die registerEvents
+    -- aanroept en zijn eerste ophaalpoging op de volgende tik plant).
+    require("lingering_compat").installKosyncRules(self.ui)
     require("lingering_compat").ensureKosyncBinary(self.ui)
     require("lingering_reader").install(self.ui)
 end

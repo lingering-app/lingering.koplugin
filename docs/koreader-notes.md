@@ -249,8 +249,10 @@ markeringen gaan standaard dus vóór bladeren.
 | `blockReaderMenu` | vervangt `onShowMenu`, `onTapShowMenu`, `onSwipeShowMenu` op de `ReaderMenu`-instantie (`ui.menu`) | Bovenmenu blijft bereikbaar via andere routes dan onze zones |
 | `closeBook` | `ReaderUI:onHome()`, anders `ReaderUI:onClose()` + `showFileManager()` | Tik in het midden doet niets |
 | `turnPage` | event `GotoViewRel` (afgehandeld door `ReaderRolling`/`ReaderPaging:onGotoViewRel`) | Tik links/rechts doet niets |
-| `syncNow` (sync-knop in het boek) | tweezijdig: `KOSyncClient:get_progress` → nieuwer dan `kosync.last_page_turn_timestamp` (zoals `KOSync:getProgress`) → `kosync:syncToProgress`, anders `update_progress`; `kosync.pull_timestamp` gezet om de eigen pull van `_onNetworkConnected` over te slaan; wifi aan via `turnOnWifiThen`, daarna `disableWifi` als hij uit stond | Melding "Synchroniseren mislukt" |
-| `guardKosyncNetworking` | vervangt `getProgress` op de kosync-instantie: `ensure_networking` zonder verbinding en niet interactief → overslaan (bij openen via `onReaderReady`, bij ontwaken via `_onResume`) | Kosync zet zelf wifi aan bij openen/ontwaken |
+| `reconcile` | "verder wint, nooit blind wegschrijven": momentopname (digest/progress/percent/metadata) → `KOSyncClient:get_progress` → server verder: `kosync:syncToProgress` (als springen mag), apparaat verder of geen stand: `update_progress`, ophalen mislukt: niets | Niet gesynchroniseerd (veilig) |
+| `syncNow` (sync-knop) | wifi aan (`turnOnWifiThen`), `reconcile` met springen, wifi weer uit als hij uit stond | Melding "Synchroniseren mislukt" |
+| `installKosyncRules` | op de kosync-instantie: `getProgress` (openen/ontwaken/nieuwe verbinding) → offline overslaan, anders `reconcile` (1× opnieuw na 3 s); `updateProgress` (slaapstand/tussentijds) → `reconcile` zonder springen; `_onCloseDocument` → online `reconcile`, offline niets; `drainQueue` → niets. Interactief (kosync-menu) blijft origineel | Kosync-standaard: "nieuwer wint", blind wegschrijven |
+| `ensureKosyncBinary` | `kosync.settings.checksum_method = 0` (binary) | Digest op bestandsnaam |
 | `isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
 | `toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
 | Actiebalk (`actionbar.lua`) | geen haak: eigen `InputContainer` met `Button`s, getoond met `UIManager:show` | — |
@@ -315,15 +317,24 @@ verdwijnen dialogen van KOReader eronder.
 `ui.kosync`, `ui.gestures` enz. dus nog niet; `onReaderReady` van Lingering draait ook vóór
 die van kosync. Kosync plant zijn eerste `getProgress` met `UIManager:nextTick`.
 
-## Voortgang (fase 6)
+## Voortgang (fase 6, herzien)
 
-- Openen met verbinding: kosync haalt op (nieuwer → stil springen, met kosyncs melding
-  "Progress has been synchronized"; ouder → vragen).
-- Openen of ontwaken zonder verbinding: stil overgeslagen (`guardKosyncNetworking`).
-- Sluiten: kosync `_onCloseDocument` pusht als je online bent, anders `KOSyncQueue`.
-  De wachtrij gaat weg bij `NetworkConnected` in de lezer (sync-knop, slaapstand).
-- Slaapstand: kosync `_onSuspend` zet wifi aan, pusht en zet wifi weer uit.
-- Sync-knop: zie `syncNow`.
+Regel: **verder wint, nooit blind wegschrijven** (op verzoek, na een echte overschrijving:
+boek via OPDS gedownload, geopend, sync → oudere stand van de Kobo overschreef een verdere).
+Kosync zelf vergelijkt op tijdstempel (`KOSync:getProgress`, "nieuwer wint") en schrijft bij
+sluiten/slaapstand/wachtrij blind weg; dat is via `installKosyncRules` vervangen.
+
+| Moment | Gedrag |
+|---|---|
+| Openen / ontwaken met verbinding | `reconcile` met springen |
+| Openen / ontwaken zonder verbinding | overslaan |
+| Sync-knop | wifi aan → `reconcile` met springen → wifi uit (als hij uit stond) |
+| Sluiten met verbinding | `reconcile` zonder springen |
+| Sluiten zonder verbinding | niets (geen wachtrij) |
+| Slaapstand | wifi aan → `reconcile` zonder springen → wifi uit |
+
+Getest tegen een echte server: gelijk → niets; 5 pagina's verder → wegschrijven;
+5 pagina's terug → vooruit springen.
 
 ## Mijn boeken (fase 5)
 

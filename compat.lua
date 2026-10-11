@@ -368,16 +368,105 @@ local function kosyncLoggedIn(kosync)
     return kosync and kosync.settings and kosync.settings.username and kosync.settings.userkey
 end
 
+-- Verschil in percentage (0..1) waaronder twee standen als gelijk gelden.
+local PERCENT_EPSILON = 0.0005
+
 --[[--
-Sync-knop in het boek: tweezijdig, met terugmelding done(ok).
-1. wifi aan zonder te vragen (en na afloop weer uit als hij uit stond);
-2. voortgang ophalen (KOSyncClient:get_progress). Is die van een ander apparaat en nieuwer
-   dan de laatste paginawissel hier (zoals KOSync:getProgress het bepaalt), dan springt
-   het boek erheen via KOSync:syncToProgress;
-3. anders de eigen voortgang wegschrijven (KOSyncClient:update_progress).
-Gebruikt van de kosync-instantie (ui.kosync): settings, path, device_id,
-last_page_turn_timestamp, pull_timestamp, getDocumentDigest, getMetadata,
-getLastProgress, getLastPercent, syncToProgress.
+Voortgang vergelijken volgens "verder wint" en "nooit blind wegschrijven":
+1. momentopname van de eigen stand (digest, progress, percentage, metadata), want bij
+   sluiten is het document weg als het antwoord binnenkomt;
+2. ophalen (KOSyncClient:get_progress);
+3. server verder → springen (KOSync:syncToProgress) als opts.jump, anders niets;
+   apparaat verder of geen stand op de server → wegschrijven (update_progress);
+   gelijk → niets; ophalen mislukt → níets wegschrijven.
+done(ok) volgt altijd precies één keer.
+Gebruikt van de kosync-instantie: settings, path, device_id, getDocumentDigest,
+getLastProgress, getLastPercent, getMetadata, syncToProgress.
+]]
+function Compat.reconcile(kosync, opts, done)
+    local finished = false
+    local function finish(ok)
+        if finished then return end
+        finished = true
+        if done then done(ok) end
+    end
+    if not kosyncLoggedIn(kosync) then
+        logger.warn("Lingering: voortgang niet gesynchroniseerd, kosync niet ingelogd")
+        finish(false)
+        return
+    end
+    local ok = try("reconcile", function()
+        local Device = require("device")
+        local KOSyncClient = require("KOSyncClient")
+        local settings = kosync.settings
+        kosync._lingering_last_reconcile = UIManager:getElapsedTimeSinceBoot()
+        local snapshot = {
+            digest = kosync:getDocumentDigest(),
+            progress = kosync:getLastProgress(),
+            percent = tonumber(kosync:getLastPercent()) or 0,
+            metadata = kosync:getMetadata(),
+        }
+        local client = KOSyncClient:new{
+            custom_url = settings.custom_server,
+            service_spec = kosync.path .. "/api.json",
+        }
+
+        local function push()
+            client:update_progress(
+                settings.username,
+                settings.userkey,
+                snapshot.digest,
+                snapshot.metadata,
+                snapshot.progress,
+                snapshot.percent,
+                settings.kosync_hostname or Device.model,
+                kosync.device_id,
+                function(success, status)
+                    logger.info("Lingering: voortgang weggeschreven:", success and "ok" or ("fout " .. tostring(status)))
+                    finish(success and true or false)
+                end)
+        end
+
+        client:get_progress(settings.username, settings.userkey, snapshot.digest, function(success, body)
+            local action = "fail"
+            local server_percent
+            local cb_ok, err = pcall(function()
+                if not success then return end
+                if type(body) ~= "table" or body.percentage == nil then
+                    action = "push" -- nog geen stand op de server
+                    return
+                end
+                server_percent = tonumber(body.percentage)
+                if not server_percent then return end
+                if server_percent > snapshot.percent + PERCENT_EPSILON then
+                    action = opts.jump and "jump" or "none"
+                elseif server_percent < snapshot.percent - PERCENT_EPSILON then
+                    action = "push"
+                else
+                    action = "none"
+                end
+                if action == "jump" then
+                    kosync:syncToProgress(body.progress)
+                end
+            end)
+            if not cb_ok then
+                logger.warn("Lingering: voortgang vergelijken mislukt:", err)
+                action = "fail"
+            end
+            logger.info("Lingering: voortgang", action, "(server", tostring(server_percent), "hier", snapshot.percent .. ")")
+            if action == "push" then
+                if not pcall(push) then finish(false) end
+            else
+                finish(action ~= "fail")
+            end
+        end)
+    end)
+    if not ok then finish(false) end
+end
+
+--[[--
+Sync-knop in het boek: wifi aan zonder te vragen, reconcile met springen, en wifi weer uit
+als hij uit stond. done(ok).
 ]]
 function Compat.syncNow(ui, done)
     local kosync = ui.kosync
@@ -394,72 +483,10 @@ function Compat.syncNow(ui, done)
             finish(ok)
         end
     end
-    -- KOSync:_onNetworkConnected haalt bij een nieuwe verbinding zelf ook voortgang op;
-    -- via zijn eigen vertraging (pull_timestamp, 25 s) slaan we die over: wij doen het al.
-    pcall(function() kosync.pull_timestamp = UIManager:getElapsedTimeSinceBoot() end)
-
+    -- Ook voor de verbinding er is: KOSync:_onNetworkConnected mag niet tegelijk reconcilen.
+    kosync._lingering_last_reconcile = UIManager:getElapsedTimeSinceBoot()
     local started = Compat.turnOnWifiThen(function()
-        local ok = try("syncNow", function()
-            local Device = require("device")
-            local KOSyncClient = require("KOSyncClient")
-            local settings = kosync.settings
-            local client = KOSyncClient:new{
-                custom_url = settings.custom_server,
-                service_spec = kosync.path .. "/api.json",
-            }
-            local digest = kosync:getDocumentDigest()
-
-            local function push()
-                client:update_progress(
-                    settings.username,
-                    settings.userkey,
-                    digest,
-                    kosync:getMetadata(),
-                    kosync:getLastProgress(),
-                    kosync:getLastPercent(),
-                    settings.kosync_hostname or Device.model,
-                    kosync.device_id,
-                    function(success, status)
-                        logger.info("Lingering: voortgang weggeschreven:", success and "ok" or ("fout " .. tostring(status)))
-                        done(success and true or false)
-                    end)
-            end
-
-            client:get_progress(settings.username, settings.userkey, digest, function(success, body)
-                local jumped = false
-                local cb_ok, err = pcall(function()
-                    if not (success and type(body) == "table" and body.percentage and body.progress) then
-                        return
-                    end
-                    if body.device == Device.model and body.device_id == kosync.device_id then
-                        return -- laatste stand komt van dit apparaat
-                    end
-                    if body.progress == kosync:getLastProgress() then
-                        return -- al gelijk
-                    end
-                    local server_newer
-                    if body.timestamp then
-                        server_newer = body.timestamp > (kosync.last_page_turn_timestamp or 0)
-                    else
-                        server_newer = body.percentage > kosync:getLastPercent()
-                    end
-                    if server_newer then
-                        logger.info("Lingering: nieuwere voortgang van", tostring(body.device), "ingesteld")
-                        kosync:syncToProgress(body.progress)
-                        jumped = true
-                    end
-                end)
-                if not cb_ok then
-                    logger.warn("Lingering: voortgang verwerken mislukt:", err)
-                end
-                if jumped then
-                    done(true)
-                elseif not pcall(push) then
-                    done(false)
-                end
-            end)
-        end)
-        if not ok then done(false) end
+        Compat.reconcile(kosync, { jump = true }, done)
     end)
     if not started then done(false) end
 end
@@ -480,22 +507,78 @@ function Compat.ensureKosyncBinary(ui)
     end)
 end
 
+-- Recent al vergeleken (sync-knop, openen)? Dan niet nog eens.
+local RECONCILE_DEBOUNCE = 15
+local function recentlyReconciled(kosync)
+    local last = kosync._lingering_last_reconcile
+    if not last then return false end
+    local time = require("ui/time")
+    return time.to_s(UIManager:getElapsedTimeSinceBoot() - last) < RECONCILE_DEBOUNCE
+end
+
 --[[--
-Geen wifi: automatisch ophalen stil overslaan. KOSync roept bij openen (onReaderReady) en
-ontwaken (_onResume) getProgress(true, false) aan; met ensure_networking zou dat wifi
-aanzetten. Zonder verbinding slaan we dat over; de sync-knop in het boek haalt het op.
-Vervangt getProgress alleen op deze kosync-instantie.
+Kosync volgt "verder wint" en schrijft nooit blind weg. Vervangt op deze kosync-instantie
+(vóór KOSync:onReaderReady, dat registerEvents aanroept):
+- getProgress (openen via onReaderReady, ontwaken via _onResume, nieuwe verbinding via
+  _onNetworkConnected): zonder verbinding stil overslaan, anders reconcile met springen;
+- updateProgress (slaapstand via _onSuspend, tussentijds, sluiten): reconcile zonder springen;
+  met ensure_networking eerst wifi aan; bij slaapstand daarna wifi weer uit;
+- _onCloseDocument: alleen met verbinding reconcile; offline niets (geen blinde wachtrij);
+- drainQueue: niets (de wachtrij zou blind wegschrijven).
+Interactieve aanroepen (kosync-menu) blijven bij kosync zelf.
 ]]
-function Compat.guardKosyncNetworking(ui)
-    return try("guardKosyncNetworking", function()
+function Compat.installKosyncRules(ui)
+    return try("installKosyncRules", function()
         local kosync = assert(ui.kosync, "kosync niet geladen")
         local getProgress = assert(kosync.getProgress, "KOSync:getProgress ontbreekt")
+        local updateProgress = assert(kosync.updateProgress, "KOSync:updateProgress ontbreekt")
+        assert(kosync._onCloseDocument and kosync.drainQueue, "kosync-handlers ontbreken")
+
         kosync.getProgress = function(this, ensure_networking, interactive)
-            if ensure_networking and not interactive and not Compat.isOnline() then
+            if interactive then return getProgress(this, ensure_networking, interactive) end
+            if not Compat.isOnline() then
                 logger.info("Lingering: geen verbinding, voortgang ophalen overgeslagen")
                 return
             end
-            return getProgress(this, ensure_networking, interactive)
+            if recentlyReconciled(this) then return end
+            -- Eén nieuwe poging als ophalen mislukt (bijv. net na het openen, netwerk nog niet klaar).
+            Compat.reconcile(this, { jump = true }, function(ok)
+                if ok then return end
+                UIManager:scheduleIn(3, function()
+                    if Compat.isOnline() then Compat.reconcile(this, { jump = true }) end
+                end)
+            end)
+        end
+
+        kosync.updateProgress = function(this, ensure_networking, interactive, on_suspend)
+            if interactive then return updateProgress(this, ensure_networking, interactive, on_suspend) end
+            local function afterwards()
+                if on_suspend then Compat.disableWifi() end
+            end
+            if Compat.isOnline() then
+                Compat.reconcile(this, { jump = false }, afterwards)
+            elseif ensure_networking then
+                if not Compat.turnOnWifiThen(function()
+                    Compat.reconcile(this, { jump = false }, afterwards)
+                end) then afterwards() end
+            else
+                logger.info("Lingering: geen verbinding, voortgang wegschrijven overgeslagen")
+            end
+        end
+
+        kosync._onCloseDocument = function(this)
+            -- Zoals KOSync:_onCloseDocument: Suspend/Resume-handlers uit tijdens het sluiten.
+            this.onResume = nil
+            this.onSuspend = nil
+            if Compat.isOnline() then
+                Compat.reconcile(this, { jump = false })
+            else
+                logger.info("Lingering: offline gesloten, voortgang volgt bij de volgende sync")
+            end
+        end
+
+        kosync.drainQueue = function()
+            logger.info("Lingering: kosync-wachtrij overgeslagen (nooit blind wegschrijven)")
         end
     end)
 end
