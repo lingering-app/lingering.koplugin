@@ -52,7 +52,12 @@ function SettingsScreen:init()
         icon = { icon = "wifi" },
         right = toggleIcon(wifi_on),
         enabled = Device:hasWifiToggle(),
-        callback = function() self:toggleWifi() end,
+        -- Rij: netwerk kiezen (KOReaders netwerkscherm); schakelaar rechts: wifi aan/uit.
+        callback = function()
+            logger.info("Lingering: instellingen, wifi-netwerken")
+            Compat.showNetworkList(function() self:updateWifi() end)
+        end,
+        right_callback = function() self:toggleWifi() end,
     }
 
     local top_rows = {

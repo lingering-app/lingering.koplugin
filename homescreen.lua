@@ -89,7 +89,7 @@ De iconen blijven bestaan; refreshStatus werkt ze en de teksten ter plekke bij.
 function HomeScreen:buildStatus(width)
     local padding = Size.padding.large * 2
     local face = Font:getFace("cfont", 16)
-    local height = Screen:scaleBySize(48)
+    local height = Screen:scaleBySize(60)
     local inner = Geom:new{ w = width - 2 * padding, h = height }
     local Item = require("lingering_actionbar").Item
 

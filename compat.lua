@@ -1073,6 +1073,26 @@ function Compat.disableWifi()
     end)
 end
 
+--[[--
+KOReaders eigen netwerkscherm (ui/widget/networksetting): scannen, netwerk kiezen,
+wachtwoord. Zoals lang drukken op "Wi-Fi connection" in KOReaders menu
+(NetworkMgr:getWifiToggleMenuTable): wifi uit → toggleWifiOn met long_press; wifi aan →
+reconnectOrShowNetworkMenu, met wifi_toggle_long_press zodat de lijst ook bij een bestaande
+verbinding verschijnt. done() volgt na verbinden.
+]]
+function Compat.showNetworkList(done)
+    return try("showNetworkList", function()
+        local NetworkMgr = require("ui/network/manager")
+        NetworkMgr:queryNetworkState()
+        if NetworkMgr.is_wifi_on then
+            NetworkMgr.wifi_toggle_long_press = true
+            NetworkMgr:reconnectOrShowNetworkMenu(done, true)
+        else
+            NetworkMgr:toggleWifiOn(done, true, true)
+        end
+    end)
+end
+
 --- Wifi aan/uit (NetworkMgr:toggleWifiOn/toggleWifiOff). Alleen als het apparaat het kan.
 function Compat.setWifi(on, callback)
     return try("toggleWifi", function()

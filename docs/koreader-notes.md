@@ -270,6 +270,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `writeKosyncAccount` | `<settings>/kosync.lua` → `settings`; gedeeld `KOSync.settings_obj` via `PluginLoader.enabled_plugins` als kosync al geladen was | idem |
 | `plainDialog` | na `MultiInputDialog:init`: `dialog_frame.bordersize = 0`, `title_bar` uit de eerste `VerticalGroup` (subklasse `LoginDialog` in `setup.lua`, zodat het ook na een herbouw geldt) | Gewoon KOReader-venster met rand en titel |
 | `turnOnWifiThen` | `NetworkMgr:isOnline()`, anders `NetworkMgr:turnOnWifiAndWaitForConnection(cb)` (zonder te vragen) | Melding "Geen wifi-verbinding" |
+| `showNetworkList` | KOReaders netwerkscherm (`ui/widget/networksetting`) zoals lang drukken op "Wi-Fi connection" (`NetworkMgr:getWifiToggleMenuTable`): wifi uit → `toggleWifiOn(cb, true, true)`; wifi aan → `wifi_toggle_long_press = true` + `reconnectOrShowNetworkMenu(cb, true)` | Rij "Wifi" doet niets |
 | `ensureAutoWifi` | `wifi_enable_action = "turn_on"` alleen als `Device:hasSeamlessWifiToggle()` (zie `KOSync:init`) | Auto-sync kan door kosync worden uitgezet |
 | `opdsCredentials`, `opdsClient`, `opdsFetchPage`, `opdsFiletype`, `opdsDownload` | `opds.lua`-servers; kaal object met metatable `OPDSBrowser` (`sync = true`); `genItemTableFromURL`, `OPDSBrowser.getFiletype`, `downloadFile` | Mijn boeken toont alleen de cache / downloaden mislukt |
 | `homeFolder`, `isOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()` | Downloads in `./Lingering`; geen automatische sync |

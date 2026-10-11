@@ -84,6 +84,7 @@ local Row = InputContainer:extend{
     right = nil,        -- { icon = "..." } of { icon_file = "..." }
     enabled = true,
     callback = nil,
+    right_callback = nil,   -- optioneel: eigen actie voor een tik op het rechter-icoon
 }
 Widgets.Row = Row
 
@@ -143,8 +144,14 @@ function Row:update(fields)
     self:build()
 end
 
-function Row:onTapRow()
-    if self.enabled and self.callback then
+function Row:onTapRow(_, ges)
+    if not self.enabled then return true end
+    -- Tik op het rechter-icoon (ruim vlak) met een eigen actie?
+    local right_zone = Screen:scaleBySize(32) + 4 * Size.padding.large
+    if self.right_callback and ges and ges.pos and self.dimen
+            and ges.pos.x >= self.dimen.x + self.dimen.w - right_zone then
+        Widgets.safeCall("rij " .. tostring(self.text) .. " (rechts)", self.right_callback)
+    elseif self.callback then
         Widgets.safeCall("rij " .. tostring(self.text), self.callback)
     end
     return true
