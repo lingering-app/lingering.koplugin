@@ -57,7 +57,7 @@ end
 --- Toont het homescreen. Faalt dat, dan blijft de gewone bestandsbeheerder zichtbaar.
 function Lingering:showHomeScreen()
     if self.home or not Settings:isActive() then return end
-    if not Settings:read("lingering_setup_done") and not os.getenv("LINGERING_SHOT") then
+    if not Settings:read("lingering_setup_done") then
         self:showSetup(true)
         return
     end
@@ -73,11 +73,6 @@ function Lingering:showHomeScreen()
         self.home = home
         home:show()
     end)
-    if ok and os.getenv("LINGERING_SHOT") then
-        UIManager:scheduleIn(1.5, function() self:showSettings() end)
-        UIManager:scheduleIn(2.5, function() self:showSetup(false) end)
-        UIManager:scheduleIn(4, function() require("device").screen:shot(os.getenv("LINGERING_SHOT") .. "-account.png") end)
-    end
     if ok then
         logger.info("Lingering: homescreen getoond")
     else

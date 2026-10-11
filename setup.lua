@@ -197,7 +197,6 @@ function Setup.show(opts)
             logger.info("Lingering: setup voltooid")
 
             closeAll()
-            UIManager:show(InfoMessage:new{ text = _("Ingelogd."), timeout = 2 })
             if opts.on_done then
                 Widgets.safeCall("na inloggen", opts.on_done)
             end
