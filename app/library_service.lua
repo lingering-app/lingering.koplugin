@@ -114,6 +114,56 @@ function Library:sync(feed_url, done)
     step()
 end
 
+--[[--
+Plank "aan het lezen" (config.reading_shelf) voor het homescreen.
+readingBooks(exclude_file): boeken op die plank uit de cache, zonder het boek op exclude_file.
+refreshReadingShelf(done): met verbinding hoofdpagina (zo nodig) en plank verversen, hooguit
+  eens per READING_REFRESH_SECONDS; done(changed).
+]]
+local READING_REFRESH_SECONDS = 600
+
+function Library:readingShelfUrl()
+    local root = self:cached(self:rootUrl())
+    local folder = Catalog.findFolder(root and root.items, Config.reading_shelf)
+    return folder and folder.url
+end
+
+function Library:readingBooks(exclude_file)
+    local url = self:readingShelfUrl()
+    local feed = url and self:cached(url)
+    local books = {}
+    for _, entry in ipairs(feed and feed.items or {}) do
+        if entry.kind == "book" and (self:bookPath(entry)) ~= exclude_file then
+            table.insert(books, entry)
+        end
+    end
+    return books
+end
+
+function Library:refreshReadingShelf(done)
+    local function syncShelf()
+        local url = self:readingShelfUrl()
+        if not url then
+            done(false)
+            return
+        end
+        local feed = self:cached(url)
+        if feed and feed.fetched and os.time() - feed.fetched < READING_REFRESH_SECONDS then
+            done(false)
+            return
+        end
+        self:sync(url, done)
+    end
+    if self:readingShelfUrl() then
+        syncShelf()
+    else
+        -- Plank nog onbekend: eerst de hoofdpagina van de catalogus.
+        self:sync(self:rootUrl(), function(ok)
+            if ok then syncShelf() else done(false) end
+        end)
+    end
+end
+
 --- Pad waar dit boek staat of komt te staan.
 function Library:bookPath(book)
     local dir = Books.homeFolder() .. "/Lingering"

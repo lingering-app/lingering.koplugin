@@ -12,16 +12,12 @@ local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
-local InfoMessage = require("ui/widget/infomessage")
-local ConfirmBox = require("ui/widget/confirmbox")
-local T = require("ffi/util").template
 local logger = require("logger")
 local _ = require("gettext")
 local Screen = Device.screen
 
 local DeviceAdapter = require("lingering.koreader.device")
 local Network = require("lingering.koreader.network")
-local UpdateService = require("lingering.app.update_service")
 local Widgets = require("lingering.ui.widgets")
 
 local SettingsScreen = InputContainer:extend{
@@ -95,14 +91,6 @@ function SettingsScreen:init()
             callback = function() self.on_account() end,
         },
     }
-    local version = UpdateService.installedVersion()
-    local update_row = Widgets.Row:new{
-        width = width,
-        text = version and T(_("Update (v%1)"), version) or _("Update"),
-        icon = { icon_file = "sync.svg" },
-        callback = function() self:runUpdate() end,
-    }
-    table.insert(top_rows, update_row)
     table.insert(top_rows, Widgets.Row:new{
         width = width,
         text = _("Over Lingering"),
@@ -146,49 +134,6 @@ function SettingsScreen:init()
         background = Blitbuffer.COLOR_WHITE,
         group,
     }
-end
-
---[[--
-Update: wifi aan, nieuwste versie zoeken, vragen, bijwerken, KOReader herstarten.
-]]
-function SettingsScreen:runUpdate()
-    logger.info("Lingering: instellingen, update")
-    local busy = InfoMessage:new{ text = _("Zoeken naar een nieuwe versie…") }
-    UIManager:show(busy)
-    UIManager:forceRePaint()
-    UpdateService.check(function(result) Widgets.safeCall("update", function()
-        UIManager:close(busy)
-        if result.status == "error" then
-            UIManager:show(InfoMessage:new{ text = _("Zoeken naar een nieuwe versie is mislukt."), timeout = 3 })
-        elseif result.status == "current" then
-            UIManager:show(InfoMessage:new{
-                text = T(_("Je hebt de nieuwste versie (v%1)."), result.installed or "?"),
-                timeout = 3,
-            })
-        else
-            UIManager:show(ConfirmBox:new{
-                text = T(_("Bijwerken naar %1?"), result.latest),
-                ok_text = _("Bijwerken"),
-                ok_callback = function() self:installUpdate(result.latest) end,
-            })
-        end
-    end) end)
-end
-
-function SettingsScreen:installUpdate(tag)
-    local busy = InfoMessage:new{ text = _("Bijwerken…") }
-    UIManager:show(busy)
-    UIManager:forceRePaint()
-    UpdateService.install(tag, function(ok, reason) Widgets.safeCall("bijwerken", function()
-        UIManager:close(busy)
-        if ok then
-            UpdateService.askForRestart(_("Lingering is bijgewerkt. KOReader moet herstarten."))
-        elseif reason == "ontwikkelversie" then
-            UIManager:show(InfoMessage:new{ text = _("Dit is een ontwikkelversie; bijwerken overgeslagen.") })
-        else
-            UIManager:show(InfoMessage:new{ text = _("Bijwerken mislukt. De huidige versie blijft staan.") })
-        end
-    end) end)
 end
 
 function SettingsScreen:toggleWifi()

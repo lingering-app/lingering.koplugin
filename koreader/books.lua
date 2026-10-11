@@ -117,4 +117,14 @@ function M.homeFolder()
     return ok and dir or "."
 end
 
+--- Voortgang (0..1) van een boek op dit apparaat, of nil als het nooit geopend is.
+function M.percent(file)
+    local ok, percent = try("books.percent", function()
+        local BookList = require("ui/widget/booklist")
+        if not BookList.hasBookBeenOpened(file) then return nil end
+        return BookList.getDocSettings(file):readSetting("percent_finished")
+    end)
+    return ok and percent or nil
+end
+
 return M

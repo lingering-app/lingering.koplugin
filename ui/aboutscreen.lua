@@ -2,6 +2,7 @@
 Over Lingering: versie, korte uitleg, copyright, licentie, repo.
 ]]
 local Blitbuffer = require("ffi/blitbuffer")
+local Button = require("ui/widget/button")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
 local Font = require("ui/font")
@@ -62,6 +63,16 @@ function AboutScreen:init()
         TextWidget:new{ text = "Lingering", face = Font:getFace("cfont", 34), bold = true },
         VerticalSpan:new{ width = Size.padding.large },
         line(version and T(_("Versie %1"), version) or _("Versie onbekend"), 18, false, Blitbuffer.COLOR_DARK_GRAY),
+        VerticalSpan:new{ width = Size.padding.large * 2 },
+        Button:new{
+            text = _("Zoeken naar update"),
+            width = math.floor(text_w * 0.6),
+            radius = Size.radius.button,
+            show_parent = self,
+            callback = function()
+                Widgets.safeCall("update", require("lingering.ui.update_flow").run)
+            end,
+        },
         gap,
         line(_("Een rustige leesomgeving bovenop KOReader: je boeken, je voortgang op al je apparaten, en verder niets."), 18),
         gap,

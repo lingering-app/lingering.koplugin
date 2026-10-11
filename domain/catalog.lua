@@ -2,7 +2,8 @@
 Business rules voor de catalogus (Mijn boeken):
 - normalize(item, filetype_of): item van de OPDS-parser → map of boek, of nil;
 - pickAcquisition(acquisitions, filetype_of): beste download-link, EPUB eerst;
-- fileName(book): "<titel> - <auteur>.<ext>" (nog niet veilig gemaakt voor het bestandssysteem).
+- fileName(book): "<titel> - <auteur>.<ext>" (nog niet veilig gemaakt voor het bestandssysteem);
+- findFolder(items, title): map met deze naam (hoofdletters en spaties maken niet uit), of nil.
 filetype_of(acquisition) → "epub" | "pdf" | … | nil wordt door de aanroeper meegegeven.
 Pure Lua: geen KOReader.
 ]]
@@ -46,6 +47,20 @@ end
 
 function Catalog.fileName(book)
     return book.title .. (book.author and (" - " .. book.author) or "") .. "." .. (book.filetype or "epub")
+end
+
+local function simplify(text)
+    return (tostring(text or ""):lower():gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+function Catalog.findFolder(items, title)
+    local wanted = simplify(title)
+    if wanted == "" then return nil end
+    for _, entry in ipairs(items or {}) do
+        if entry.kind == "folder" and simplify(entry.title) == wanted then
+            return entry
+        end
+    end
 end
 
 return Catalog
