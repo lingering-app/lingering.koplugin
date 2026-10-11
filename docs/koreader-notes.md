@@ -234,6 +234,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `turnOnWifiThen` | `NetworkMgr:isOnline()`, anders `NetworkMgr:turnOnWifiAndWaitForConnection(cb)` (zonder te vragen) | Melding "Geen wifi-verbinding" |
 | `ensureAutoWifi` | `wifi_enable_action = "turn_on"` alleen als `Device:hasSeamlessWifiToggle()` (zie `KOSync:init`) | Auto-sync kan door kosync worden uitgezet |
 | `opdsCredentials`, `opdsClient`, `opdsFetchPage`, `opdsFiletype`, `opdsDownload` | `opds.lua`-servers; kaal object met metatable `OPDSBrowser` (`sync = true`); `genItemTableFromURL`, `OPDSBrowser.getFiletype`, `downloadFile` | Mijn boeken toont alleen de cache / downloaden mislukt |
+| `homeFolder`, `isOnline`, `runWhenOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()`, `NetworkMgr:runWhenOnline()` | Downloads in `./Lingering`; geen automatische sync |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak in compat: standaard plugin-API |
 
 Bewuste keuzes in het leesscherm:
@@ -270,6 +271,21 @@ Op de desktop (SDL) geven `isWifiOn`/`isConnected` altijd `true` en is
 (`frontend/ui/uimanager.lua`). `MultiInputDialog` is niet modaal. Onze schermvullende
 schermen (homescreen, instellingen, inlog-achtergrond) zijn daarom niet `modal`; anders
 verdwijnen dialogen van KOReader eronder.
+
+## Mijn boeken (fase 5)
+
+- `library.lua`: cache per gebruiker in `<datadir>/cache/lingering/library.lua`
+  (`feeds[gebruiker][adres] = { items, fetched }`), omslagen in `.../covers/<md5(url)>`.
+  Ophalen via `Compat.opdsFetchPage` (= `OPDSBrowser:genItemTableFromURL`), alle
+  `hrefs.next`-pagina's, één verzoek per UIManager-tik. Items worden genormaliseerd tot
+  `{kind="folder", title, url}` of `{kind="book", title, author, thumbnail, href, filetype}`
+  (EPUB heeft voorkeur, via `OPDSBrowser.getFiletype`).
+- Downloaden via `OPDSBrowser:downloadFile` naar `<thuismap>/Lingering/<titel - auteur>.<ext>.part`,
+  daarna hernoemd; "gedownload" = het bestand bestaat.
+- Omslagen: eigen stille `socket.http`-GET (geen meldingen per mislukte omslag), en zelf
+  decoderen met `RenderImage:renderImageFile` in een `pcall` (kapotte afbeelding wordt
+  verwijderd in plaats van het scherm te breken).
+- `Item.on_tap` (actionbar.lua) loopt nu ook via `safeCall`.
 
 ## Tekenen en vangnetten
 

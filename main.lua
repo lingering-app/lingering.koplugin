@@ -11,8 +11,9 @@ local _ = require("gettext")
 -- Onze modules krijgen unieke namen in de gedeelde require-cache. Namen als "reader" of
 -- "settings" zouden anders bij KOReader's eigen reader.lua of bij een andere plugin uitkomen.
 local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
-for _, module in ipairs({ "actionbar", "compat", "config", "homescreen", "reader",
-                          "settings", "settingsscreen", "setup", "widgets" }) do
+for _, module in ipairs({ "actionbar", "compat", "config", "homescreen", "library",
+                          "libraryscreen", "reader", "settings", "settingsscreen", "setup",
+                          "widgets" }) do
     package.preload["lingering_" .. module] = function()
         return dofile(plugin_dir .. "/" .. module .. ".lua")
     end
@@ -65,7 +66,7 @@ function Lingering:showHomeScreen()
         local HomeScreen = require("lingering_homescreen")
         local home = HomeScreen:new{
             fm = self.ui,
-            on_local_books = notYet,
+            on_local_books = function() self:showLibrary() end,
             on_settings = function() self:showSettings() end,
             on_emergency = function() self:openEmergencyMenu() end,
             on_closed = function() self.home = nil end,
@@ -79,6 +80,18 @@ function Lingering:showHomeScreen()
         self.home = nil
         logger.warn("Lingering: homescreen kon niet laden, bestandsbeheerder blijft zichtbaar:", err)
     end
+end
+
+--- Mijn boeken: de OPDS-catalogus, gecachet; tik op een boek opent of downloadt het.
+function Lingering:showLibrary()
+    local LibraryScreen = require("lingering_libraryscreen")
+    LibraryScreen:new{
+        library = require("lingering_library"),
+        on_open_book = function(path)
+            require("lingering_compat").openBook(path)
+        end,
+    }:show()
+    logger.info("Lingering: mijn boeken getoond")
 end
 
 --- Inlogscherm. Eerste keer: in plaats van het homescreen; anders vanuit Instellingen.

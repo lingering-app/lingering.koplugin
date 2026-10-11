@@ -162,7 +162,7 @@ function Item:onTapItem()
     elseif action.task then
         self:startTask()
     elseif self.on_tap then
-        self.on_tap()
+        safeCall("knop", self.on_tap)
     end
     return true
 end
