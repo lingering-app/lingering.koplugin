@@ -223,6 +223,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `currentBook` | `ReadHistory.hist` (eerste bestaande, geen `<datadir>/help/quickstart-*.html`), `BookList.getDocSettings(file):readSetting("percent_finished")`, `fm.bookinfo:getDocProps(file, nil, true)`, `fm.bookinfo:getCoverImage(nil, file)` | Homescreen zonder boek ("Nog geen boek"), of zonder omslag |
 | `openBook` | `ReaderUI:showReader(file)` | Tik op het boek doet niets |
 | `batteryPercent`, `isWifiOn`, `isWifiConnected`, `setWifi` | `Device:getPowerDevice():getCapacity()`, `NetworkMgr:isWifiOn()` (radio, voor de schakelaar), `NetworkMgr:isConnected()` (verbinding, voor het icoon; op Kobo `ifHasAnAddress`), `NetworkMgr:toggleWifiOn/Off` | Statusregel zonder batterij/wifi; wifi-schakelaar doet niets |
+| Statusregel homescreen | lamp: `toggleFrontlight(fm)` (FileManager heeft ook een `DeviceListener`); wifi: `setWifi` + `isWifiOn`/`isWifiConnected`; iconen via `ActionBar.Item` (switch met `icon_spec`) | Iconen grijs/zonder effect |
 | Homescreen tonen | eigen widget via `UIManager:show` vanuit `init` in FileManager-context (`nextTick`); sluit zichzelf bij event `ShowingReader` | Gewone bestandsbeheerder blijft zichtbaar |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak in compat: standaard plugin-API |
 
