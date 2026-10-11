@@ -64,6 +64,33 @@ function Fakes.kosync.secondsSinceActivity()
     return Fakes.now - Fakes.state.last_activity
 end
 
+-- Nep-opslag en -bestanden voor app/library_service.
+local function newStore()
+    local data = {}
+    return {
+        readSetting = function(_, key) return data[key] end,
+        saveSetting = function(_, key, value) data[key] = value end,
+        flush = function() Fakes.calls.flush = (Fakes.calls.flush or 0) + 1 end,
+    }
+end
+Fakes.luasettings = { open = function() return Fakes.store end }
+Fakes.datastorage = { getDataDir = function() return "/nep" end, getSettingsDir = function() return "/nep/settings" end }
+Fakes.lfs = { attributes = function(path, what) if Fakes.state.files[path] then return what == "mode" and "file" or {} end end }
+Fakes.util = { makePath = noop, getSafeFilename = function(name) return name end }
+Fakes.sha2 = { md5 = function(text) return "md5:" .. tostring(text) end }
+Fakes.opds = { filetype = function() return "epub" end, credentials = function() return "lezer", "geheim" end }
+
+Fakes.books = {}
+function Fakes.books.homeFolder() return "/boeken" end
+function Fakes.books.percent(path) return Fakes.state.local_percents[path] end
+function Fakes.books.partialDigest(path) return "digest:" .. path end
+
+function Fakes.kosync.fetchStored(digest, cb)
+    Fakes.calls.fetch_stored = (Fakes.calls.fetch_stored or 0) + 1
+    local record = Fakes.state.server_records[digest]
+    cb(Fakes.state.fetch_ok, record)
+end
+
 function Fakes.reset()
     Fakes.scheduled = {}
     Fakes.now = 1000
@@ -72,7 +99,9 @@ function Fakes.reset()
         online = true, wifi_on = true, wifi_fails = false,
         logged_in = true, local_percent = 0.5,
         fetch_ok = true, record = nil, store_ok = true,
+        files = {}, local_percents = {}, server_records = {},
     }
+    Fakes.store = newStore()
 end
 
 function Fakes.install()
@@ -81,6 +110,13 @@ function Fakes.install()
     package.loaded["ui/time"] = Fakes.time
     package.loaded["lingering.koreader.network"] = Fakes.network
     package.loaded["lingering.koreader.kosync"] = Fakes.kosync
+    package.loaded["lingering.koreader.books"] = Fakes.books
+    package.loaded["lingering.koreader.opds"] = Fakes.opds
+    package.loaded["luasettings"] = Fakes.luasettings
+    package.loaded["datastorage"] = Fakes.datastorage
+    package.loaded["libs/libkoreader-lfs"] = Fakes.lfs
+    package.loaded["util"] = Fakes.util
+    package.loaded["ffi/sha2"] = Fakes.sha2
     Fakes.reset()
 end
 

@@ -144,6 +144,24 @@ function Smoke.filemanager(plugin)
             logger.info("Lingering: SMOKE omslag", bb:getWidth(), "x", bb:getHeight())
             bb:free()
         end },
+        { name = "serverstand zonder openen", fn = function()
+            local Library = require("lingering.app.library_service")
+            local Books = require("lingering.koreader.books")
+            local book = Smoke.firstBook(Library)
+            assert(book and Library:isDownloaded(book), "eerste boek staat niet op dit apparaat")
+            local path = Library:bookPath(book)
+            local digest = Books.partialDigest(path)
+            local saved = require("ui/widget/booklist").getDocSettings(path):readSetting("partial_md5_checksum")
+            assert(digest and (not saved or digest == saved), "sleutel wijkt af van KOReader: " .. tostring(digest) .. " / " .. tostring(saved))
+            require("lingering.koreader.kosync").fetchStored(digest, function(ok, record)
+                state.server_ok, state.server_record = ok, record
+            end)
+        end },
+        { name = "serverstand ontvangen", wait = 3, fn = function()
+            assert(state.server_ok, "ophalen mislukt")
+            assert(state.server_record and state.server_record.percent, "geen stand op de server")
+            logger.info("Lingering: SMOKE serverstand", state.server_record.percent)
+        end },
         { name = "update zoeken", fn = function()
             require("lingering.app.update_service").check(function(result)
                 state.update = result

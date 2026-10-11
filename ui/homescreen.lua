@@ -88,9 +88,10 @@ function ShelfTile:init()
             },
         }
     end
+    -- Eigen voortgang als het boek hier al geopend is, anders de serverstand (als bekend).
     local percent
     if self.library:isDownloaded(entry) then
-        percent = Books.percent((self.library:bookPath(entry)))
+        percent = Books.percent((self.library:bookPath(entry))) or self.library:serverPercent(entry)
     end
     local bar_h = Screen:scaleBySize(5)
     local group = VerticalGroup:new{
@@ -480,6 +481,12 @@ function HomeScreen:refreshShelf()
             self:build()
             UIManager:setDirty(self, "ui", Geom:new{ x = 0, y = self.book_dimen.y, w = self.dimen.w, h = self.dimen.h - self.book_dimen.y })
         end
+        local function afterCovers()
+            -- Serverstand voor gedownloade, hier nooit geopende boeken.
+            self.library:refreshServerProgress(self.library:readingBooks(self.book and self.book.file), function(progress_changed)
+                if changed or #missing > 0 or progress_changed then redraw() end
+            end)
+        end
         local index = 0
         local function next_cover()
             if self.closed then return end
@@ -487,8 +494,8 @@ function HomeScreen:refreshShelf()
             if missing[index] then
                 pcall(self.library.fetchCover, self.library, missing[index])
                 UIManager:scheduleIn(0.05, next_cover)
-            elseif changed or #missing > 0 then
-                redraw()
+            else
+                afterCovers()
             end
         end
         next_cover()

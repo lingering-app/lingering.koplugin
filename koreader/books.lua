@@ -127,4 +127,16 @@ function M.percent(file)
     return ok and percent or nil
 end
 
+--[[--
+Sleutel van een boekbestand zoals kosync die in binary-modus gebruikt:
+util.partialMD5(bestand) = partial_md5_checksum in de boekinstellingen (ReaderUI:init,
+KOSync:getFileDigest). Werkt zonder het boek te openen.
+]]
+function M.partialDigest(file)
+    local ok, digest = try("books.partialDigest", function()
+        return require("util").partialMD5(file)
+    end)
+    return ok and digest or nil
+end
+
 return M

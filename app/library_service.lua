@@ -15,6 +15,7 @@ local md5 = require("ffi/sha2").md5
 local util = require("util")
 
 local Books = require("lingering.koreader.books")
+local Kosync = require("lingering.koreader.kosync")
 local Opds = require("lingering.koreader.opds")
 local Config = require("lingering.config")
 local Catalog = require("lingering.domain.catalog")
@@ -162,6 +163,54 @@ function Library:refreshReadingShelf(done)
             if ok then syncShelf() else done(false) end
         end)
     end
+end
+
+--[[--
+Voortgang op de server van boeken die op het apparaat staan maar hier nog nooit geopend zijn
+(dan heeft KOReader zelf nog geen voortgang). Onthouden per bestand in de cache, zodat het
+balkje ook zonder wifi blijft.
+]]
+function Library:serverPercent(entry)
+    self:open()
+    local progress = self.store:readSetting("server_progress") or {}
+    local item = progress[(self:bookPath(entry))]
+    return item and item.percent
+end
+
+--- Met verbinding: serverstand ophalen voor gedownloade, hier nooit geopende boeken. done(changed).
+function Library:refreshServerProgress(books, done)
+    local pending, changed = 0, false
+    local progress = (function()
+        self:open()
+        return self.store:readSetting("server_progress") or {}
+    end)()
+    local function finish()
+        if pending > 0 then return end
+        if changed then
+            self.store:saveSetting("server_progress", progress)
+            self.store:flush()
+        end
+        done(changed)
+    end
+    for _, entry in ipairs(books or {}) do
+        local path = self:bookPath(entry)
+        if self:isDownloaded(entry) and Books.percent(path) == nil then
+            local digest = Books.partialDigest(path)
+            if digest then
+                pending = pending + 1
+                Kosync.fetchStored(digest, function(ok, record)
+                    pending = pending - 1
+                    if ok and record and record.percent then
+                        local old = progress[path]
+                        if not old or old.percent ~= record.percent then changed = true end
+                        progress[path] = { percent = record.percent, fetched = os.time() }
+                    end
+                    finish()
+                end)
+            end
+        end
+    end
+    finish()
 end
 
 --- Pad waar dit boek staat of komt te staan.
