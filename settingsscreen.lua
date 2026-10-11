@@ -1,5 +1,5 @@
 --[[--
-Instellingen: wifi aan/uit, nu synchroniseren, opnieuw inloggen, en onderaan
+Instellingen: wifi aan/uit, nu synchroniseren, account (gebruikersnaam en wachtwoord), en onderaan
 "Geavanceerd" (het noodluik naar het volledige KOReader-menu).
 ]]
 local Blitbuffer = require("ffi/blitbuffer")
@@ -20,7 +20,7 @@ local Widgets = require("lingering_widgets")
 
 local SettingsScreen = InputContainer:extend{
     on_sync = nil,
-    on_login = nil,
+    on_account = nil,
     on_emergency = nil,
     covers_fullscreen = true,
     modal = true,
@@ -65,10 +65,10 @@ function SettingsScreen:init()
         },
         Widgets.Row:new{
             width = width,
-            text = _("Opnieuw inloggen"),
-            icon = { icon = "appbar.settings" },
+            text = _("Account"),
+            icon = { icon_file = "account.svg" },
             right = { icon = "chevron.right" },
-            callback = function() self.on_login() end,
+            callback = function() self.on_account() end,
         },
     }
     local advanced = Widgets.Row:new{

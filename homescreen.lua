@@ -1,5 +1,5 @@
 --[[--
-Homescreen: statusregel, huidig boek, drie grote rijen.
+Homescreen: statusregel, huidig boek, grote rijen (Mijn boeken, Instellingen).
 Ligt schermvullend over de bestandsbeheerder; vangt alle gebaren af, zodat het menu
 van de bestandsbeheerder niet open kan.
 ]]
@@ -38,7 +38,6 @@ local EMERGENCY_HOLD_SECONDS = 2.5
 
 local HomeScreen = InputContainer:extend{
     fm = nil,               -- FileManager-instantie
-    on_library = nil,
     on_local_books = nil,
     on_settings = nil,
     on_emergency = nil,
@@ -74,13 +73,16 @@ function HomeScreen:buildStatus(width)
     local inner = Geom:new{ w = width - 2 * padding, h = height }
 
     local time = datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
+    local gap = Size.padding.large * 2
     local right = HorizontalGroup:new{ align = "center" }
+    table.insert(right, TextWidget:new{ text = time, face = face })
     if Compat.isWifiOn() then
+        table.insert(right, HorizontalSpan:new{ width = gap })
         table.insert(right, Widgets.icon({ icon = "wifi" }, Screen:scaleBySize(18)))
-        table.insert(right, HorizontalSpan:new{ width = Size.padding.large })
     end
     local battery = Compat.batteryPercent()
     if battery then
+        table.insert(right, HorizontalSpan:new{ width = gap })
         table.insert(right, TextWidget:new{ text = T(_("%1%"), battery), face = face })
     end
 
@@ -91,7 +93,7 @@ function HomeScreen:buildStatus(width)
         bordersize = 0,
         OverlapGroup:new{
             dimen = inner,
-            LeftContainer:new{ dimen = inner, TextWidget:new{ text = time, face = face } },
+            LeftContainer:new{ dimen = inner, TextWidget:new{ text = "Lingering", face = face, bold = true } },
             RightContainer:new{ dimen = inner, right },
         },
     }
@@ -105,7 +107,7 @@ function HomeScreen:buildBook(width, height)
         return CenterContainer:new{
             dimen = Geom:new{ w = width, h = height },
             TextBoxWidget:new{
-                text = _("Nog geen boek.\nTik hier om er een te kiezen in de bibliotheek."),
+                text = _("Nog geen boek.\nTik hier om er een te kiezen uit Mijn boeken."),
                 face = Font:getFace("cfont", 22),
                 width = inner_w,
                 alignment = "center",
@@ -195,13 +197,6 @@ function HomeScreen:build()
     local rows = {
         Widgets.Row:new{
             width = width,
-            text = _("Bibliotheek"),
-            icon = { icon_file = "library.svg" },
-            right = { icon = "chevron.right" },
-            callback = function() self.on_library() end,
-        },
-        Widgets.Row:new{
-            width = width,
             text = _("Mijn boeken"),
             icon = { icon = "book.opened" },
             right = { icon = "chevron.right" },
@@ -255,7 +250,7 @@ function HomeScreen:onTapBook()
         self:close()
         Compat.openBook(file)
     else
-        Widgets.safeCall("bibliotheek", self.on_library)
+        Widgets.safeCall("mijn boeken", self.on_local_books)
     end
     return true
 end

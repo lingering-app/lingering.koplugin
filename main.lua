@@ -61,7 +61,6 @@ function Lingering:showHomeScreen()
         local HomeScreen = require("lingering_homescreen")
         local home = HomeScreen:new{
             fm = self.ui,
-            on_library = notYet,
             on_local_books = notYet,
             on_settings = function() self:showSettings() end,
             on_emergency = function() self:openEmergencyMenu() end,
@@ -82,7 +81,7 @@ function Lingering:showSettings()
     local SettingsScreen = require("lingering_settingsscreen")
     SettingsScreen:new{
         on_sync = notYet,
-        on_login = notYet,
+        on_account = notYet,
         on_emergency = function() self:openEmergencyMenu() end,
     }:show()
 end
