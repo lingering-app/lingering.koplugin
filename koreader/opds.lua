@@ -157,4 +157,34 @@ function M.writeAccount(opds_url, username, password, fm)
     end)
 end
 
+--[[--
+Haalt één omslag op naar path. Stil: een mislukte omslag geeft geen melding (het boek toont
+dan zijn titel). Eigen GET met socket.http + socketutil, eerst naar path .. ".part".
+]]
+function M.fetchCover(url, path, username, password)
+    local ok, success = try("opds.fetchCover", function()
+        local http = require("socket.http")
+        local ltn12 = require("ltn12")
+        local socket = require("socket")
+        local socketutil = require("socketutil")
+        local part = path .. ".part"
+        local file = assert(io.open(part, "wb"))
+        socketutil:set_timeout(socketutil.DEFAULT_BLOCK_TIMEOUT, socketutil.DEFAULT_TOTAL_TIMEOUT)
+        local code = socket.skip(1, http.request{
+            url = url,
+            headers = { ["Accept-Encoding"] = "identity" },
+            sink = ltn12.sink.file(file),
+            user = username,
+            password = password,
+        })
+        socketutil:reset_timeout()
+        if code == 200 and os.rename(part, path) then
+            return true
+        end
+        os.remove(part)
+        return false
+    end)
+    return ok and success or false
+end
+
 return M

@@ -64,7 +64,7 @@ function Smoke.filemanager(plugin)
 end
 
 function Smoke.reader(ui, show_action_bar)
-    local Kosync = require("lingering.koreader.kosync")
+    local SyncService = require("lingering.app.sync_service")
     local Navigation = require("lingering.koreader.navigation")
     run{
         { name = "actiebalk", wait = 3, fn = function()
@@ -82,7 +82,7 @@ function Smoke.reader(ui, show_action_bar)
             UIManager:close(UIManager:getTopmostVisibleWidget())
         end },
         { name = "sync-knop", fn = function()
-            Kosync.syncNow(ui, function(ok)
+            SyncService.syncNow(ui, function(ok)
                 logger.info("Lingering: SMOKE sync-knop resultaat", ok)
             end)
         end },

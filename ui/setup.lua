@@ -24,13 +24,9 @@ local util = require("util")
 local _ = require("gettext")
 local Screen = Device.screen
 
+local AccountService = require("lingering.app.account_service")
 local Dialogs = require("lingering.koreader.dialogs")
-local GlobalSettings = require("lingering.koreader.global_settings")
-local Kosync = require("lingering.koreader.kosync")
 local Network = require("lingering.koreader.network")
-local Opds = require("lingering.koreader.opds")
-local Config = require("lingering.config")
-local Settings = require("lingering.app.session")
 local Widgets = require("lingering.ui.widgets")
 
 local Setup = {}
@@ -140,16 +136,15 @@ function Setup.show(opts)
     }
     UIManager:show(background, "full")
 
-    local username_prefill = Opds.credentials(Config.opds_url) or ""
+    local username_prefill = AccountService.currentUsername() or ""
 
     local function closeAll()
         UIManager:close(dialog)
         UIManager:close(background, "full")
     end
 
-    -- Kort voor de gebruiker; welke server en waarom staat in de log.
-    local function fail(service, reason)
-        logger.warn("Lingering: inloggen mislukt bij", service, tostring(reason))
+    -- Kort voor de gebruiker; welke server en waarom staat in de log (AccountService.verify).
+    local function fail()
         UIManager:show(InfoMessage:new{
             text = _("Inloggen mislukt."),
         })
@@ -175,32 +170,18 @@ function Setup.show(opts)
             UIManager:show(busy)
             UIManager:forceRePaint()
 
-            local opds_ok, opds_reason = Opds.check(Config.opds_url, username, password)
-            local sync_ok, sync_reason
-            if opds_ok then
-                sync_ok, sync_reason = Kosync.check(Config.sync_url, username, password)
-            end
+            local verified = AccountService.verify(username, password)
             UIManager:close(busy)
-
-            if not opds_ok then
-                fail("OPDS", opds_reason)
-                return
-            elseif not sync_ok then
-                fail("kosync", sync_reason)
+            if not verified then
+                fail()
                 return
             end
-
-            local written = Opds.writeAccount(Config.opds_url, username, password, opts.fm)
-                and Kosync.writeAccount(Config.sync_url, username, password)
-            if not written then
+            if not AccountService.save(username, password, opts.fm) then
                 UIManager:show(InfoMessage:new{
                     text = _("Inloggen gelukt, maar de gegevens konden niet worden opgeslagen."),
                 })
                 return
             end
-            GlobalSettings.ensureAutoWifi()
-            Settings:save("lingering_setup_done", true)
-            logger.info("Lingering: setup voltooid")
 
             closeAll()
             if opts.on_done then

@@ -32,6 +32,7 @@ local T = require("ffi/util").template
 local Screen = Device.screen
 
 local Books = require("lingering.koreader.books")
+local ReadingTime = require("lingering.domain.reading_time")
 local DeviceAdapter = require("lingering.koreader.device")
 local Navigation = require("lingering.koreader.navigation")
 local Network = require("lingering.koreader.network")
@@ -42,10 +43,9 @@ local EMERGENCY_HOLD_SECONDS = 2.5
 
 -- "4 u 20 min" of "35 min".
 local function formatDuration(secs)
-    local minutes = math.floor(secs / 60 + 0.5)
-    local hours = math.floor(minutes / 60)
+    local hours, minutes = ReadingTime.split(secs)
     if hours > 0 then
-        return T(_("%1 u %2 min"), hours, string.format("%02d", minutes % 60))
+        return T(_("%1 u %2 min"), hours, string.format("%02d", minutes))
     end
     return T(_("%1 min"), minutes)
 end
@@ -68,7 +68,7 @@ function HomeScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }
     self.book = Books.currentBook(self.fm)
     if self.book then
-        self.book.stats = Books.stats(self.fm, self.book.file, self.book.percent)
+        self.book.stats = ReadingTime.estimate(Books.stats(self.fm, self.book.file), self.book.percent)
     end
     self:build()
 

@@ -35,6 +35,7 @@ local Screen = Device.screen
 
 local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
+local Layout = require("lingering.domain.layout")
 local Item = require("lingering.ui.actionbar").Item
 
 -- Titel onder een tegel: twee regels. Regelhoogte zoals TextBoxWidget die berekent:
@@ -320,19 +321,13 @@ function LibraryScreen:render(partial)
         body = self:message(_("Geen boeken."), width, body_h)
     else
         local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = gap } }
-        -- Rijen voor step_scroll_grid moeten aansluitend vanaf 0 lopen: ScrollableContainer
-        -- zoekt bij terugschuiven de rij op y = 0 (_getStepScrollRowAtY(0)) en crasht als die
-        -- er niet is. De marge bovenaan hoort daarom bij de eerste rij.
-        local rows_info = {}
-        local y = 0
+        -- Rijen voor step_scroll_grid, aansluitend vanaf y = 0 (domain/layout.lua).
+        local rows_info = Layout.gridRows(#items, columns, tile_h, gap)
         local row
         for i, entry in ipairs(items) do
             if (i - 1) % columns == 0 then
                 row = HorizontalGroup:new{ align = "top" }
                 table.insert(grid, row)
-                local top = y
-                y = y + tile_h + (#rows_info == 0 and gap or 0)
-                table.insert(rows_info, { top = top, bottom = y - 1 })
             end
             table.insert(row, GridTile:new{
                 entry = entry,

@@ -63,7 +63,7 @@ function Lingering:onReaderReady()
     -- (<datadir>/plugins) komt vóór plugins/kosync.koplugin, dus ui.kosync bestaat in
     -- init nog niet, en onze onReaderReady draait vóór die van kosync (die registerEvents
     -- aanroept en zijn eerste ophaalpoging op de volgende tik plant).
-    require("lingering.koreader.kosync").installRules(self.ui)
+    require("lingering.koreader.kosync").installRules(self.ui, require("lingering.app.sync_service").policy)
     require("lingering.koreader.kosync").ensureBinary(self.ui)
     require("lingering.ui.reader").install(self.ui)
 end

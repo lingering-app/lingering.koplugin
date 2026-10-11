@@ -52,6 +52,19 @@ for i = 2, #arg do
             bad = bad + 1
         end
     end
+    if rel:match("^app/") then
+        -- app/ mag algemene KOReader-bibliotheken gebruiken, geen internals van plugins of widgets.
+        local allowed = {
+            ["logger"] = true, ["ui/uimanager"] = true, ["ui/time"] = true, ["luasettings"] = true,
+            ["datastorage"] = true, ["util"] = true, ["libs/libkoreader-lfs"] = true, ["ffi/sha2"] = true,
+        }
+        for req in src:gmatch("require%(\"([^\"]+)\"%)") do
+            if not (req:match("^lingering%.") or allowed[req]) then
+                print("FOUT " .. rel .. ": app/ mag geen \"" .. req .. "\" laden (alleen via koreader/)")
+                bad = bad + 1
+            end
+        end
+    end
     if rel:match("^domain/") then
         for req in src:gmatch("require%(\"([^\"]+)\"%)") do
             if not req:match("^lingering%.domain%.") then

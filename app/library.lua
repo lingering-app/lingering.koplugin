@@ -17,6 +17,7 @@ local util = require("util")
 local Books = require("lingering.koreader.books")
 local Opds = require("lingering.koreader.opds")
 local Config = require("lingering.config")
+local Catalog = require("lingering.domain.catalog")
 
 local CACHE_DIR = DataStorage:getDataDir() .. "/cache/lingering"
 local COVER_DIR = CACHE_DIR .. "/covers"
@@ -61,42 +62,9 @@ function Library:saveFeed(feed_url, items)
     self.store:flush()
 end
 
---- Kiest de beste download-link: bij voorkeur EPUB, anders iets wat KOReader kan openen.
-local function pickAcquisition(acquisitions)
-    local fallback
-    for _, acquisition in ipairs(acquisitions or {}) do
-        if acquisition.href and acquisition.type ~= "borrow" then
-            local filetype = Opds.filetype(acquisition)
-            if filetype == "epub" then
-                return acquisition, filetype
-            elseif filetype and not fallback then
-                fallback = { acquisition, filetype }
-            end
-        end
-    end
-    if fallback then return fallback[1], fallback[2] end
-end
-
---- Zet een item van de OPDS-plugin om naar wat wij bewaren: een map of een boek.
+-- Catalogusregels (map/boek, beste download-link, bestandsnaam): domain/catalog.lua.
 local function normalize(item)
-    if item.acquisitions and #item.acquisitions > 0 then
-        local acquisition, filetype = pickAcquisition(item.acquisitions)
-        if not acquisition then return nil end
-        return {
-            kind = "book",
-            title = item.title or "?",
-            author = item.author,
-            thumbnail = item.thumbnail or item.image,
-            href = acquisition.href,
-            filetype = filetype,
-        }
-    elseif item.url then
-        return {
-            kind = "folder",
-            title = item.title or item.text or "?",
-            url = item.url,
-        }
-    end
+    return Catalog.normalize(item, Opds.filetype)
 end
 
 --[[--
@@ -149,8 +117,7 @@ end
 --- Pad waar dit boek staat of komt te staan.
 function Library:bookPath(book)
     local dir = Books.homeFolder() .. "/Lingering"
-    local name = book.title .. (book.author and (" - " .. book.author) or "") .. "." .. (book.filetype or "epub")
-    return dir .. "/" .. util.getSafeFilename(name, dir), dir
+    return dir .. "/" .. util.getSafeFilename(Catalog.fileName(book), dir), dir
 end
 
 function Library:isDownloaded(book)
@@ -184,36 +151,10 @@ function Library:hasCover(thumbnail_url)
     return thumbnail_url and lfs.attributes(self:coverPath(thumbnail_url), "mode") == "file"
 end
 
---[[--
-Haalt één omslag op naar de cache. Stil: een mislukte omslag geeft geen melding, het boek
-toont dan het standaardicoon. Blokkeert kort (één verzoek met korte time-out).
-]]
+--- Haalt één omslag op naar de cache (stil, kort; via koreader/opds.lua).
 function Library:fetchCover(thumbnail_url)
     local username, password = self:credentials()
-    local ok, success = pcall(function()
-        local http = require("socket.http")
-        local ltn12 = require("ltn12")
-        local socket = require("socket")
-        local socketutil = require("socketutil")
-        local path = self:coverPath(thumbnail_url)
-        local part = path .. ".part"
-        local file = assert(io.open(part, "wb"))
-        socketutil:set_timeout(socketutil.DEFAULT_BLOCK_TIMEOUT, socketutil.DEFAULT_TOTAL_TIMEOUT)
-        local code = socket.skip(1, http.request{
-            url = thumbnail_url,
-            headers = { ["Accept-Encoding"] = "identity" },
-            sink = ltn12.sink.file(file),
-            user = username,
-            password = password,
-        })
-        socketutil:reset_timeout()
-        if code == 200 and os.rename(part, path) then
-            return true
-        end
-        os.remove(part)
-        return false
-    end)
-    return ok and success
+    return Opds.fetchCover(thumbnail_url, self:coverPath(thumbnail_url), username, password)
 end
 
 return Library

@@ -5,6 +5,7 @@ Elke haak loopt via try(); zie docs/koreader-notes.md.
 ]]
 local logger = require("logger")
 local try = require("lingering.koreader.try")
+local Layout = require("lingering.domain.layout")
 
 local M = {}
 
@@ -97,10 +98,9 @@ function M.buildZones(handlers, allow_hold)
     local menu_ext = readZone("DTAP_ZONE_MENU_EXT")
     local config = readZone("DTAP_ZONE_CONFIG")
 
-    local top_y, top_h = menu.y, menu.h
-    local mid_y = top_y + top_h
-    local mid_h = config.y - mid_y
-    local third = 1/3
+    -- Geometrie (derden tussen de stroken) uit domain/layout.lua; hier alleen KOReader-zones.
+    local geo = Layout.readerZones(menu, menu_ext, config)
+    local function area(r) return ratio(r.x, r.y, r.w, r.h) end
 
     -- Zone-handlers vallen niet onder de HandlerSandbox van de pluginloader: zelf afvangen.
     local function safe(name, fn)
@@ -133,56 +133,56 @@ function M.buildZones(handlers, allow_hold)
         {
             id = "lingering_tap_backward",
             ges = "tap",
-            screen_zone = ratio(0, mid_y, third, mid_h),
+            screen_zone = area(geo.backward),
             overrides = TAP_OVERRIDES,
             handler = handlers.backward,
         },
         {
             id = "lingering_tap_close",
             ges = "tap",
-            screen_zone = ratio(third, mid_y, third, mid_h),
+            screen_zone = area(geo.close),
             overrides = TAP_OVERRIDES,
             handler = handlers.close,
         },
         {
             id = "lingering_tap_forward",
             ges = "tap",
-            screen_zone = ratio(2 * third, mid_y, 1 - 2 * third, mid_h),
+            screen_zone = area(geo.forward),
             overrides = TAP_OVERRIDES,
             handler = handlers.forward,
         },
         {
             id = "lingering_top_tap",
             ges = "tap",
-            screen_zone = ratio(menu.x, top_y, menu.w, top_h),
+            screen_zone = area(geo.top),
             overrides = TAP_OVERRIDES,
             handler = handlers.top or swallow,
         },
         {
             id = "lingering_top_swipe",
             ges = "swipe",
-            screen_zone = ratio(menu.x, menu.y, menu.w, menu.h),
+            screen_zone = area(geo.top),
             overrides = SWIPE_OVERRIDES,
             handler = swallowSouth,
         },
         {
             id = "lingering_top_ext_swipe",
             ges = "swipe",
-            screen_zone = ratio(menu_ext.x, menu_ext.y, menu_ext.w, menu_ext.h),
+            screen_zone = area(geo.top_ext),
             overrides = SWIPE_OVERRIDES,
             handler = swallowSouth,
         },
         {
             id = "lingering_top_pan",
             ges = "pan",
-            screen_zone = ratio(menu.x, menu.y, menu.w, menu.h),
+            screen_zone = area(geo.top),
             overrides = PAN_OVERRIDES,
             handler = swallowSouth,
         },
         {
             id = "lingering_top_ext_pan",
             ges = "pan",
-            screen_zone = ratio(menu_ext.x, menu_ext.y, menu_ext.w, menu_ext.h),
+            screen_zone = area(geo.top_ext),
             overrides = PAN_OVERRIDES,
             handler = swallowSouth,
         },
@@ -191,7 +191,7 @@ function M.buildZones(handlers, allow_hold)
         table.insert(zones, {
             id = "lingering_top_" .. ges,
             ges = ges,
-            screen_zone = ratio(menu.x, top_y, menu.w, top_h),
+            screen_zone = area(geo.top),
             overrides = ids,
             handler = swallow,
         })

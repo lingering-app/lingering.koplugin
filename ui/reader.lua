@@ -9,7 +9,7 @@ local logger = require("logger")
 local _ = require("gettext")
 
 local DeviceAdapter = require("lingering.koreader.device")
-local Kosync = require("lingering.koreader.kosync")
+local SyncService = require("lingering.app.sync_service")
 local Navigation = require("lingering.koreader.navigation")
 local ReaderControl = require("lingering.koreader.reader")
 local Settings = require("lingering.app.session")
@@ -43,7 +43,7 @@ local function showActionBar(ui)
                 frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
                 run = function(done)
                     logger.info("Lingering: actiebalk, synchroniseren")
-                    Kosync.syncNow(ui, done)
+                    SyncService.syncNow(ui, done)
                 end,
                 on_done = function(ok)
                     if not ok then

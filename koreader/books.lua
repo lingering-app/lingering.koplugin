@@ -63,7 +63,7 @@ Rekent zoals ReaderStatistics (plugins/statistics.koplugin/main.lua):
 Het boek is niet open, dus de huidige pagina = percent_finished × book.pages.
 Het boek wordt gevonden op md5 = partial_md5_checksum (zoals getIdBookDB).
 ]]
-function M.stats(fm, file, percent)
+function M.stats(fm, file)
     local ok, stats = try("bookStats", function()
         local statistics = fm and fm.statistics
         if not (statistics and statistics.settings and statistics.settings.is_enabled) then
@@ -99,13 +99,11 @@ function M.stats(fm, file, percent)
         ]], max_sec, id_book))
         conn:close()
 
-        read_pages, read_time = tonumber(read_pages) or 0, tonumber(read_time) or 0
-        if read_pages == 0 or read_time == 0 then return nil end
-        local avg_time = read_time / read_pages
-        local pages_left = math.max(0, pages - math.floor((percent or 0) * pages + 0.5))
+        -- Ruwe getallen; de berekening (gelezen/resterend) staat in domain/reading_time.lua.
         return {
-            read_secs = read_time,
-            left_secs = pages_left * avg_time,
+            read_pages = tonumber(read_pages) or 0,
+            read_time = tonumber(read_time) or 0,
+            pages = pages,
         }
     end)
     return ok and stats or nil
