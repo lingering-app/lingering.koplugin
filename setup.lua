@@ -1,6 +1,6 @@
 --[[--
 Inlogscherm: gebruikersnaam en wachtwoord. Bij "Inloggen":
-1. wifi aan (via NetworkMgr), 2. OPDS-catalogus en syncserver controleren,
+1. wifi aan zonder te vragen (NetworkMgr:turnOnWifiAndWaitForConnection), 2. OPDS-catalogus en syncserver controleren,
 3. gegevens wegschrijven naar de OPDS- en kosync-instellingen, automatische sync aan,
 4. setup als voltooid markeren.
 Bij een fout blijven de velden ingevuld en staat er welke van de twee mislukte, en waarom.
@@ -33,16 +33,56 @@ local Setup = {}
 
 -- Witte achtergrond bij de eerste keer, zodat de bestandsbeheerder niet zichtbaar is.
 local Background = InputContainer:extend{
+    on_emergency = nil,
     covers_fullscreen = true,
+    -- Krijgt ook gebaren die het invoervenster erboven niet afhandelt (zoals ingedrukt
+    -- houden), voor de verborgen ingang naar het volledige menu.
+    is_always_active = true,
     -- Niet modal: anders komen dialogen van KOReader (bijv. MultiInputDialog) eronder
     -- (UIManager:show zet niet-modale vensters onder het bovenste modale venster).
     stop_events_propagation = true,
 }
 Widgets.guardPaint(Background, "inlogscherm")
 
+-- Zo lang "Lingering" ingedrukt houden opent het volledige menu (na de hold-drempel),
+-- net als de statusregel op het homescreen. Bewust onzichtbaar.
+local EMERGENCY_HOLD_SECONDS = 2.5
+
+function Background:onHoldTitle()
+    self.emergency_task = function()
+        self.emergency_task = nil
+        logger.info("Lingering: titel inlogscherm lang ingedrukt, noodluik")
+        if self.on_emergency then Widgets.safeCall("noodluik", self.on_emergency) end
+    end
+    UIManager:scheduleIn(EMERGENCY_HOLD_SECONDS, self.emergency_task)
+    return true
+end
+
+function Background:onHoldReleaseTitle()
+    if self.emergency_task then
+        UIManager:unschedule(self.emergency_task)
+        self.emergency_task = nil
+    end
+    return true
+end
+
+function Background:onCloseWidget()
+    self:onHoldReleaseTitle()
+end
+
 function Background:init()
     local width, height = Screen:getWidth(), Screen:getHeight()
     self.dimen = Geom:new{ x = 0, y = 0, w = width, h = height }
+    self.title_dimen = Geom:new{ x = 0, y = 0, w = width, h = math.floor(height / 4) }
+    local GestureRange = require("ui/gesturerange")
+    self.ges_events = {
+        HoldTitle = {
+            GestureRange:new{ ges = "hold", range = function() return self.title_dimen end },
+        },
+        HoldReleaseTitle = {
+            GestureRange:new{ ges = "hold_release", range = function() return self.dimen end },
+        },
+    }
     self[1] = FrameContainer:new{
         width = width,
         height = height,
@@ -63,20 +103,26 @@ end
 
 --[[--
 opts:
-- first_run: eerste keer (witte achtergrond, knop "Geavanceerd" in plaats van "Annuleren")
+- first_run: eerste keer (witte achtergrond, alleen "Inloggen", niet weg te klikken)
 - fm: FileManager-instantie
 - on_done: na succesvol inloggen
-- on_emergency: noodluik (alleen bij first_run)
+- on_emergency: noodluik via "Lingering" lang ingedrukt (alleen bij first_run, onzichtbaar)
 ]]
 function Setup.show(opts)
     local background
+    local dialog
     if opts.first_run then
-        background = Background:new{}
+        background = Background:new{
+            on_emergency = function()
+                UIManager:close(dialog)
+                UIManager:close(background, "full")
+                if opts.on_emergency then opts.on_emergency() end
+            end,
+        }
         UIManager:show(background, "full")
     end
 
     local username_prefill = Compat.opdsCredentials(Config.opds_url) or ""
-    local dialog
 
     local function closeAll()
         UIManager:close(dialog)
@@ -104,8 +150,8 @@ function Setup.show(opts)
         dialog:onCloseKeyboard()
         logger.info("Lingering: inloggen als", username)
 
-        -- Deze functie kan later draaien (na het aanzetten van wifi): zelf afvangen.
-        Compat.runWhenOnline(function() Widgets.safeCall("inloggen", function()
+        -- Wifi aan zonder te vragen. De functie kan later draaien (na verbinden): zelf afvangen.
+        local started = Compat.turnOnWifiThen(function() Widgets.safeCall("inloggen", function()
             local busy = InfoMessage:new{ text = _("Bezig met inloggen…") }
             UIManager:show(busy)
             UIManager:forceRePaint()
@@ -143,7 +189,28 @@ function Setup.show(opts)
                 Widgets.safeCall("na inloggen", opts.on_done)
             end
         end) end)
+        if not started then
+            UIManager:show(InfoMessage:new{ text = _("Geen wifi-verbinding. Probeer het opnieuw.") })
+        end
     end
+
+    -- Eerste keer: alleen "Inloggen". Zonder knop met id "close" sluit een tik naast het
+    -- venster het ook niet (InputDialog:onCloseDialog). Vanuit Instellingen: ook "Annuleren".
+    local row = {}
+    if not opts.first_run then
+        table.insert(row, {
+            text = _("Annuleren"),
+            id = "close",
+            callback = closeAll,
+        })
+    end
+    table.insert(row, {
+        text = _("Inloggen"),
+        is_enter_default = true,
+        callback = function()
+            Widgets.safeCall("inloggen", login)
+        end,
+    })
 
     dialog = MultiInputDialog:new{
         title = _("Inloggen"),
@@ -158,27 +225,7 @@ function Setup.show(opts)
                 text_type = "password",
             },
         },
-        buttons = {
-            {
-                {
-                    text = opts.first_run and _("Geavanceerd") or _("Annuleren"),
-                    id = "close",
-                    callback = function()
-                        closeAll()
-                        if opts.first_run and opts.on_emergency then
-                            Widgets.safeCall("noodluik", opts.on_emergency)
-                        end
-                    end,
-                },
-                {
-                    text = _("Inloggen"),
-                    is_enter_default = true,
-                    callback = function()
-                        Widgets.safeCall("inloggen", login)
-                    end,
-                },
-            },
-        },
+        buttons = { row },
     }
     UIManager:show(dialog)
     dialog:onShowKeyboard()

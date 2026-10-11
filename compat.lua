@@ -786,6 +786,23 @@ function Compat.ensureAutoWifi()
     end)
 end
 
+--[[--
+Zet wifi aan zonder te vragen en voert fn uit zodra er verbinding is
+(NetworkMgr:turnOnWifiAndWaitForConnection). Al online: fn meteen.
+Geeft false als verbinden direct mislukt.
+]]
+function Compat.turnOnWifiThen(fn)
+    local ok, started = try("turnOnWifiThen", function()
+        local NetworkMgr = require("ui/network/manager")
+        if NetworkMgr:isOnline() then
+            fn()
+            return true
+        end
+        return NetworkMgr:turnOnWifiAndWaitForConnection(fn) ~= false
+    end)
+    return ok and started
+end
+
 --- Opent een boek (ReaderUI:showReader, de enige veilige manier volgens readerui.lua).
 function Compat.openBook(file)
     return try("ReaderUI:showReader", function()
