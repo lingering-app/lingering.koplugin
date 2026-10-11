@@ -14,7 +14,8 @@ local logger = require("logger")
 local md5 = require("ffi/sha2").md5
 local util = require("util")
 
-local Compat = require("lingering.koreader.compat")
+local Books = require("lingering.koreader.books")
+local Opds = require("lingering.koreader.opds")
 local Config = require("lingering.config")
 
 local CACHE_DIR = DataStorage:getDataDir() .. "/cache/lingering"
@@ -31,7 +32,7 @@ function Library:open()
 end
 
 function Library:credentials()
-    return Compat.opdsCredentials(Config.opds_url)
+    return Opds.credentials(Config.opds_url)
 end
 
 function Library:rootUrl()
@@ -65,7 +66,7 @@ local function pickAcquisition(acquisitions)
     local fallback
     for _, acquisition in ipairs(acquisitions or {}) do
         if acquisition.href and acquisition.type ~= "borrow" then
-            local filetype = Compat.opdsFiletype(acquisition)
+            local filetype = Opds.filetype(acquisition)
             if filetype == "epub" then
                 return acquisition, filetype
             elseif filetype and not fallback then
@@ -105,7 +106,7 @@ reageren. done(ok) wordt altijd precies één keer aangeroepen.
 ]]
 function Library:sync(feed_url, done)
     local username, password = self:credentials()
-    local client = username and Compat.opdsClient(username, password)
+    local client = username and Opds.client(username, password)
     if not client then
         logger.warn("Lingering: geen OPDS-account, synchroniseren overgeslagen")
         done(false)
@@ -118,7 +119,7 @@ function Library:sync(feed_url, done)
     local function step()
         local ok, err = pcall(function()
             seen[next_url] = true
-            local page = Compat.opdsFetchPage(client, next_url)
+            local page = Opds.fetchPage(client, next_url)
             if not page then
                 done(false)
                 return
@@ -147,7 +148,7 @@ end
 
 --- Pad waar dit boek staat of komt te staan.
 function Library:bookPath(book)
-    local dir = Compat.homeFolder() .. "/Lingering"
+    local dir = Books.homeFolder() .. "/Lingering"
     local name = book.title .. (book.author and (" - " .. book.author) or "") .. "." .. (book.filetype or "epub")
     return dir .. "/" .. util.getSafeFilename(name, dir), dir
 end
@@ -162,13 +163,13 @@ afgebroken download nooit als "gedownload" telt. Blokkeert tot het klaar is.
 ]]
 function Library:download(book)
     local username, password = self:credentials()
-    local client = username and Compat.opdsClient(username, password)
+    local client = username and Opds.client(username, password)
     if not client then return false end
     local path, dir = self:bookPath(book)
     util.makePath(dir)
     local part = path .. ".part"
     logger.info("Lingering: boek downloaden naar", path)
-    if Compat.opdsDownload(client, part, book.href, username, password) and os.rename(part, path) then
+    if Opds.download(client, part, book.href, username, password) and os.rename(part, path) then
         return true, path
     end
     os.remove(part)

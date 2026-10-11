@@ -8,7 +8,10 @@ local UIManager = require("ui/uimanager")
 local logger = require("logger")
 local _ = require("gettext")
 
-local Compat = require("lingering.koreader.compat")
+local DeviceAdapter = require("lingering.koreader.device")
+local Kosync = require("lingering.koreader.kosync")
+local Navigation = require("lingering.koreader.navigation")
+local ReaderControl = require("lingering.koreader.reader")
 local Settings = require("lingering.app.session")
 
 local Reader = {}
@@ -22,7 +25,7 @@ local function showActionBar(ui)
                 icon = "home",
                 callback = function()
                     logger.info("Lingering: actiebalk, naar homescreen")
-                    Compat.closeBook(ui)
+                    Navigation.closeBook(ui)
                 end,
             },
             {
@@ -30,7 +33,7 @@ local function showActionBar(ui)
                 icon = "appbar.navigation",
                 callback = function()
                     logger.info("Lingering: actiebalk, inhoudsopgave")
-                    Compat.showToc(ui)
+                    ReaderControl.showToc(ui)
                 end,
             },
             {
@@ -40,7 +43,7 @@ local function showActionBar(ui)
                 frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
                 run = function(done)
                     logger.info("Lingering: actiebalk, synchroniseren")
-                    Compat.syncNow(ui, done)
+                    Kosync.syncNow(ui, done)
                 end,
                 on_done = function(ok)
                     if not ok then
@@ -57,11 +60,11 @@ local function showActionBar(ui)
                 icon_on = "light-on.svg",
                 icon_off = "light-off.svg",
                 enabled = Device:hasFrontlight(),
-                state = Compat.isFrontlightOn(),
-                state_func = Compat.isFrontlightOn,
+                state = DeviceAdapter.isFrontlightOn(),
+                state_func = DeviceAdapter.isFrontlightOn,
                 on_toggle = function(on)
                     logger.info("Lingering: actiebalk, licht", on and "aan" or "uit")
-                    Compat.toggleFrontlight()
+                    DeviceAdapter.toggleFrontlight()
                 end,
             },
         },
@@ -76,10 +79,10 @@ function Reader.install(ui)
 
     local handlers = {
         backward = function()
-            return Compat.turnPage(ui, -1)
+            return ReaderControl.turnPage(ui, -1)
         end,
         forward = function()
-            return Compat.turnPage(ui, 1)
+            return ReaderControl.turnPage(ui, 1)
         end,
         top = function()
             logger.info("Lingering: tik bovenaan, actiebalk openen")
@@ -88,16 +91,20 @@ function Reader.install(ui)
         end,
         close = function()
             logger.info("Lingering: tik in het midden, boek sluiten")
-            Compat.closeBook(ui)
+            Navigation.closeBook(ui)
             return true
         end,
     }
-    local zones = Compat.buildReaderZones(handlers, Settings:read("lingering_allow_hold"))
-    if Compat.registerReaderZones(ui, zones) then
+    local zones = ReaderControl.buildZones(handlers, Settings:read("lingering_allow_hold"))
+    if ReaderControl.registerZones(ui, zones) then
         logger.info("Lingering: tikzones leesscherm geregistreerd")
-        Compat.verifyZoneOrder(ui, zones)
+        ReaderControl.verifyZoneOrder(ui, zones)
         -- Alleen als onze zones er zijn: anders is het menu de enige weg uit het boek.
-        Compat.blockReaderMenu(ui)
+        ReaderControl.blockMenu(ui)
+        -- Rooktest in de emulator (tests/smoke.lua), alleen met LINGERING_TEST=reader.
+        local Smoke = os.getenv("LINGERING_TEST") == "reader"
+            and dofile(require("lingering.plugin").dir .. "/tests/smoke.lua")
+        if Smoke then Smoke.reader(ui, function() showActionBar(ui) end) end
     end
 end
 

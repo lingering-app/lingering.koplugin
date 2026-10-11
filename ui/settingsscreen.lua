@@ -16,7 +16,8 @@ local logger = require("logger")
 local _ = require("gettext")
 local Screen = Device.screen
 
-local Compat = require("lingering.koreader.compat")
+local DeviceAdapter = require("lingering.koreader.device")
+local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
 
 local SettingsScreen = InputContainer:extend{
@@ -47,7 +48,7 @@ function SettingsScreen:init()
         left_icon_tap_callback = function() self:close() end,
     }
 
-    local wifi_on = Compat.isWifiOn()
+    local wifi_on = Network.isWifiOn()
     self.wifi_row = Widgets.Row:new{
         width = width,
         text = _("Wifi"),
@@ -57,7 +58,7 @@ function SettingsScreen:init()
         -- Rij: netwerk kiezen (KOReaders netwerkscherm); schakelaar rechts: wifi aan/uit.
         callback = function()
             logger.info("Lingering: instellingen, wifi-netwerken")
-            Compat.showNetworkList(function() self:updateWifi() end)
+            Network.showNetworkList(function() self:updateWifi() end)
         end,
         right_callback = function() self:toggleWifi() end,
     }
@@ -66,16 +67,16 @@ function SettingsScreen:init()
         width = width,
         text = _("Licht"),
         icon = { icon_file = "light-on.svg" },
-        right = toggleIcon(Compat.isFrontlightOn()),
+        right = toggleIcon(DeviceAdapter.isFrontlightOn()),
         enabled = Device:hasFrontlight(),
         -- Rij: helderheid (KOReaders scherm); schakelaar rechts: licht aan/uit.
         callback = function()
             logger.info("Lingering: instellingen, helderheid")
-            Compat.showLightDialog()
+            DeviceAdapter.showLightDialog()
         end,
         right_callback = function()
             logger.info("Lingering: instellingen, licht aan/uit")
-            Compat.toggleFrontlight(function() self:updateLight() end)
+            DeviceAdapter.toggleFrontlight(function() self:updateLight() end)
         end,
     }
 
@@ -126,20 +127,20 @@ function SettingsScreen:init()
 end
 
 function SettingsScreen:toggleWifi()
-    local turn_on = not Compat.isWifiOn()
+    local turn_on = not Network.isWifiOn()
     logger.info("Lingering: instellingen, wifi", turn_on and "aan" or "uit")
-    Compat.setWifi(turn_on, function()
+    Network.setWifi(turn_on, function()
         self:updateWifi()
     end)
     self:updateWifi()
 end
 
 function SettingsScreen:updateWifi()
-    self.wifi_row:update{ right = toggleIcon(Compat.isWifiOn()) }
+    self.wifi_row:update{ right = toggleIcon(Network.isWifiOn()) }
     UIManager:setDirty(self, "ui", self.wifi_row.dimen)
 end
 function SettingsScreen:updateLight()
-    self.light_row:update{ right = toggleIcon(Compat.isFrontlightOn()) }
+    self.light_row:update{ right = toggleIcon(DeviceAdapter.isFrontlightOn()) }
     UIManager:setDirty(self, "ui", self.light_row.dimen)
 end
 SettingsScreen.onFrontlightStateChanged = SettingsScreen.updateLight

@@ -33,7 +33,7 @@ local _ = require("gettext")
 local T = require("ffi/util").template
 local Screen = Device.screen
 
-local Compat = require("lingering.koreader.compat")
+local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
 local Item = require("lingering.ui.actionbar").Item
 
@@ -410,7 +410,7 @@ function LibraryScreen:openEntry(entry)
 end
 
 function LibraryScreen:downloadAndOpen(entry)
-    local started = Compat.turnOnWifiThen(function() Widgets.safeCall("downloaden", function()
+    local started = Network.turnOnWifiThen(function() Widgets.safeCall("downloaden", function()
         local busy = InfoMessage:new{ text = T(_("Downloaden…\n%1"), entry.title) }
         UIManager:show(busy)
         UIManager:forceRePaint()
@@ -437,7 +437,7 @@ end
 -- Synchroniseert de huidige map. Wordt aangeroepen door de sync-taak (draaiend icoon).
 function LibraryScreen:syncCurrent(done)
     local url = self:current().url
-    local started = Compat.turnOnWifiThen(function()
+    local started = Network.turnOnWifiThen(function()
         self.library:sync(url, function(ok)
             if ok then self.synced[url] = true end
             if not self.closed then self:render(true) end
@@ -453,14 +453,14 @@ end
 -- Met wifi aan: deze map één keer per bezoek aan het scherm op de achtergrond verversen.
 function LibraryScreen:autoSync()
     local url = self:current().url
-    if not self.synced[url] and Compat.isOnline() then
+    if not self.synced[url] and Network.isOnline() then
         self.sync_item:startTask()
     end
 end
 
 -- Ontbrekende omslagen ophalen, één per tik; per zes (en aan het eind) één verversing.
 function LibraryScreen:queueCovers()
-    if self.closed or not Compat.isOnline() then return end
+    if self.closed or not Network.isOnline() then return end
     local missing = {}
     for _, entry in ipairs(self.page_entries or {}) do
         local url = entry.thumbnail

@@ -30,6 +30,9 @@ if not package.loaded["lingering.loader"] then
     end)
 end
 
+-- Rooktest in de emulator (tests/smoke.lua), alleen met LINGERING_TEST; op de Kobo niets.
+local Smoke = os.getenv("LINGERING_TEST") and dofile(plugin_dir .. "/tests/smoke.lua") or nil
+
 local Settings = require("lingering.app.session")
 
 local Lingering = WidgetContainer:extend{
@@ -41,7 +44,7 @@ function Lingering:init()
     logger.info("Lingering: plugin geladen in", self.in_reader and "ReaderUI" or "FileManager",
         Settings:isActive() and "(actief)" or "(uitgeschakeld voor deze sessie)")
     if Settings:isActive() then
-        require("lingering.koreader.compat").enforceGlobalSettings()
+        require("lingering.koreader.global_settings").enforce()
     end
     if not self.in_reader then
         if self.ui.menu then
@@ -60,8 +63,8 @@ function Lingering:onReaderReady()
     -- (<datadir>/plugins) komt vóór plugins/kosync.koplugin, dus ui.kosync bestaat in
     -- init nog niet, en onze onReaderReady draait vóór die van kosync (die registerEvents
     -- aanroept en zijn eerste ophaalpoging op de volgende tik plant).
-    require("lingering.koreader.compat").installKosyncRules(self.ui)
-    require("lingering.koreader.compat").ensureKosyncBinary(self.ui)
+    require("lingering.koreader.kosync").installRules(self.ui)
+    require("lingering.koreader.kosync").ensureBinary(self.ui)
     require("lingering.ui.reader").install(self.ui)
 end
 
@@ -84,6 +87,9 @@ function Lingering:showHomeScreen()
         self.home = home
         home:show()
     end)
+    if ok and Smoke and os.getenv("LINGERING_TEST") == "fm" then
+        Smoke.filemanager(self)
+    end
     if ok then
         logger.info("Lingering: homescreen getoond")
     else
@@ -98,7 +104,7 @@ function Lingering:showLibrary()
     LibraryScreen:new{
         library = require("lingering.app.library"),
         on_open_book = function(path)
-            require("lingering.koreader.compat").openBook(path)
+            require("lingering.koreader.navigation").openBook(path)
         end,
     }:show()
     logger.info("Lingering: mijn boeken getoond")
@@ -135,7 +141,7 @@ function Lingering:openEmergencyMenu()
     if self.home then
         self.home:close()
     end
-    require("lingering.koreader.compat").showFileManagerMenu(self.ui)
+    require("lingering.koreader.navigation").showFullMenu(self.ui)
 end
 
 function Lingering:addToMainMenu(menu_items)

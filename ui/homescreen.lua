@@ -31,7 +31,10 @@ local _ = require("gettext")
 local T = require("ffi/util").template
 local Screen = Device.screen
 
-local Compat = require("lingering.koreader.compat")
+local Books = require("lingering.koreader.books")
+local DeviceAdapter = require("lingering.koreader.device")
+local Navigation = require("lingering.koreader.navigation")
+local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
 
 -- Zo lang ingedrukt houden op de statusregel opent het noodluik (na de hold-drempel).
@@ -63,9 +66,9 @@ Widgets.guardEvents(HomeScreen, "homescreen")
 
 function HomeScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }
-    self.book = Compat.currentBook(self.fm)
+    self.book = Books.currentBook(self.fm)
     if self.book then
-        self.book.stats = Compat.bookStats(self.fm, self.book.file, self.book.percent)
+        self.book.stats = Books.stats(self.fm, self.book.file, self.book.percent)
     end
     self:build()
 
@@ -111,11 +114,11 @@ function HomeScreen:buildStatus(width)
         icon_on = "light-on.svg",
         icon_off = "light-off.svg",
         enabled = Device:hasFrontlight(),
-        state = Compat.isFrontlightOn(),
+        state = DeviceAdapter.isFrontlightOn(),
         on_toggle = function(on)
             logger.info("Lingering: homescreen, licht", on and "aan" or "uit")
-            Compat.toggleFrontlight(function()
-                self.light_item:setState(Compat.isFrontlightOn())
+            DeviceAdapter.toggleFrontlight(function()
+                self.light_item:setState(DeviceAdapter.isFrontlightOn())
             end)
         end,
     }
@@ -123,18 +126,18 @@ function HomeScreen:buildStatus(width)
         name = "wifi",
         switch = true,
         enabled = Device:hasWifiToggle(),
-        state = Compat.isWifiOn(),
+        state = Network.isWifiOn(),
         -- Uit: doorgestreept. Aan zonder verbinding: grijs. Verbonden: zwart.
         icon_spec = function(on)
             if not on then
                 return { icon_file = "wifi-off.svg" }
             end
-            return { icon_file = "wifi-on.svg", dim = not Compat.isWifiConnected() }
+            return { icon_file = "wifi-on.svg", dim = not Network.isConnected() }
         end,
         on_toggle = function(on)
             logger.info("Lingering: homescreen, wifi", on and "aan" or "uit")
-            Compat.setWifi(on, function()
-                self.wifi_item:setState(Compat.isWifiOn())
+            Network.setWifi(on, function()
+                self.wifi_item:setState(Network.isWifiOn())
             end)
         end,
     }
@@ -168,7 +171,7 @@ end
 
 function HomeScreen:updateStatusTexts()
     local time = datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
-    local battery = Compat.batteryPercent()
+    local battery = DeviceAdapter.batteryPercent()
     self.status_right[4] = TextWidget:new{ text = time, face = self.status_face }
     if battery then
         self.status_right[6] = Widgets.battery(battery)
@@ -329,7 +332,7 @@ function HomeScreen:onTapBook()
         logger.info("Lingering: homescreen, boek openen")
         local file = self.book.file
         self:close()
-        Compat.openBook(file)
+        Navigation.openBook(file)
     else
         Widgets.safeCall("mijn boeken", self.on_local_books)
     end
@@ -357,13 +360,13 @@ end
 -- Statusregel bijwerken bij ontwaken en netwerkwissels; verder geen verversingen.
 function HomeScreen:refreshStatus()
     self:updateStatusTexts()
-    self.wifi_item:setState(Compat.isWifiOn())
-    self.light_item:setState(Compat.isFrontlightOn())
+    self.wifi_item:setState(Network.isWifiOn())
+    self.light_item:setState(DeviceAdapter.isFrontlightOn())
     UIManager:setDirty(self, "ui", self.status_dimen)
 end
 -- Licht veranderd (hier, in Instellingen of in KOReaders helderheidsscherm).
 function HomeScreen:onFrontlightStateChanged()
-    if self.light_item then self.light_item:setState(Compat.isFrontlightOn()) end
+    if self.light_item then self.light_item:setState(DeviceAdapter.isFrontlightOn()) end
 end
 
 HomeScreen.onResume = HomeScreen.refreshStatus

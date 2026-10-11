@@ -24,7 +24,11 @@ local util = require("util")
 local _ = require("gettext")
 local Screen = Device.screen
 
-local Compat = require("lingering.koreader.compat")
+local Dialogs = require("lingering.koreader.dialogs")
+local GlobalSettings = require("lingering.koreader.global_settings")
+local Kosync = require("lingering.koreader.kosync")
+local Network = require("lingering.koreader.network")
+local Opds = require("lingering.koreader.opds")
 local Config = require("lingering.config")
 local Settings = require("lingering.app.session")
 local Widgets = require("lingering.ui.widgets")
@@ -37,7 +41,7 @@ local LoginDialog = MultiInputDialog:extend{}
 
 function LoginDialog:init()
     MultiInputDialog.init(self)
-    Compat.plainDialog(self, "login")
+    Dialogs.plainDialog(self, "login")
 end
 
 -- Witte achtergrond met titel; het randloze invoervenster staat erop.
@@ -136,7 +140,7 @@ function Setup.show(opts)
     }
     UIManager:show(background, "full")
 
-    local username_prefill = Compat.opdsCredentials(Config.opds_url) or ""
+    local username_prefill = Opds.credentials(Config.opds_url) or ""
 
     local function closeAll()
         UIManager:close(dialog)
@@ -166,15 +170,15 @@ function Setup.show(opts)
         logger.info("Lingering: inloggen als", username)
 
         -- Wifi aan zonder te vragen. De functie kan later draaien (na verbinden): zelf afvangen.
-        local started = Compat.turnOnWifiThen(function() Widgets.safeCall("inloggen", function()
+        local started = Network.turnOnWifiThen(function() Widgets.safeCall("inloggen", function()
             local busy = InfoMessage:new{ text = _("Bezig met inloggen…") }
             UIManager:show(busy)
             UIManager:forceRePaint()
 
-            local opds_ok, opds_reason = Compat.checkOpds(Config.opds_url, username, password)
+            local opds_ok, opds_reason = Opds.check(Config.opds_url, username, password)
             local sync_ok, sync_reason
             if opds_ok then
-                sync_ok, sync_reason = Compat.checkKosync(Config.sync_url, username, password)
+                sync_ok, sync_reason = Kosync.check(Config.sync_url, username, password)
             end
             UIManager:close(busy)
 
@@ -186,15 +190,15 @@ function Setup.show(opts)
                 return
             end
 
-            local written = Compat.writeOpdsAccount(Config.opds_url, username, password, opts.fm)
-                and Compat.writeKosyncAccount(Config.sync_url, username, password)
+            local written = Opds.writeAccount(Config.opds_url, username, password, opts.fm)
+                and Kosync.writeAccount(Config.sync_url, username, password)
             if not written then
                 UIManager:show(InfoMessage:new{
                     text = _("Inloggen gelukt, maar de gegevens konden niet worden opgeslagen."),
                 })
                 return
             end
-            Compat.ensureAutoWifi()
+            GlobalSettings.ensureAutoWifi()
             Settings:save("lingering_setup_done", true)
             logger.info("Lingering: setup voltooid")
 
