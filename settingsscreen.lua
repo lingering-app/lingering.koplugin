@@ -27,6 +27,7 @@ local SettingsScreen = InputContainer:extend{
     stop_events_propagation = true,
 }
 Widgets.guardPaint(SettingsScreen, "instellingen")
+Widgets.guardEvents(SettingsScreen, "instellingen")
 
 local function toggleIcon(on)
     return { icon_file = on and "toggle-on.svg" or "toggle-off.svg" }

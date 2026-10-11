@@ -54,6 +54,23 @@ function Widgets.guardPaint(class, label)
     end
 end
 
+--[[--
+Vangnet voor gebaren en andere events. Ook fouten in KOReader-widgets binnen onze schermen
+(bijv. ScrollableContainer) laten KOReader anders crashen: UIManager vangt ze niet af.
+Bij een fout: loggen en het event als afgehandeld beschouwen.
+]]
+function Widgets.guardEvents(class, label)
+    local handleEvent = class.handleEvent
+    class.handleEvent = function(self, event)
+        local ok, result = pcall(handleEvent, self, event)
+        if not ok then
+            logger.warn("Lingering: fout bij event", event and event.handler, "in", label, result)
+            return true
+        end
+        return result
+    end
+end
+
 --- Icoon uit KOReader (icon = naam) of uit de plugin (icon_file = bestandsnaam in icons/).
 function Widgets.icon(spec, size, dim)
     return IconWidget:new{

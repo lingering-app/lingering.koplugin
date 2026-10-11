@@ -59,6 +59,7 @@ local HomeScreen = InputContainer:extend{
     stop_events_propagation = true,
 }
 Widgets.guardPaint(HomeScreen, "homescreen")
+Widgets.guardEvents(HomeScreen, "homescreen")
 
 function HomeScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }

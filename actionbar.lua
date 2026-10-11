@@ -192,6 +192,7 @@ local ActionBar = InputContainer:extend{
     stop_events_propagation = true,
 }
 require("lingering_widgets").guardPaint(ActionBar, "actiebalk")
+require("lingering_widgets").guardEvents(ActionBar, "actiebalk")
 
 function ActionBar:init()
     local screen_w = Screen:getWidth()

@@ -189,6 +189,7 @@ local LibraryScreen = InputContainer:extend{
     stop_events_propagation = true,
 }
 Widgets.guardPaint(LibraryScreen, "mijn boeken")
+Widgets.guardEvents(LibraryScreen, "mijn boeken")
 
 function LibraryScreen:init()
     local width, height = Screen:getWidth(), Screen:getHeight()
@@ -319,15 +320,19 @@ function LibraryScreen:render(partial)
         body = self:message(_("Geen boeken."), width, body_h)
     else
         local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = gap } }
+        -- Rijen voor step_scroll_grid moeten aansluitend vanaf 0 lopen: ScrollableContainer
+        -- zoekt bij terugschuiven de rij op y = 0 (_getStepScrollRowAtY(0)) en crasht als die
+        -- er niet is. De marge bovenaan hoort daarom bij de eerste rij.
         local rows_info = {}
-        local y = gap
+        local y = 0
         local row
         for i, entry in ipairs(items) do
             if (i - 1) % columns == 0 then
                 row = HorizontalGroup:new{ align = "top" }
                 table.insert(grid, row)
-                table.insert(rows_info, { top = y, bottom = y + tile_h - 1 })
-                y = y + tile_h
+                local top = y
+                y = y + tile_h + (#rows_info == 0 and gap or 0)
+                table.insert(rows_info, { top = top, bottom = y - 1 })
             end
             table.insert(row, GridTile:new{
                 entry = entry,
@@ -340,18 +345,23 @@ function LibraryScreen:render(partial)
                 callback = function(e) self:openEntry(e) end,
             })
         end
-        -- Verticaal schuiven (ScrollableContainer van KOReader); een veeg schuift een
-        -- schermhoogte en lijnt uit op een rij tegels.
-        self.scroll = ScrollableContainer:new{
-            dimen = Geom:new{ w = width, h = body_h },
-            show_parent = self,
-            step_scroll_grid = rows_info,
-            grid,
-        }
-        self.scroll_url = current.url
-        -- UIManager gebruikt cropping_widget om verversingen tot het schuifgebied te beperken.
-        self.cropping_widget = self.scroll
-        body = self.scroll
+        if grid:getSize().h <= body_h then
+            -- Past alles al: geen schuifcontainer nodig.
+            body = grid
+        else
+            -- Verticaal schuiven (ScrollableContainer van KOReader); een veeg schuift een
+            -- schermhoogte en lijnt uit op een rij tegels.
+            self.scroll = ScrollableContainer:new{
+                dimen = Geom:new{ w = width, h = body_h },
+                show_parent = self,
+                step_scroll_grid = rows_info,
+                grid,
+            }
+            self.scroll_url = current.url
+            -- UIManager gebruikt cropping_widget om verversingen tot het schuifgebied te beperken.
+            self.cropping_widget = self.scroll
+            body = self.scroll
+        end
     end
 
     self[1] = FrameContainer:new{
