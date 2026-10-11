@@ -47,6 +47,24 @@ local function loadCover(library, url, w, h)
 end
 
 --[[--
+Stapel van tot drie omslagen uit een map (uit de cache) via Widgets.coverStack, of nil als
+er geen omslagen zijn.
+]]
+local function folderStack(library, folder_url, stack_w, stack_h)
+    local feed = library:cached(folder_url)
+    local single_w, single_h = Widgets.stackCoverSize(stack_w, stack_h)
+    local covers = {}
+    for _, item in ipairs(feed and feed.items or {}) do
+        if item.kind == "book" and item.thumbnail then
+            local bb = loadCover(library, item.thumbnail, single_w, single_h)
+            if bb then table.insert(covers, bb) end
+            if #covers == 3 then break end
+        end
+    end
+    return Widgets.coverStack(covers, stack_w, stack_h)
+end
+
+--[[--
 Eén tegel in het raster: omslag (of mapicoon) met de titel klein eronder.
 Een boek dat al op het apparaat staat krijgt een vinkje rechtsonder op de omslag.
 ]]
@@ -113,10 +131,12 @@ function GridTile:init()
             }
         end
     else
-        cover = CenterContainer:new{
-            dimen = Geom:new{ w = cover_w, h = cover_h },
-            Widgets.icon({ icon_file = "folder.svg" }, math.min(cover_h, math.floor(cover_w * 0.7))),
-        }
+        -- Map: stapel omslagen van de boeken erin; anders een klein mapicoon.
+        cover = folderStack(self.library, entry.url, cover_w, cover_h)
+            or CenterContainer:new{
+                dimen = Geom:new{ w = cover_w, h = cover_h },
+                Widgets.icon({ icon_file = "folder.svg" }, math.floor(math.min(cover_w, cover_h) * 0.4)),
+            }
     end
 
     local cover_size = cover:getSize()
@@ -292,8 +312,15 @@ function LibraryScreen:render(partial)
         end
         tile_h = cover_h + 2 * gap
     else
-        cover_w = tile_w - 2 * gap
-        cover_h = Screen:scaleBySize(110)
+        -- Mapstapel: omslag hooguit de halve tegelbreedte, en niet hoger dan 40% van het scherm.
+        local single_w = math.min(math.floor(Widgets.stackCoverSize(tile_w - 2 * gap, math.huge)), math.floor(tile_w * 0.5))
+        local single_h = math.floor(single_w * 3 / 2)
+        local max_single_h = math.floor(body_h * 0.4)
+        if single_h > max_single_h then
+            single_h = max_single_h
+            single_w = math.floor(single_h * 2 / 3)
+        end
+        cover_w, cover_h = Widgets.stackSize(single_w, single_h)
         tile_h = cover_h + gap + TITLE_HEIGHT + 2 * gap
     end
 
@@ -372,6 +399,63 @@ function LibraryScreen:render(partial)
         UIManager:setDirty(self, "ui")
     end
     self:queueCovers()
+    self:prefetchFolders()
+end
+
+--[[--
+Met verbinding: mappen op dit scherm die nog niet in de cache staan op de achtergrond laden,
+plus de eerste omslagen erin, zodat de mapstapels getekend kunnen worden. Eén keer per map.
+]]
+function LibraryScreen:prefetchFolders()
+    if self.closed or self.prefetching or not Network.isOnline() then return end
+    self.prefetched = self.prefetched or {}
+    local todo = {}
+    for _, entry in ipairs(self.page_entries or {}) do
+        if entry.kind == "folder" and not self.prefetched[entry.url] then
+            table.insert(todo, entry.url)
+        end
+    end
+    if #todo == 0 then return end
+    self.prefetching = true
+    local changed = false
+    local index = 0
+    local function finish()
+        self.prefetching = false
+        if changed and not self.closed then self:render(true) end
+    end
+    local function covers_of(url)
+        local feed = self.library:cached(url)
+        local count = 0
+        for _, item in ipairs(feed and feed.items or {}) do
+            if item.kind == "book" and item.thumbnail then
+                if not self.library:hasCover(item.thumbnail) and not self.cover_failed[item.thumbnail] then
+                    if pcall(self.library.fetchCover, self.library, item.thumbnail) then changed = true end
+                end
+                count = count + 1
+                if count == 3 then break end
+            end
+        end
+    end
+    local function step()
+        if self.closed then self.prefetching = false return end
+        index = index + 1
+        local url = todo[index]
+        if not url then return finish() end
+        self.prefetched[url] = true
+        if self.library:cached(url) then
+            covers_of(url)
+            UIManager:scheduleIn(0.05, step)
+        else
+            self.library:sync(url, function(ok)
+                if ok then
+                    changed = true
+                    covers_of(url)
+                end
+                UIManager:scheduleIn(0.05, step)
+            end)
+        end
+    end
+    UIManager:scheduleIn(0.2, step)
 end
 
 function LibraryScreen:goBack()

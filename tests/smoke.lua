@@ -67,6 +67,29 @@ function Smoke.filemanager(plugin)
             assert(lib.page_entries and #lib.page_entries > 0, "geen items in Mijn boeken")
             shot("2-library")
         end },
+        { name = "stapel omslagen", fn = function()
+            -- Herbruikbare stapel met drie omslagen, in een testvenster.
+            local Widgets = require("lingering.ui.widgets")
+            local Library = require("lingering.app.library_service")
+            local book = Smoke.firstBook(Library)
+            assert(book and Library:hasCover(book.thumbnail), "geen omslag in de cache")
+            local Screen_ = require("device").screen
+            local cw, ch = Screen_:scaleBySize(120), Screen_:scaleBySize(180)
+            local sw, sh = Widgets.stackSize(cw, ch)
+            local covers = {}
+            for _ = 1, 3 do table.insert(covers, Widgets.loadCover(Library, book.thumbnail, cw, ch)) end
+            local stack = assert(Widgets.coverStack(covers, sw, sh), "geen stapel")
+            local FrameContainer = require("ui/widget/container/framecontainer")
+            state.stack_window = FrameContainer:new{
+                padding = Screen_:scaleBySize(20), bordersize = 0,
+                background = require("ffi/blitbuffer").COLOR_WHITE, stack,
+            }
+            UIManager:show(state.stack_window)
+        end },
+        { name = "stapel getekend", fn = function()
+            shot("2b-stack")
+            UIManager:close(state.stack_window)
+        end },
         { name = "eerste map", fn = function()
             lib:openEntry(lib.page_entries[1])
         end },

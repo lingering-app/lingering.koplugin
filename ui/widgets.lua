@@ -84,6 +84,60 @@ function Widgets.loadCover(library, url, w, h)
     os.remove(path)
 end
 
+--[[--
+Stapel omslagen (herbruikbaar): tot drie omslagen op elkaar, de voorste linksonder, de
+achterste steken STACK_OFFSET × omslagbreedte naar rechtsboven uit. Elke omslag krijgt een
+dun randje, zodat ze van elkaar loskomen; onderaan uitgelijnd.
+
+Widgets.stackSize(cover_w, cover_h)      → breedte, hoogte van de hele stapel
+Widgets.stackCoverSize(stack_w, stack_h) → breedte, hoogte van één omslag in die stapel
+Widgets.coverStack(covers, stack_w, stack_h)
+    covers: lijst BlitBuffers (voorste eerst; de stapel geeft ze vrij bij het sluiten).
+    Geeft een widget van stack_w × stack_h, of nil bij een lege lijst.
+]]
+Widgets.STACK_OFFSET = 0.12
+local STACK_MAX = 3
+
+function Widgets.stackSize(cover_w, cover_h)
+    local off = math.floor(cover_w * Widgets.STACK_OFFSET)
+    return cover_w + 2 * off, cover_h + 2 * off
+end
+
+function Widgets.stackCoverSize(stack_w, stack_h)
+    local cover_w = math.floor(stack_w / (1 + 2 * Widgets.STACK_OFFSET))
+    local off = math.floor(cover_w * Widgets.STACK_OFFSET)
+    return cover_w, stack_h - 2 * off
+end
+
+function Widgets.coverStack(covers, stack_w, stack_h)
+    if not covers or #covers == 0 then return nil end
+    local ImageWidget = require("ui/widget/imagewidget")
+    local OverlapGroupW = require("ui/widget/overlapgroup")
+    local cover_w, cover_h = Widgets.stackCoverSize(stack_w, stack_h)
+    local off = math.floor(cover_w * Widgets.STACK_OFFSET)
+    local border = Size.border.thin
+    local group = OverlapGroupW:new{ dimen = Geom:new{ w = stack_w, h = stack_h } }
+    -- Achterste eerst tekenen; k = 0 is de voorste.
+    for i = math.min(#covers, STACK_MAX), 1, -1 do
+        local k = i - 1
+        local bb = covers[i]
+        local scale = math.min((cover_w - 2 * border) / bb:getWidth(), (cover_h - 2 * border) / bb:getHeight())
+        local w, h = math.floor(bb:getWidth() * scale), math.floor(bb:getHeight() * scale)
+        local framed = FrameContainer:new{
+            padding = 0,
+            bordersize = border,
+            color = Blitbuffer.COLOR_DARK_GRAY,
+            background = Blitbuffer.COLOR_WHITE,
+            ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 },
+        }
+        framed.overlap_offset = { k * off, (STACK_MAX - 1 - k) * off + (cover_h - (h + 2 * border)) }
+        table.insert(group, framed)
+    end
+    -- Omslagen boven het maximum worden niet getekend: meteen vrijgeven.
+    for i = STACK_MAX + 1, #covers do covers[i]:free() end
+    return group
+end
+
 --- Icoon uit KOReader (icon = naam) of uit de plugin (icon_file = bestandsnaam in icons/).
 function Widgets.icon(spec, size, dim)
     return IconWidget:new{

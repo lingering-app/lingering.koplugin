@@ -393,7 +393,10 @@ Getest tegen een echte server: gelijk → niets; 5 pagina's verder → wegschrij
   `UIManager:nextTick` starten, en minstens 1,2 s laten draaien. Netwerkverzoeken via
   `socket.http` blokkeren de enige thread; tijdens één verzoek staat het icoon stil.
 - Raster: boeken in 4 kolommen zonder titel (titel en auteur alleen in het vak van een boek
-  zonder omslag), collecties in 2 kolommen met naam.
+  zonder omslag), collecties in 2 kolommen met naam, getekend als stapel van tot drie
+  omslagen uit die map (`Widgets.coverStack`, herbruikbaar; `Widgets.stackSize` /
+  `stackCoverSize`). Ongeladen mappen worden met wifi op de achtergrond geladen
+  (`LibraryScreen:prefetchFolders`, één keer per map); lege mappen: klein mapicoon.
 
 ## Tekenen en vangnetten
 
