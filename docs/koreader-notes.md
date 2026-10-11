@@ -1,0 +1,266 @@
+# KOReader-notities voor Lingering UI
+
+Gelezen in KOReader **v2026.07.1** (tag bestaat; kloon in `~/Projects/koreader-src`,
+alleen om te lezen). Dit document is de kaart voor reparaties na een KOReader-update:
+elke haak hieronder hoort in `compat.lua` terug te komen.
+
+Paden zijn relatief aan de KOReader-bron.
+
+## Pluginladen
+
+`frontend/pluginloader.lua`
+- `PluginLoader:_discover()`: elke map `*.koplugin` in `plugins/` en in
+  `extra_plugin_paths` (standaard `<datadir>/plugins/`). De pluginnaam is de
+  mapnaam zonder `.koplugin`, dus `lingering`.
+- `PluginLoader:_load()`: `dofile(main.lua)`, daarna worden de velden uit
+  `_meta.lua` erin gekopieerd. **Een veld `name` in `_meta.lua` wordt genegeerd en geeft
+  een waarschuwing** ("name in _meta.lua, is deprecated"). Daarom staat `name` alleen
+  in `main.lua`.
+- Alle `on*`-functies van de plugin worden in `HandlerSandbox` gewikkeld (pcall).
+  Een fout in een event-handler crasht KOReader dus niet, maar `init()` valt daar niet
+  onder: `createPluginInstance` doet wel een `pcall(plugin.new)`, dus een fout in
+  `init` laat alleen het laden van de plugin mislukken.
+- De pluginmap staat tijdens het laden vooraan in `package.path`, daarna achteraan. Na
+  het laden zijn modules van andere plugins te `require`n (`require("opdsbrowser")`,
+  `require("KOSyncClient")`).
+- Instanties: één per `FileManager` (`filemanager.lua`, `FileManager:init`, alleen als
+  `is_doc_only` niet waar is) en één per `ReaderUI` (`readerui.lua`, `ReaderUI:init`).
+  Bij elke wissel lezer ↔ bestandsbeheer wordt de oude instantie weggegooid
+  (`PluginLoader:finalize`) en een nieuwe gemaakt. `self.ui.document` bestaat alleen in
+  de lezer.
+- Uitschakelen via `plugins_disabled[naam]` in `settings.reader.lua`
+  (menu Tools → More tools → Plugin management).
+
+## Opstarten en schermwissels
+
+- `reader.lua` (r. ~255): `start_with` (standaard `"filemanager"`). Bij `"last"` opent
+  KOReader direct het laatste boek, en dan ziet de gebruiker het homescreen pas na het
+  sluiten. Op deze installatie staat `start_with` niet ingesteld (= filemanager).
+- `ReaderUI:showReader(file)` (`frontend/apps/reader/readerui.lua`): de enige
+  veilige manier om een boek te openen. Stuurt `ShowingReader` en sluit daarmee de
+  FileManager.
+- `ReaderUI:onHome()`: `onClose()` gevolgd door `showFileManager(file)`. Dat is de nette
+  weg om een boek te sluiten en terug te gaan.
+- `ReaderUI:onClose()` stuurt `CloseDocument` **vóór** het document sluit en vóór de
+  FileManager terugkomt. Kosync pusht in die handler.
+- `ReaderUI:showFileManager()`: maakt een nieuwe FileManager (`FileManager:showFiles`)
+  als er geen instantie is, en dan draait onze `init` in FM-context opnieuw. Dat is het
+  moment om het homescreen te tonen.
+
+## Gebeurtenissen naar widgets (`frontend/ui/uimanager.lua`, `UIManager:sendEvent`)
+
+Invoer gaat naar het **bovenste** venster. Wordt het daar niet afgehandeld, dan alleen
+nog naar `active_widgets` en vensters met `is_always_active`. Een schermvullend
+homescreen dat alle gebaren afvangt houdt dus het menu van de bestandsbeheerder dicht,
+zonder haak.
+
+## Tikzones (`frontend/ui/widget/container/inputcontainer.lua`)
+
+- `InputContainer:registerTouchZones(zones)`: elke zone heeft `id`, `ges`,
+  `screen_zone` (ratio's 0..1), `handler`, optioneel `overrides`.
+- `overrides = {"x"}` betekent: deze zone wordt **vóór** zone `x` geprobeerd
+  (`DepGraph:addNodeDep(x, deze)`, `frontend/depgraph.lua`). Een zone die nog niet
+  bestaat mag genoemd worden: de knoop wordt dan alvast aangemaakt.
+- `InputContainer:onGesture`: loopt de geordende lijst af. De eerste zone die past
+  **en `true` teruggeeft** wint. Geeft een handler `nil`/`false` terug, dan gaat het door
+  naar de volgende zone.
+- Opnieuw registreren met hetzelfde id vervangt de zone. `unRegisterTouchZones(zones)`
+  haalt ze weg.
+- In de lezer worden zones op `ReaderUI` geregistreerd (`self.ui:registerTouchZones`).
+  `ReaderUI:onScreenResize` werkt ze bij via `updateTouchZonesOnScreenResize`.
+
+### Zone-id's in de lezer (gecontroleerd)
+
+| id | bestand | wanneer geregistreerd |
+|---|---|---|
+| `tap_forward`, `tap_backward` | `readerrolling.lua` / `readerpaging.lua` | init |
+| `rolling_swipe`, `rolling_pan`, `rolling_pan_release` | `readerrolling.lua` | init |
+| `paging_swipe`, `paging_pan`, `paging_pan_release` | `readerpaging.lua` | init |
+| `readermenu_tap`, `_ext_tap`, `_swipe`, `_ext_swipe`, `_pan`, `_ext_pan` | `readermenu.lua` `ReaderMenu:initGesListener` | `onReaderReady` |
+| `readerconfigmenu_tap`, `_ext_tap`, `_swipe`, `_ext_swipe`, `_pan`, `_ext_pan` | `readerconfig.lua` `ReaderConfig:initGesListener` | `onReaderReady` |
+| `readerfooter_tap`, `readerfooter_hold` | `readerfooter.lua` | init |
+| `tap_link`, `swipe_link` | `readerlink.lua` `ReaderLink:init` | init |
+| `readerhighlight_tap`, `_tap_select_mode`, `_hold`, `_hold_release`, `_hold_pan` | `readerhighlight.lua` | init |
+| `tap_top_left_corner`, `tap_top_right_corner`, `hold_top_*`, `double_tap_top_*`, `two_finger_tap_top_*`, `one_finger_swipe_top_edge_*`, … | `plugins/gestures.koplugin/main.lua` `Gestures:setupGesture` | init |
+
+Standaardafmetingen (`defaults.lua`, te lezen met `G_defaults:readSetting(...)`):
+
+```
+DTAP_ZONE_MENU       = {x = 0,   y = 0,   w = 1,   h = 1/8}
+DTAP_ZONE_MENU_EXT   = {x = 1/4, y = 0,   w = 2/4, h = 1/5}
+DTAP_ZONE_CONFIG     = {x = 0,   y = 7/8, w = 1,   h = 1/8}
+DTAP_ZONE_CONFIG_EXT = {x = 1/4, y = 4/5, w = 2/4, h = 1/5}
+DTAP_ZONE_TOP_LEFT   = {x = 0,   y = 0,   w = 1/8, h = 1/8}   (en TOP_RIGHT, BOTTOM_*)
+```
+
+Let op: de `_EXT`-zones van menu en onderpaneel steken in het middengebied. Onze
+middenzones moeten daarom ook `readermenu_ext_tap` en `readerconfigmenu_ext_tap`
+overriden.
+
+Bestaande voorrang: `tap_link` en `readerhighlight_tap` overriden zelf
+`tap_forward/backward`, de menuzones en de hoekzones van gestures. Links en bestaande
+markeringen gaan standaard dus vóór bladeren.
+
+### Bovenmenu van de lezer (`frontend/apps/reader/modules/readermenu.lua`)
+
+- `ReaderMenu:onTapShowMenu(ges)`, `ReaderMenu:onSwipeShowMenu(ges)` (opent alleen bij
+  `ges.direction == "south"`), beide roepen `ReaderMenu:onShowMenu()` aan.
+- `onShowMenu` is ook het event `ShowMenu` (Dispatcher-actie, toets "Menu").
+  Een vangnet op instantieniveau (`self.ui.menu.onShowMenu` vervangen) houdt het
+  menu dicht, hoe het ook wordt aangevraagd.
+- `activate_menu` (`G_reader_settings`, `"swipe_tap"` standaard) bepaalt tik/veeg.
+
+### Onderpaneel (`frontend/apps/reader/modules/readerconfig.lua`)
+
+`ReaderConfig:onShowConfigMenu()` (event `ShowConfigMenu`). Blijft ongewijzigd.
+
+### Gestures-plugin (`plugins/gestures.koplugin/main.lua`)
+
+- `Gestures:init` registreert alle zones meteen (niet bij ReaderReady).
+- Instellingen: `settings/gestures.lua`, standaardwaarden in `defaults.lua`.
+  Standaard in de lezer: `tap_top_left_corner = toggle_page_flipping`,
+  `tap_top_right_corner = toggle_bookmark`, `tap_left_bottom_corner = toggle_frontlight`,
+  plus multiswipes (toc, bookmarks, enz.).
+- `Gestures:gestureAction` geeft `nil` terug als een gebaar geen actie heeft; dan gaat
+  het gebaar door naar de volgende zone.
+- Overschrijft `InputContainer.isGestureAlwaysActive` (alleen relevant voor
+  "touch input uit").
+
+## Bestandsbeheerder
+
+`frontend/apps/filemanager/filemanagermenu.lua`
+- `FileManagerMenu:onShowMenu(tab_index)`: opent het volledige menu. Dat is de ingang
+  voor het noodluik (`FileManager.instance.menu:onShowMenu()`).
+- `FileManagerMenu:registerToMainMenu(widget)`: de plugin levert
+  `addToMainMenu(menu_items)`. Een item dat niet in
+  `frontend/ui/elements/filemanager_menu_order.lua` staat wordt "orphan": met
+  `sorting_hint = "tools"` komt het in het Tools-tabblad, anders bovenaan met "NEW:".
+  (`frontend/ui/menusorter.lua`)
+- `FileManager.instance`: de actieve bestandsbeheerder.
+
+## Boekgegevens voor het homescreen
+
+- `frontend/readhistory.lua`: `ReadHistory.hist[1].file` is het recentste boek;
+  `G_reader_settings:readSetting("lastfile")` ook.
+- `frontend/ui/widget/booklist.lua`: `BookList.getDocSettings(file)`,
+  `BookList.getBookInfo(file)`, `BookList.hasBookBeenOpened(file)`.
+- `frontend/apps/filemanager/filemanagerbookinfo.lua`: `BookInfo:getDocProps(file)`
+  (titel/auteur), `BookInfo:getCoverImage(document, file)`.
+  (Uitwerken in fase 3.)
+
+## Netwerk (`frontend/ui/network/manager.lua`)
+
+`NetworkMgr:isOnline()`, `isWifiOn()`, `runWhenOnline(cb)`, `runWhenConnected(cb)`,
+`willRerunWhenOnline(cb)`, `turnOnWifiAndWaitForConnection(cb)`, `toggleWifiOn/Off`.
+`Device:hasSeamlessWifiToggle()` is op Kobo waar en in de Flatpak (SDL) **onwaar**.
+(Uitwerken in fase 4.)
+
+## OPDS-plugin (`plugins/opds.koplugin/`)
+
+- Instellingen: `settings/opds.lua` (`LuaSettings`), sleutels `servers`, `downloads`,
+  `pending_syncs`, `settings`. Een server is
+  `{ title, url, username, password, sync, raw_names }`. **Het wachtwoord staat daar in
+  platte tekst**; zo slaat KOReader het zelf op.
+- Ontbreekt `servers`, dan vult de plugin `default_servers` in (Gutenberg enz.).
+- Op deze installatie staat al server 7: `title = "Lingering"`,
+  `url = "https://opds.lingering.app"`, `username = "arno"`, `sync = true`.
+- `opdsbrowser.lua` (een `Menu`):
+  - `OPDSBrowser:fetchFeed(url)`, `:parseFeed(url)` (OPDS 1 via `opdsparser.lua`, OPDS 2 als JSON),
+    `:genItemTableFromURL(url)`, `:updateCatalog(url)`, `:onMenuSelect(item)`,
+    `:onReturn()`, `:onNextPage()`.
+  - Gebruikersnaam en wachtwoord komen uit `root_catalog_username/password`.
+  - Downloaden: `:showDownloads(item)` (keuzedialoog), `:downloadFile(local_path, url, user, pass, cb)`,
+    `:getLocalDownloadPath()`, `OPDSBrowser.getFiletype(link)`.
+  - `fetchFeed` toont zelf een `InfoMessage` bij een HTTP-fout.
+- `main.lua`: `OPDS:onShowOPDSCatalog()` (event `ShowOPDSCatalog`, Dispatcher
+  `opds_show_catalog`); alleen in de bestandsbeheerder.
+  (Uitwerken in fase 4/5.)
+
+## Kosync-plugin (`plugins/kosync.koplugin/`)
+
+- `is_doc_only = true`: draait alleen in de lezer.
+- Instellingen: **`settings/kosync.lua`** (niet in `settings.reader.lua`), sleutel
+  `settings` met `custom_server`, `username`, `userkey`, `auto_sync`,
+  `pages_before_update`, `sync_forward`, `sync_backward`, `checksum_method`,
+  `send_metadata`, `kosync_hostname`.
+- `userkey = md5(password)` met `require("ffi/sha2").md5`, hex-string (`KOSync:doLogin`).
+- Inloggen controleren: `KOSyncClient:new{custom_url=…, service_spec=<kosync-pad>/api.json}`
+  en `client:authorize(username, userkey)`.
+- Strategie: `SYNC_STRATEGY = {PROMPT = 1, SILENT = 2, DISABLE = 3}`.
+  **`sync_forward` geldt voor een *nieuwere* stand (tijdstempel van de server is later
+  dan de laatste lokale paginawissel), niet voor een stand die *verder in het boek* ligt.**
+  Alleen bij een oude server zonder tijdstempel wordt op percentage vergeleken.
+  (`KOSync:getProgress`)
+- `auto_sync` wordt bij `init` **teruggezet naar false** als
+  `Device:hasSeamlessWifiToggle()` waar is en `wifi_enable_action ~= "turn_on"`
+  (`KOSync:init`). Op een Kobo moet `wifi_enable_action = "turn_on"` dus aan.
+- Met `auto_sync`: `onReaderReady` haalt op, `CloseDocument` pusht (of zet in de wachtrij
+  als je offline bent), en `Suspend`/`Resume`/`NetworkConnected` werken mee
+  (`KOSync:registerEvents`).
+- Dispatcher-acties: `kosync_push_progress` (event `KOSyncPushProgress`),
+  `kosync_pull_progress` (`KOSyncPullProgress`), `kosync_toggle_autosync`,
+  `kosync_set_autosync` (`KOSyncToggleAutoSync`).
+- Op deze installatie: `custom_server = "https://koreader.lingering.app"`,
+  `auto_sync = true`, `sync_forward = 1` (vragen), `sync_backward = 3` (uit).
+
+## Haken die Lingering gebruikt
+
+(Wordt per fase aangevuld; elke haak staat in `compat.lua` in een `pcall`.)
+
+| Haak (`compat.lua`) | Waar in KOReader | Terugval als het faalt |
+|---|---|---|
+| `buildReaderZones` + `registerReaderZones` | `InputContainer:registerTouchZones` met `overrides`; zone-id's uit de tabel hierboven; maten uit `G_defaults` (`DTAP_ZONE_MENU`, `_MENU_EXT`, `_CONFIG`) | Zones weer verwijderd; standaard tikzones van KOReader; menu **niet** geblokkeerd |
+| `verifyZoneOrder` | leest `InputContainer._ordered_touch_zones` (intern) | Alleen een waarschuwing in de log |
+| `blockReaderMenu` | vervangt `onShowMenu`, `onTapShowMenu`, `onSwipeShowMenu` op de `ReaderMenu`-instantie (`ui.menu`) | Bovenmenu blijft bereikbaar via andere routes dan onze zones |
+| `closeBook` | `ReaderUI:onHome()`, anders `ReaderUI:onClose()` + `showFileManager()` | Tik in het midden doet niets |
+| `turnPage` | event `GotoViewRel` (afgehandeld door `ReaderRolling`/`ReaderPaging:onGotoViewRel`) | Tik links/rechts doet niets |
+| `syncNow` | `ui.kosync` (instantie): `settings`, `path`, `device_id`, `getDocumentDigest()`, `getMetadata()`, `getLastProgress()`, `getLastPercent()`; `KOSyncClient:new{custom_url, service_spec}` + `client:update_progress(..., callback)` (async via `AsyncHTTP`-coroutine als de Turbo-looper er is); `NetworkMgr:runWhenOnline` | Taak meldt mislukt; melding "Synchroniseren mislukt" |
+| `isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
+| `toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
+| Actiebalk (`actionbar.lua`) | geen haak: eigen `InputContainer` met `Button`s, getoond met `UIManager:show` | — |
+| `showFileManagerMenu` | `FileManagerMenu:onShowMenu()` | Noodluik opent niet; de gewone bestandsbeheerder blijft zichtbaar |
+| `enforceGlobalSettings` | `G_reader_settings`: `start_with` (`reader.lua`), `screensaver_type`, `screensaver_show_message`, `screensaver_hide_cover_in_filemanager`, `screensaver_hide_fallback_msg` (`frontend/ui/screensaver.lua`, `Screensaver:setup`). Eenmalige back-up `settings.reader.lua.lingering-backup` | Instellingen blijven zoals ze waren |
+| `currentBook` | `ReadHistory.hist` (eerste bestaande, geen `<datadir>/help/quickstart-*.html`), `BookList.getDocSettings(file):readSetting("percent_finished")`, `fm.bookinfo:getDocProps(file, nil, true)`, `fm.bookinfo:getCoverImage(nil, file)` | Homescreen zonder boek ("Nog geen boek"), of zonder omslag |
+| `openBook` | `ReaderUI:showReader(file)` | Tik op het boek doet niets |
+| `batteryPercent`, `isWifiOn`, `setWifi` | `Device:getPowerDevice():getCapacity()`, `NetworkMgr:isWifiOn()`, `NetworkMgr:toggleWifiOn/Off` | Statusregel zonder batterij/wifi; wifi-schakelaar doet niets |
+| Homescreen tonen | eigen widget via `UIManager:show` vanuit `init` in FileManager-context (`nextTick`); sluit zichzelf bij event `ShowingReader` | Gewone bestandsbeheerder blijft zichtbaar |
+| Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak in compat: standaard plugin-API |
+
+Bewuste keuzes in het leesscherm:
+- Onze tikzones gaan ook vóór `tap_link` en `readerhighlight_tap`: een tik doet altijd wat
+  de zone zegt, ook op een link of markering.
+- Tik in de strook bovenaan opent de eigen actiebalk: alleen iconen (huis, sync, lamp),
+  compact in het midden van een balk over de volle breedte. Iconen: `home` uit KOReader,
+  de rest in `icons/` van de plugin (via `IconWidget{file=…}`; `Button` kan alleen iconen
+  uit KOReader's eigen set). Het sync-icoon draait tijdens het synchroniseren in 4 frames
+  (`sync*.svg`, elke 0,4 s, alleen dat vak met `"fast"`-verversing). Dit wijkt bewust af
+  van "geen animaties" op verzoek. Vegen bovenaan doet niets.
+- Tikzone-handlers en knop-callbacks vallen **niet** onder de `HandlerSandbox` van de
+  pluginloader; Lingering wikkelt ze zelf in `pcall`.
+- Omgekeerde leesrichting (`inverse_reading_order`) wordt genegeerd: links is altijd terug.
+- Ingedrukt houden in de hoeken bovenaan valt niet onder "niets": de gestures-plugin
+  heeft daar standaard geen actie, en de hold is nodig voor het woordenboek.
+
+Slaapscherm (`Screensaver:setup`): bij `screensaver_type = "cover"` wordt de omslag van
+`lastfile` getoond. Valt dat weg (geen boek, geen omslag, boek uitgesloten), dan gebruikt
+KOReader `random_image`, met `resources/koreader.png` als laatste terugval. In de
+bestandsbeheerder (dus op het homescreen) sluit `screensaver_hide_cover_in_filemanager` de
+omslag uit; Lingering zet die op false.
+
+## Tekenen en vangnetten
+
+Fouten in `paintTo` en in met `UIManager:scheduleIn/nextTick` ingeplande functies vangt
+KOReader **niet** af: ze laten KOReader crashen (gezien in fase 3: een `VerticalGroup`
+waarvan `getSize()` werd opgevraagd vóór er elementen bij kwamen). `Widgets.guardPaint`
+wikkelt `paintTo` van homescreen, instellingen en actiebalk in `pcall` en sluit het scherm
+bij een fout.
+
+Let op bij `VerticalGroup`/`HorizontalGroup`: `getSize()` onthoudt maten en posities.
+Na wijzigen eerst `resetLayout()`.
+
+## Modules laden
+
+`package.path` begint met `common/?.lua;frontend/?.lua;…;./?.lua`, en pluginmappen staan
+erachter. Bovendien is de cache van `require` voor alle plugins gedeeld. `require("reader")`
+zou dus KOReader's eigen `reader.lua` laden. Daarom zet `main.lua` onze bestanden in
+`package.preload` onder `lingering_<naam>` en laadt ze met `dofile` uit de eigen map.
