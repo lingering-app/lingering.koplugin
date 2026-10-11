@@ -44,7 +44,7 @@ Lagen (afhankelijkheden alleen naar beneden; `tools/check.sh` controleert de reg
 | `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
 | `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |
 | `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
-| `tools/smoke.sh` | rooktest in de emulator (`LINGERING_TEST=fm|reader`), met schermafdrukken |
+| `tools/smoke.sh` | rooktest in de emulator (`LINGERING_TEST=fm|reader`), met schermafdrukken: homescreen, Mijn boeken, map, Instellingen, Account, inloggen (goed én fout wachtwoord), downloaden naar een tijdelijk pad, omslag zonder cache; in het boek actiebalk, inhoudsopgave, sync, springen, wegschrijven (**schrijft echte voortgang naar het account**), sluiten |
 
 Na een KOReader-update: `tools/check.sh`, `tools/test.sh`, `tools/smoke.sh`; bij fouten eerst
 `koreader/` (en de tabel "Haken" hieronder), daarna `ui/`.

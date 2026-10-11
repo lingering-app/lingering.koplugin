@@ -14,13 +14,15 @@ run() {
         rocks.koreader.KOReader "$@" > "$logs/$name.log" 2>&1
     echo "== $name"
     grep -h "Lingering: SMOKE" "$logs/$name.log"
-    if grep -qE "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log"; then
-        grep -nE "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log" | grep -v "CRE WARNING"
-        grep -E "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log" | grep -qv "CRE WARNING" && fail=1
+    # Verwacht: de test met het foute wachtwoord, en waarschuwingen van crengine zelf.
+    expected="CRE WARNING|inloggen mislukt bij OPDS gebruikersnaam of wachtwoord onjuist"
+    if grep -E "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log" | grep -qvE "$expected"; then
+        grep -nE "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log" | grep -vE "$expected"
+        fail=1
     fi
 }
-run fm 14
-if [ -n "$book" ]; then run reader 16 "$book"; else echo "== reader overgeslagen (geen boek)"; fi
+run fm 26
+if [ -n "$book" ]; then run reader 32 "$book"; else echo "== reader overgeslagen (geen boek)"; fi
 echo "Schermafdrukken: $shots"
 echo "Logs: $logs"
 [ "$fail" = 0 ] && echo "SMOKE: alles OK" || echo "SMOKE: FOUTEN"
