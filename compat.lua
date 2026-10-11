@@ -471,6 +471,64 @@ function Compat.currentBook(fm)
     return book
 end
 
+--[[--
+Leesstatistieken van een boek uit de database van de statistics-plugin, alleen als die
+plugin geladen is én aan staat (fm.statistics.settings.is_enabled). Anders nil.
+
+Rekent zoals ReaderStatistics (plugins/statistics.koplugin/main.lua):
+- gelezen = som per pagina van min(duur, max_sec)   (getPageTimeTotalStats, "Time spent reading")
+- resterend = resterende pagina's × gemiddelde tijd per pagina   (getCurrentStat)
+Het boek is niet open, dus de huidige pagina = percent_finished × book.pages.
+Het boek wordt gevonden op md5 = partial_md5_checksum (zoals getIdBookDB).
+]]
+function Compat.bookStats(fm, file, percent)
+    local ok, stats = try("bookStats", function()
+        local statistics = fm and fm.statistics
+        if not (statistics and statistics.settings and statistics.settings.is_enabled) then
+            return nil
+        end
+        local BookList = require("ui/widget/booklist")
+        local DataStorage = require("datastorage")
+        local SQ3 = require("lua-ljsqlite3/init")
+        local lfs = require("libs/libkoreader-lfs")
+
+        local md5 = BookList.getDocSettings(file):readSetting("partial_md5_checksum")
+        local db = DataStorage:getSettingsDir() .. "/statistics.sqlite3"
+        if not md5 or lfs.attributes(db, "mode") ~= "file" then return nil end
+
+        local conn = SQ3.open(db)
+        local stmt = conn:prepare("SELECT id, pages FROM book WHERE md5 = ? ORDER BY last_open DESC LIMIT 1;")
+        local row = stmt:reset():bind(md5):step()
+        stmt:close()
+        if not row then
+            conn:close()
+            return nil
+        end
+        local id_book, pages = tonumber(row[1]), tonumber(row[2]) or 0
+        local max_sec = tonumber(statistics.settings.max_sec) or 120
+        local read_pages, read_time = conn:rowexec(string.format([[
+            SELECT count(*), sum(durations)
+            FROM (
+                SELECT min(sum(duration), %d) AS durations
+                FROM page_stat
+                WHERE id_book = %d
+                GROUP BY page
+            );
+        ]], max_sec, id_book))
+        conn:close()
+
+        read_pages, read_time = tonumber(read_pages) or 0, tonumber(read_time) or 0
+        if read_pages == 0 or read_time == 0 then return nil end
+        local avg_time = read_time / read_pages
+        local pages_left = math.max(0, pages - math.floor((percent or 0) * pages + 0.5))
+        return {
+            read_secs = read_time,
+            left_secs = pages_left * avg_time,
+        }
+    end)
+    return ok and stats or nil
+end
+
 --- Opent een boek (ReaderUI:showReader, de enige veilige manier volgens readerui.lua).
 function Compat.openBook(file)
     return try("ReaderUI:showReader", function()

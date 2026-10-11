@@ -37,6 +37,16 @@ local Widgets = require("lingering_widgets")
 -- Zo lang ingedrukt houden op de statusregel opent het noodluik (na de hold-drempel).
 local EMERGENCY_HOLD_SECONDS = 2.5
 
+-- "4 u 20 min" of "35 min".
+local function formatDuration(secs)
+    local minutes = math.floor(secs / 60 + 0.5)
+    local hours = math.floor(minutes / 60)
+    if hours > 0 then
+        return T(_("%1 u %2 min"), hours, string.format("%02d", minutes % 60))
+    end
+    return T(_("%1 min"), minutes)
+end
+
 local HomeScreen = InputContainer:extend{
     fm = nil,               -- FileManager-instantie
     on_local_books = nil,
@@ -52,6 +62,9 @@ Widgets.guardPaint(HomeScreen, "homescreen")
 function HomeScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }
     self.book = Compat.currentBook(self.fm)
+    if self.book then
+        self.book.stats = Compat.bookStats(self.fm, self.book.file, self.book.percent)
+    end
     self:build()
 
     self.ges_events = {
@@ -178,7 +191,8 @@ function HomeScreen:buildBook(width, height)
     end
 
     -- Omslag in de verhouding 2:3, zo groot als past.
-    local cover_h = height - 2 * padding
+    local header_h = Font:getFace("cfont", 18).size + Size.padding.large * 3
+    local cover_h = height - 2 * padding - header_h
     local cover_w = math.floor(math.min(cover_h * 2 / 3, inner_w * 0.42))
     cover_h = math.floor(cover_w * 3 / 2)
     local cover
@@ -236,19 +250,37 @@ function HomeScreen:buildBook(width, height)
         fillcolor = Blitbuffer.COLOR_BLACK,
     })
     table.insert(info, VerticalSpan:new{ width = Size.padding.default })
-    table.insert(info, TextWidget:new{
-        text = T(_("%1% gelezen"), math.floor(percent * 100 + 0.5)),
+    -- Met de statistics-plugin aan: resterende en gelezen tijd; anders het percentage.
+    local stats = self.book.stats
+    local line
+    if stats then
+        line = T(_("Nog ± %1 · %2 gelezen"), formatDuration(stats.left_secs), formatDuration(stats.read_secs))
+    else
+        line = T(_("%1% gelezen"), math.floor(percent * 100 + 0.5))
+    end
+    table.insert(info, TextBoxWidget:new{
+        text = line,
         face = Font:getFace("cfont", 18),
+        width = text_w,
     })
 
     return FrameContainer:new{
         padding = padding,
         bordersize = 0,
-        HorizontalGroup:new{
-            align = "center",
-            cover,
-            HorizontalSpan:new{ width = padding },
-            info,
+        VerticalGroup:new{
+            align = "left",
+            TextWidget:new{
+                text = _("Aan het lezen"),
+                face = Font:getFace("cfont", 18),
+                bold = true,
+            },
+            VerticalSpan:new{ width = Size.padding.large * 2 },
+            HorizontalGroup:new{
+                align = "center",
+                cover,
+                HorizontalSpan:new{ width = padding },
+                info,
+            },
         },
     }
 end
