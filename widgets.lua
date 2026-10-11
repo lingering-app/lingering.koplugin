@@ -151,6 +151,40 @@ function Row:onTapRow()
 end
 
 --[[--
+Batterij-icoon: omtrek met een vulling die meeloopt met het percentage, en een nopje.
+Getekend met widgets (geen bestand), zodat elk percentage klopt.
+]]
+function Widgets.battery(percent)
+    local body_w = Screen:scaleBySize(22)
+    local body_h = Screen:scaleBySize(12)
+    local border = Size.border.thick
+    local gap = Size.border.thin
+    local inner_w = body_w - 2 * border - 2 * gap
+    local inner_h = body_h - 2 * border - 2 * gap
+    local fill_w = math.floor(inner_w * math.max(0, math.min(100, percent or 0)) / 100 + 0.5)
+
+    local fill = LeftContainer:new{
+        dimen = Geom:new{ w = inner_w, h = inner_h },
+        LineWidget:new{
+            dimen = Geom:new{ w = math.max(fill_w, 0), h = inner_h },
+            background = Blitbuffer.COLOR_BLACK,
+        },
+    }
+    local body = FrameContainer:new{
+        padding = gap,
+        bordersize = border,
+        color = Blitbuffer.COLOR_BLACK,
+        background = Blitbuffer.COLOR_WHITE,
+        fill,
+    }
+    local nub = LineWidget:new{
+        dimen = Geom:new{ w = border + gap, h = math.floor(body_h / 2) },
+        background = Blitbuffer.COLOR_BLACK,
+    }
+    return HorizontalGroup:new{ align = "center", body, nub }
+end
+
+--[[--
 Navigatiebalk onderaan: vakken van gelijke breedte met icoon en klein label.
 items: { { text = "...", icon = {...}, callback = fn }, ... }
 ]]

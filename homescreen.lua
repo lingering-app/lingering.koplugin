@@ -68,7 +68,8 @@ function HomeScreen:init()
 end
 
 --[[--
-Statusregel: "Lingering" links; rechts lamp en wifi (aantikbaar), tijd en batterij.
+Statusregel: "Lingering" links; rechts lamp en wifi (aantikbaar), tijd, batterij-icoon en
+batterij in procenten.
 De iconen blijven bestaan; refreshStatus werkt ze en de teksten ter plekke bij.
 ]]
 function HomeScreen:buildStatus(width)
@@ -128,7 +129,9 @@ function HomeScreen:buildStatus(width)
         HorizontalSpan:new{ width = Size.padding.large },
         TextWidget:new{ text = "", face = face },      -- tijd, zie updateStatusTexts
         HorizontalSpan:new{ width = padding },
-        TextWidget:new{ text = "", face = face },      -- batterij
+        HorizontalSpan:new{ width = 0 },               -- batterij-icoon
+        HorizontalSpan:new{ width = 0 },               -- ruimte tussen icoon en getal
+        TextWidget:new{ text = "", face = face },      -- batterij in procenten
     }
     self.status_face = face
     self:updateStatusTexts()
@@ -150,7 +153,11 @@ function HomeScreen:updateStatusTexts()
     local time = datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
     local battery = Compat.batteryPercent()
     self.status_right[4] = TextWidget:new{ text = time, face = self.status_face }
-    self.status_right[6] = TextWidget:new{ text = battery and T(_("%1%"), battery) or "", face = self.status_face }
+    if battery then
+        self.status_right[6] = Widgets.battery(battery)
+        self.status_right[7] = HorizontalSpan:new{ width = Size.padding.default }
+    end
+    self.status_right[8] = TextWidget:new{ text = battery and T(_("%1%"), battery) or "", face = self.status_face }
     self.status_right:resetLayout()
 end
 
