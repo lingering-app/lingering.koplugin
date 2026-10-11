@@ -32,7 +32,7 @@ Widgets.guardEvents(SettingsScreen, "instellingen")
 Widgets.followRotation(SettingsScreen)
 
 local function toggleIcon(on)
-    return { icon_file = on and "toggle-right.svg" or "toggle-left.svg" }
+    return { icon_file = on and "toggle_on.svg" or "toggle_off.svg" }
 end
 
 function SettingsScreen:init()
@@ -64,7 +64,7 @@ function SettingsScreen:init()
     self.light_row = Widgets.Row:new{
         width = width,
         text = _("Licht"),
-        icon = { icon_file = "sun.svg" },
+        icon = { icon_file = "light_mode.svg" },
         right = toggleIcon(DeviceAdapter.isFrontlightOn()),
         enabled = Device:hasFrontlight(),
         -- Rij: helderheid (KOReaders scherm); schakelaar rechts: licht aan/uit.
@@ -84,8 +84,8 @@ function SettingsScreen:init()
         Widgets.Row:new{
             width = width,
             text = _("Account"),
-            icon = { icon_file = "circle-user.svg" },
-            right = { icon_file = "chevron-right.svg" },
+            icon = { icon_file = "account_circle.svg" },
+            right = { icon_file = "chevron_right.svg" },
             callback = function() self.on_account() end,
         },
     }
@@ -93,7 +93,7 @@ function SettingsScreen:init()
         width = width,
         text = _("Over Lingering"),
         icon = { icon_file = "info.svg" },
-        right = { icon_file = "chevron-right.svg" },
+        right = { icon_file = "chevron_right.svg" },
         callback = function()
             require("lingering.ui.aboutscreen"):new{}:show()
         end,
@@ -102,7 +102,7 @@ function SettingsScreen:init()
     local advanced = Widgets.Row:new{
         width = width,
         text = _("Geavanceerd"),
-        right = { icon_file = "chevron-right.svg" },
+        right = { icon_file = "chevron_right.svg" },
         callback = function()
             self:close()
             self.on_emergency()

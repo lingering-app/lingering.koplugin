@@ -148,7 +148,7 @@ function GridTile:init()
     table.insert(cover_area, placed)
     if entry.kind == "book" and self.library:isDownloaded(entry) then
         local badge_size = Screen:scaleBySize(24)
-        local badge = Widgets.icon({ icon_file = "circle-check.svg" }, badge_size)
+        local badge = Widgets.icon({ icon_file = "check_circle.svg" }, badge_size)
         badge.overlap_offset = {
             math.floor((cover_w + cover_size.w) / 2) - badge_size - Size.padding.small,
             cover_h - badge_size - Size.padding.small,
@@ -225,8 +225,8 @@ function LibraryScreen:buildHeader()
         action = {
             name = "mijn boeken synchroniseren",
             task = true,
-            icon_file = "refresh-cw.svg",
-            frames = { "refresh-cw-45.svg", "refresh-cw-90.svg", "refresh-cw-135.svg", "refresh-cw.svg" },
+            icon_file = "sync.svg",
+            frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
             run = function(done) self:syncCurrent(done) end,
         },
         width = h, height = h, icon_size = Screen:scaleBySize(28),

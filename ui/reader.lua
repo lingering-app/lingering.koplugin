@@ -22,7 +22,7 @@ local function showActionBar(ui)
         actions = {
             {
                 name = "homescreen",
-                icon_file = "house.svg",
+                icon_file = "home.svg",
                 callback = function()
                     logger.info("Lingering: actiebalk, naar homescreen")
                     Navigation.closeBook(ui)
@@ -30,7 +30,7 @@ local function showActionBar(ui)
             },
             {
                 name = "inhoudsopgave",
-                icon_file = "table-of-contents.svg",
+                icon_file = "toc.svg",
                 callback = function()
                     logger.info("Lingering: actiebalk, inhoudsopgave")
                     ReaderControl.showToc(ui)
@@ -39,8 +39,8 @@ local function showActionBar(ui)
             {
                 name = "synchroniseren",
                 task = true,
-                icon_file = "refresh-cw.svg",
-                frames = { "refresh-cw-45.svg", "refresh-cw-90.svg", "refresh-cw-135.svg", "refresh-cw.svg" },
+                icon_file = "sync.svg",
+                frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
                 run = function(done)
                     logger.info("Lingering: actiebalk, synchroniseren")
                     SyncService.syncNow(ui, done)
@@ -57,8 +57,8 @@ local function showActionBar(ui)
             {
                 name = "licht",
                 switch = true,
-                icon_on = "sun.svg",
-                icon_off = "moon.svg",
+                icon_on = "light_mode.svg",
+                icon_off = "dark_mode.svg",
                 enabled = Device:hasFrontlight(),
                 state = DeviceAdapter.isFrontlightOn(),
                 state_func = DeviceAdapter.isFrontlightOn,
@@ -70,8 +70,8 @@ local function showActionBar(ui)
             {
                 name = "automatisch draaien",
                 switch = true,
-                icon_on = "rotate-cw-square.svg",
-                icon_off = "lock.svg",
+                icon_on = "mobile_rotate.svg",
+                icon_off = "mobile_rotate_lock.svg",
                 enabled = DeviceAdapter.hasGSensor(),
                 state = DeviceAdapter.isAutoRotateOn(),
                 on_toggle = function(on)

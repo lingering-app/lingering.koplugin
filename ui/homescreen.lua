@@ -159,8 +159,8 @@ function HomeScreen:buildStatus(width)
     self.light_item = item{
         name = "licht",
         switch = true,
-        icon_on = "sun.svg",
-        icon_off = "moon.svg",
+        icon_on = "light_mode.svg",
+        icon_off = "dark_mode.svg",
         enabled = Device:hasFrontlight(),
         state = DeviceAdapter.isFrontlightOn(),
         on_toggle = function(on)
@@ -178,7 +178,7 @@ function HomeScreen:buildStatus(width)
         -- Uit: doorgestreept. Aan zonder verbinding: grijs. Verbonden: zwart.
         icon_spec = function(on)
             if not on then
-                return { icon_file = "wifi-off.svg" }
+                return { icon_file = "wifi_off.svg" }
             end
             return { icon_file = "wifi.svg", dim = not Network.isConnected() }
         end,
@@ -266,7 +266,7 @@ function HomeScreen:buildBook(width, height)
     else
         cover = CenterContainer:new{
             dimen = Geom:new{ w = cover_w, h = cover_h },
-            Widgets.icon({ icon_file = "book-open.svg" }, math.floor(cover_w / 2)),
+            Widgets.icon({ icon_file = "menu_book.svg" }, math.floor(cover_w / 2)),
         }
     end
 
@@ -339,7 +339,7 @@ function HomeScreen:build()
     local nav = Widgets.navBar(width, {
         {
             text = _("Mijn boeken"),
-            icon = { icon_file = "book-open.svg" },
+            icon = { icon_file = "menu_book.svg" },
             callback = function() self.on_local_books() end,
         },
         {

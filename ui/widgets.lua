@@ -176,7 +176,7 @@ function Widgets.header(opts)
     local h = Screen:scaleBySize(Widgets.HEADER_SIZE)
     local inner = Geom:new{ w = width, h = h }
     local back = Item:new{
-        action = { icon_file = "chevron-left.svg" },
+        action = { icon_file = "chevron_left.svg" },
         width = h, height = h, icon_size = Screen:scaleBySize(28),
         show_parent = opts.show_parent,
         on_tap = opts.on_back,
