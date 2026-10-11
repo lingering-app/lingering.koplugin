@@ -1,5 +1,6 @@
 --[[--
-Instellingen: wifi aan/uit, account (gebruikersnaam en wachtwoord), en onderaan
+Instellingen: wifi (netwerk kiezen, aan/uit), licht (helderheid, aan/uit), account
+(gebruikersnaam en wachtwoord), en onderaan
 "Geavanceerd" (het noodluik naar het volledige KOReader-menu).
 ]]
 local Blitbuffer = require("ffi/blitbuffer")
@@ -61,8 +62,26 @@ function SettingsScreen:init()
         right_callback = function() self:toggleWifi() end,
     }
 
+    self.light_row = Widgets.Row:new{
+        width = width,
+        text = _("Licht"),
+        icon = { icon_file = "light-on.svg" },
+        right = toggleIcon(Compat.isFrontlightOn()),
+        enabled = Device:hasFrontlight(),
+        -- Rij: helderheid (KOReaders scherm); schakelaar rechts: licht aan/uit.
+        callback = function()
+            logger.info("Lingering: instellingen, helderheid")
+            Compat.showLightDialog()
+        end,
+        right_callback = function()
+            logger.info("Lingering: instellingen, licht aan/uit")
+            Compat.toggleFrontlight(function() self:updateLight() end)
+        end,
+    }
+
     local top_rows = {
         self.wifi_row,
+        self.light_row,
         Widgets.Row:new{
             width = width,
             text = _("Account"),
@@ -119,6 +138,12 @@ function SettingsScreen:updateWifi()
     self.wifi_row:update{ right = toggleIcon(Compat.isWifiOn()) }
     UIManager:setDirty(self, "ui", self.wifi_row.dimen)
 end
+function SettingsScreen:updateLight()
+    self.light_row:update{ right = toggleIcon(Compat.isFrontlightOn()) }
+    UIManager:setDirty(self, "ui", self.light_row.dimen)
+end
+SettingsScreen.onFrontlightStateChanged = SettingsScreen.updateLight
+
 SettingsScreen.onNetworkConnected = SettingsScreen.updateWifi
 SettingsScreen.onNetworkDisconnected = SettingsScreen.updateWifi
 

@@ -590,6 +590,18 @@ function Compat.showToc(ui)
 end
 
 --[[--
+KOReaders helderheidsscherm (Device:showLightDialog → ui/widget/frontlightwidget).
+KOReader onthoudt de helderheid zelf (Kobo: frontlight_intensity in settings.reader.lua);
+aan/uit gaat terug naar de laatste helderheid. Wijzigingen worden gemeld met het event
+FrontlightStateChanged (BasePowerD:stateChanged).
+]]
+function Compat.showLightDialog()
+    return try("showLightDialog", function()
+        require("device"):showLightDialog()
+    end)
+end
+
+--[[--
 Licht aan/uit, rechtstreeks via BasePowerD:toggleFrontlight (frontend/device/generic/powerd.lua),
 zoals DeviceListener:onToggleFrontlight het doet, maar zonder melding en zonder omweg via een
 event, zodat het in de lezer en op het homescreen hetzelfde werkt. done() volgt als het licht

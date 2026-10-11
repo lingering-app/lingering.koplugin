@@ -246,6 +246,15 @@ function ActionBar:init()
     }
 end
 
+-- Schakelaars met state_func volgen de echte stand (bijv. licht via FrontlightStateChanged).
+function ActionBar:onFrontlightStateChanged()
+    for _, item in ipairs(self.items or {}) do
+        if item.action.state_func then
+            item:setState(item.action.state_func())
+        end
+    end
+end
+
 function ActionBar:onTapOutside(_, ges)
     if not (ges and ges.pos and ges.pos:intersectWith(self.dimen)) then
         self:dismiss()

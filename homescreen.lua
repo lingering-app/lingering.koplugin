@@ -361,6 +361,11 @@ function HomeScreen:refreshStatus()
     self.light_item:setState(Compat.isFrontlightOn())
     UIManager:setDirty(self, "ui", self.status_dimen)
 end
+-- Licht veranderd (hier, in Instellingen of in KOReaders helderheidsscherm).
+function HomeScreen:onFrontlightStateChanged()
+    if self.light_item then self.light_item:setState(Compat.isFrontlightOn()) end
+end
+
 HomeScreen.onResume = HomeScreen.refreshStatus
 HomeScreen.onNetworkConnected = HomeScreen.refreshStatus
 HomeScreen.onNetworkDisconnected = HomeScreen.refreshStatus

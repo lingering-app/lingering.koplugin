@@ -58,6 +58,7 @@ local function showActionBar(ui)
                 icon_off = "light-off.svg",
                 enabled = Device:hasFrontlight(),
                 state = Compat.isFrontlightOn(),
+                state_func = Compat.isFrontlightOn,
                 on_toggle = function(on)
                     logger.info("Lingering: actiebalk, licht", on and "aan" or "uit")
                     Compat.toggleFrontlight()
