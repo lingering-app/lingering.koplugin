@@ -1,5 +1,5 @@
 --[[--
-Instellingen: wifi aan/uit, nu synchroniseren, account (gebruikersnaam en wachtwoord), en onderaan
+Instellingen: wifi aan/uit, account (gebruikersnaam en wachtwoord), en onderaan
 "Geavanceerd" (het noodluik naar het volledige KOReader-menu).
 ]]
 local Blitbuffer = require("ffi/blitbuffer")
@@ -19,7 +19,6 @@ local Compat = require("lingering_compat")
 local Widgets = require("lingering_widgets")
 
 local SettingsScreen = InputContainer:extend{
-    on_sync = nil,
     on_account = nil,
     on_emergency = nil,
     covers_fullscreen = true,
@@ -58,12 +57,6 @@ function SettingsScreen:init()
 
     local top_rows = {
         self.wifi_row,
-        Widgets.Row:new{
-            width = width,
-            text = _("Nu synchroniseren"),
-            icon = { icon_file = "sync.svg" },
-            callback = function() self.on_sync() end,
-        },
         Widgets.Row:new{
             width = width,
             text = _("Account"),

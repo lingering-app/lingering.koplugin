@@ -2,7 +2,6 @@
 Lingering UI: een versimpelde schil over KOReader.
 Laadt de onderdelen, kiest per context (bestandsbeheerder of lezer) wat er gebeurt.
 ]]
-local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local logger = require("logger")
@@ -46,13 +45,6 @@ end
 function Lingering:onReaderReady()
     if not Settings:isActive() then return end
     require("lingering_reader").install(self.ui)
-end
-
-local function notYet()
-    UIManager:show(InfoMessage:new{
-        text = _("Dit onderdeel komt in een volgende versie."),
-        timeout = 3,
-    })
 end
 
 --- Toont het homescreen. Faalt dat, dan blijft de gewone bestandsbeheerder zichtbaar.
@@ -114,7 +106,6 @@ end
 function Lingering:showSettings()
     local SettingsScreen = require("lingering_settingsscreen")
     SettingsScreen:new{
-        on_sync = notYet,
         on_account = function() self:showSetup(false) end,
         on_emergency = function() self:openEmergencyMenu() end,
     }:show()
