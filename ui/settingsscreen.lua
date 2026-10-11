@@ -8,7 +8,6 @@ local Device = require("device")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
 local InputContainer = require("ui/widget/container/inputcontainer")
-local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
@@ -33,27 +32,25 @@ Widgets.guardEvents(SettingsScreen, "instellingen")
 Widgets.followRotation(SettingsScreen)
 
 local function toggleIcon(on)
-    return { icon_file = on and "toggle-on.svg" or "toggle-off.svg" }
+    return { icon_file = on and "toggle-right.svg" or "toggle-left.svg" }
 end
 
 function SettingsScreen:init()
     local width, height = Screen:getWidth(), Screen:getHeight()
     self.dimen = Geom:new{ x = 0, y = 0, w = width, h = height }
 
-    local title_bar = TitleBar:new{
+    local title_bar = Widgets.header{
         width = width,
-        fullscreen = true,
         title = _("Instellingen"),
-        with_bottom_line = true,
-        left_icon = "chevron.left",
-        left_icon_tap_callback = function() self:close() end,
+        on_back = function() self:close() end,
+        show_parent = self,
     }
 
     local wifi_on = Network.isWifiOn()
     self.wifi_row = Widgets.Row:new{
         width = width,
         text = _("Wifi"),
-        icon = { icon = "wifi" },
+        icon = { icon_file = "wifi.svg" },
         right = toggleIcon(wifi_on),
         enabled = Device:hasWifiToggle(),
         -- Rij: netwerk kiezen (KOReaders netwerkscherm); schakelaar rechts: wifi aan/uit.
@@ -67,7 +64,7 @@ function SettingsScreen:init()
     self.light_row = Widgets.Row:new{
         width = width,
         text = _("Licht"),
-        icon = { icon_file = "light-on.svg" },
+        icon = { icon_file = "sun.svg" },
         right = toggleIcon(DeviceAdapter.isFrontlightOn()),
         enabled = Device:hasFrontlight(),
         -- Rij: helderheid (KOReaders scherm); schakelaar rechts: licht aan/uit.
@@ -87,16 +84,16 @@ function SettingsScreen:init()
         Widgets.Row:new{
             width = width,
             text = _("Account"),
-            icon = { icon_file = "account.svg" },
-            right = { icon = "chevron.right" },
+            icon = { icon_file = "circle-user.svg" },
+            right = { icon_file = "chevron-right.svg" },
             callback = function() self.on_account() end,
         },
     }
     table.insert(top_rows, Widgets.Row:new{
         width = width,
         text = _("Over Lingering"),
-        icon = { icon = "info" },
-        right = { icon = "chevron.right" },
+        icon = { icon_file = "info.svg" },
+        right = { icon_file = "chevron-right.svg" },
         callback = function()
             require("lingering.ui.aboutscreen"):new{}:show()
         end,
@@ -105,7 +102,7 @@ function SettingsScreen:init()
     local advanced = Widgets.Row:new{
         width = width,
         text = _("Geavanceerd"),
-        right = { icon = "chevron.right" },
+        right = { icon_file = "chevron-right.svg" },
         callback = function()
             self:close()
             self.on_emergency()

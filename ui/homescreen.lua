@@ -159,8 +159,8 @@ function HomeScreen:buildStatus(width)
     self.light_item = item{
         name = "licht",
         switch = true,
-        icon_on = "light-on.svg",
-        icon_off = "light-off.svg",
+        icon_on = "sun.svg",
+        icon_off = "moon.svg",
         enabled = Device:hasFrontlight(),
         state = DeviceAdapter.isFrontlightOn(),
         on_toggle = function(on)
@@ -180,7 +180,7 @@ function HomeScreen:buildStatus(width)
             if not on then
                 return { icon_file = "wifi-off.svg" }
             end
-            return { icon_file = "wifi-on.svg", dim = not Network.isConnected() }
+            return { icon_file = "wifi.svg", dim = not Network.isConnected() }
         end,
         on_toggle = function(on)
             logger.info("Lingering: homescreen, wifi", on and "aan" or "uit")
@@ -266,7 +266,7 @@ function HomeScreen:buildBook(width, height)
     else
         cover = CenterContainer:new{
             dimen = Geom:new{ w = cover_w, h = cover_h },
-            Widgets.icon({ icon = "book.opened" }, math.floor(cover_w / 2)),
+            Widgets.icon({ icon_file = "book-open.svg" }, math.floor(cover_w / 2)),
         }
     end
 
@@ -339,12 +339,12 @@ function HomeScreen:build()
     local nav = Widgets.navBar(width, {
         {
             text = _("Mijn boeken"),
-            icon = { icon = "book.opened" },
+            icon = { icon_file = "book-open.svg" },
             callback = function() self.on_local_books() end,
         },
         {
             text = _("Instellingen"),
-            icon = { icon = "appbar.settings" },
+            icon = { icon_file = "settings.svg" },
             callback = function() self.on_settings() end,
         },
     })

@@ -2,6 +2,7 @@
 Gedeelde bouwstenen voor de schermen van Lingering.
 ]]
 local Blitbuffer = require("ffi/blitbuffer")
+local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
 local Font = require("ui/font")
 local FrameContainer = require("ui/widget/container/framecontainer")
@@ -17,6 +18,7 @@ local OverlapGroup = require("ui/widget/overlapgroup")
 local RightContainer = require("ui/widget/container/rightcontainer")
 local Size = require("ui/size")
 local TextWidget = require("ui/widget/textwidget")
+local VerticalGroup = require("ui/widget/verticalgroup")
 local logger = require("logger")
 local Screen = Device.screen
 
@@ -161,6 +163,47 @@ function Widgets.icon(spec, size, dim)
     }
 end
 
+--[[--
+Titelbalk van onze schermen: terug-knop links, titel in het midden, optioneel een knop
+rechts, lijn eronder. Eigen iconen (KOReaders TitleBar kent alleen zijn eigen iconen).
+opts: width, title, on_back, right (een ActionBar.Item of nil), show_parent.
+Geeft de balk; balk:setTitle(tekst) zet een andere titel, balk.height is de hoogte.
+]]
+Widgets.HEADER_SIZE = 56
+function Widgets.header(opts)
+    local Item = require("lingering.ui.actionbar").Item
+    local width = opts.width
+    local h = Screen:scaleBySize(Widgets.HEADER_SIZE)
+    local inner = Geom:new{ w = width, h = h }
+    local back = Item:new{
+        action = { icon_file = "chevron-left.svg" },
+        width = h, height = h, icon_size = Screen:scaleBySize(28),
+        show_parent = opts.show_parent,
+        on_tap = opts.on_back,
+    }
+    local title_box = CenterContainer:new{ dimen = inner, TextWidget:new{ text = "" } }
+    local bar = VerticalGroup:new{
+        OverlapGroup:new{
+            dimen = inner,
+            title_box,
+            LeftContainer:new{ dimen = inner, back },
+            opts.right and RightContainer:new{ dimen = inner, opts.right } or nil,
+        },
+        Widgets.line(width),
+    }
+    function bar.setTitle(_, text)
+        title_box[1] = TextWidget:new{
+            text = text,
+            face = Font:getFace("cfont", 22),
+            bold = true,
+            max_width = width - 2 * h - 2 * Size.padding.large,
+        }
+    end
+    bar:setTitle(opts.title or "")
+    bar.height = h + Widgets.line(width):getSize().h
+    return bar
+end
+
 function Widgets.line(width)
     return LineWidget:new{
         dimen = Geom:new{ w = width, h = Size.line.medium },
@@ -299,7 +342,6 @@ local NavButton = InputContainer:extend{
 }
 
 function NavButton:init()
-    local VerticalGroup = require("ui/widget/verticalgroup")
     local VerticalSpan = require("ui/widget/verticalspan")
     local CenterContainer = require("ui/widget/container/centercontainer")
     self[1] = CenterContainer:new{

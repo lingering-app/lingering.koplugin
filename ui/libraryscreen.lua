@@ -17,13 +17,10 @@ local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan = require("ui/widget/horizontalspan")
 local ImageWidget = require("ui/widget/imagewidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
-local LeftContainer = require("ui/widget/container/leftcontainer")
 local OverlapGroup = require("ui/widget/overlapgroup")
-local RightContainer = require("ui/widget/container/rightcontainer")
 local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
-local TextWidget = require("ui/widget/textwidget")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
@@ -151,7 +148,7 @@ function GridTile:init()
     table.insert(cover_area, placed)
     if entry.kind == "book" and self.library:isDownloaded(entry) then
         local badge_size = Screen:scaleBySize(24)
-        local badge = Widgets.icon({ icon_file = "downloaded.svg" }, badge_size)
+        local badge = Widgets.icon({ icon_file = "circle-check.svg" }, badge_size)
         badge.overlap_offset = {
             math.floor((cover_w + cover_size.w) / 2) - badge_size - Size.padding.small,
             cover_h - badge_size - Size.padding.small,
@@ -223,48 +220,29 @@ end
 
 -- Titelbalk: terug, titel, sync. Eén keer gebouwd, zodat een draaiend sync-icoon blijft.
 function LibraryScreen:buildHeader()
-    local width = self.dimen.w
-    local h = Screen:scaleBySize(56)
-    local icon_size = Screen:scaleBySize(28)
-
-    local back = Item:new{
-        action = { icon = "chevron.left" },
-        width = h, height = h, icon_size = icon_size,
-        show_parent = self,
-        on_tap = function() self:goBack() end,
-    }
+    local h = Screen:scaleBySize(Widgets.HEADER_SIZE)
     self.sync_item = Item:new{
         action = {
             name = "mijn boeken synchroniseren",
             task = true,
-            icon_file = "sync.svg",
-            frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
+            icon_file = "refresh-cw.svg",
+            frames = { "refresh-cw-45.svg", "refresh-cw-90.svg", "refresh-cw-135.svg", "refresh-cw.svg" },
             run = function(done) self:syncCurrent(done) end,
         },
-        width = h, height = h, icon_size = icon_size,
+        width = h, height = h, icon_size = Screen:scaleBySize(28),
         show_parent = self,
     }
-    local inner = Geom:new{ w = width, h = h }
-    self.title_box = CenterContainer:new{ dimen = inner, TextWidget:new{ text = "" } }
-    self.header = VerticalGroup:new{
-        OverlapGroup:new{
-            dimen = inner,
-            self.title_box,
-            LeftContainer:new{ dimen = inner, back },
-            RightContainer:new{ dimen = inner, self.sync_item },
-        },
-        Widgets.line(width),
+    self.header = Widgets.header{
+        width = self.dimen.w,
+        on_back = function() self:goBack() end,
+        right = self.sync_item,
+        show_parent = self,
     }
-    self.header_h = h + Widgets.line(width):getSize().h
+    self.header_h = self.header.height
 end
 
 function LibraryScreen:setTitle(title)
-    self.title_box[1] = TextWidget:new{
-        text = title,
-        face = Font:getFace("cfont", 22),
-        bold = true,
-        max_width = self.dimen.w - 2 * Screen:scaleBySize(56) - 2 * Size.padding.large,
-    }
+    self.header:setTitle(title)
 end
 
 function LibraryScreen:message(text, width, height)

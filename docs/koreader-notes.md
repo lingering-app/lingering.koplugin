@@ -44,7 +44,7 @@ Lagen (afhankelijkheden alleen naar beneden; `tools/check.sh` controleert de reg
 | `app/update_service.lua` | zelf-update: zoeken, installeren (alleen tags), restanten opruimen bij de volgende start |
 | `domain/release.lua` | versies lezen/vergelijken, nieuwste tag, welke paden bij de plugin horen |
 | `ui/*.lua` | homescreen (blokken met stapels omslagen voor de mappen in `config.collections`; tik opent die map in Mijn boeken), Mijn boeken, Instellingen, Over Lingering (met update-knop, `ui/update_flow.lua`), inlogscherm, leesscherm, actiebalk, `book_opener.lua` (openen of downloaden-en-openen), gedeelde widgets |
-| `icons/` | eigen SVG-iconen |
+| `icons/` | iconen uit [Lucide](https://lucide.dev) v0.469.0 (ISC, `icons/LICENSE-lucide.txt`); `stroke="currentColor"` vervangen door zwart; `refresh-cw-<hoek>.svg` zijn gedraaide kopieën voor de sync-animatie |
 | `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
 | `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |
 | `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
@@ -318,12 +318,14 @@ markeringen gaan standaard dus vóór bladeren.
 Bewuste keuzes in het leesscherm:
 - Onze tikzones gaan ook vóór `tap_link` en `readerhighlight_tap`: een tik doet altijd wat
   de zone zegt, ook op een link of markering.
-- Tik in de strook bovenaan opent de eigen actiebalk: alleen iconen (huis, sync, lamp),
-  compact in het midden van een balk over de volle breedte. Iconen: `home` uit KOReader,
-  de rest in `icons/` van de plugin (via `IconWidget{file=…}`; `Button` kan alleen iconen
-  uit KOReader's eigen set). Het sync-icoon draait tijdens het synchroniseren in 4 frames
-  (`sync*.svg`, elke 0,4 s, alleen dat vak met `"fast"`-verversing). Dit wijkt bewust af
-  van "geen animaties" op verzoek. Vegen bovenaan doet niets.
+- Tik in de strook bovenaan opent de eigen actiebalk: alleen iconen (huis, inhoudsopgave,
+  sync, lamp, automatisch draaien), compact in het midden van een balk over de volle breedte.
+  Alle iconen komen uit `icons/` (Lucide, één stijl), via `IconWidget{file=…}`; geen iconen
+  uit KOReader's eigen set. Daarom ook een eigen titelbalk (`Widgets.header`): KOReader's
+  `TitleBar`/`IconButton` kennen alleen iconnamen uit hun eigen mappen. Het sync-icoon draait
+  tijdens het synchroniseren in 4 frames (`refresh-cw*.svg`, 45° per stap, elke 0,4 s, alleen
+  dat vak met `"fast"`-verversing; het laatste frame met `"ui"`). Dit wijkt bewust af van
+  "geen animaties" op verzoek. Vegen bovenaan doet niets.
 - Tikzone-handlers en knop-callbacks vallen **niet** onder de `HandlerSandbox` van de
   pluginloader; Lingering wikkelt ze zelf in `pcall`.
 - Omgekeerde leesrichting (`inverse_reading_order`) wordt genegeerd: links is altijd terug.

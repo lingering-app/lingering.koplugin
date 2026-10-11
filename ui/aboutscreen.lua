@@ -12,7 +12,6 @@ local InputContainer = require("ui/widget/container/inputcontainer")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
 local TextWidget = require("ui/widget/textwidget")
-local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
@@ -37,13 +36,11 @@ function AboutScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = width, h = height }
     local text_w = width - 8 * Size.padding.large
 
-    local title_bar = TitleBar:new{
+    local title_bar = Widgets.header{
         width = width,
-        fullscreen = true,
         title = _("Over Lingering"),
-        with_bottom_line = true,
-        left_icon = "chevron.left",
-        left_icon_tap_callback = function() self:close() end,
+        on_back = function() self:close() end,
+        show_parent = self,
     }
 
     local version = UpdateService.installedVersion()
@@ -86,7 +83,7 @@ function AboutScreen:init()
         line(_("Gebouwd op KOReader."), 15, false, Blitbuffer.COLOR_DARK_GRAY),
     }
 
-    local body_h = height - title_bar:getHeight()
+    local body_h = height - title_bar.height
     self[1] = FrameContainer:new{
         width = width,
         height = height,
