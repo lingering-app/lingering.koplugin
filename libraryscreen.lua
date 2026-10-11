@@ -1,5 +1,5 @@
 --[[--
-Mijn boeken: de OPDS-catalogus als lijst met omslagen, per pagina.
+Mijn boeken: de OPDS-catalogus als raster met omslagen, verticaal te schuiven.
 
 - Toont meteen de gecachete versie (ook zonder wifi).
 - Met wifi: synchroniseert op de achtergrond (sync-icoon draait); handmatig via het icoon.
@@ -21,6 +21,7 @@ local InputContainer = require("ui/widget/container/inputcontainer")
 local LeftContainer = require("ui/widget/container/leftcontainer")
 local OverlapGroup = require("ui/widget/overlapgroup")
 local RightContainer = require("ui/widget/container/rightcontainer")
+local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
 local TextWidget = require("ui/widget/textwidget")
@@ -36,17 +37,10 @@ local Compat = require("lingering_compat")
 local Widgets = require("lingering_widgets")
 local Item = require("lingering_actionbar").Item
 
---[[--
-Eén rij: een map (icoon, naam, pijltje) of een boek (omslag, titel, auteur, en een
-vinkje als het al op het apparaat staat).
-]]
-local ListRow = InputContainer:extend{
-    entry = nil,
-    library = nil,
-    width = nil,
-    height = nil,
-    callback = nil,
-}
+-- Titel onder een tegel: twee regels. Regelhoogte zoals TextBoxWidget die berekent:
+-- (1 + line_height) * face.size, met line_height = 0.3 als standaard.
+local TITLE_FACE = Font:getFace("cfont", 15)
+local TITLE_HEIGHT = 2 * math.floor((1 + 0.3) * TITLE_FACE.size + 0.5)
 
 -- Omslag zelf decoderen in een pcall: een kapotte afbeelding mag het scherm niet breken.
 local function loadCover(library, url, w, h)
@@ -60,94 +54,97 @@ local function loadCover(library, url, w, h)
     os.remove(path)
 end
 
-function ListRow:init()
-    local entry = self.entry
-    local padding = Size.padding.large * 2
-    local cover_h = self.height - 2 * Size.padding.default
-    local cover_w = math.floor(cover_h * 2 / 3)
-    local icon_size = Screen:scaleBySize(28)
+--[[--
+Eén tegel in het raster: omslag (of mapicoon) met de titel klein eronder.
+Een boek dat al op het apparaat staat krijgt een vinkje rechtsonder op de omslag.
+]]
+local GridTile = InputContainer:extend{
+    entry = nil,
+    library = nil,
+    width = nil,
+    height = nil,
+    cover_w = nil,
+    cover_h = nil,
+    callback = nil,
+}
 
-    local left
+function GridTile:init()
+    local entry = self.entry
+    local cover_w, cover_h = self.cover_w, self.cover_h
+
+    local cover
     if entry.kind == "book" then
         local bb = entry.thumbnail and loadCover(self.library, entry.thumbnail, cover_w, cover_h)
         if bb then
-            left = CenterContainer:new{
-                dimen = Geom:new{ w = cover_w, h = cover_h },
-                ImageWidget:new{ image = bb, image_disposable = true, width = cover_w, height = cover_h, scale_factor = 0 },
-            }
+            -- Schalen met behoud van verhouding, onderaan uitgelijnd zoals op een plank.
+            local scale = math.min(cover_w / bb:getWidth(), cover_h / bb:getHeight())
+            local w, h = math.floor(bb:getWidth() * scale), math.floor(bb:getHeight() * scale)
+            cover = ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 }
         else
-            left = CenterContainer:new{
-                dimen = Geom:new{ w = cover_w, h = cover_h },
-                Widgets.icon({ icon = "book.opened" }, math.floor(cover_w * 0.6), true),
+            cover = FrameContainer:new{
+                width = cover_w, height = cover_h,
+                padding = 0,
+                bordersize = Size.border.thin,
+                color = Blitbuffer.COLOR_GRAY,
+                CenterContainer:new{
+                    dimen = Geom:new{ w = cover_w - 2 * Size.border.thin, h = cover_h - 2 * Size.border.thin },
+                    Widgets.icon({ icon = "book.opened" }, math.floor(cover_w * 0.4), true),
+                },
             }
         end
     else
-        left = CenterContainer:new{
+        cover = CenterContainer:new{
             dimen = Geom:new{ w = cover_w, h = cover_h },
-            Widgets.icon({ icon_file = "folder.svg" }, math.floor(cover_w * 0.8)),
+            Widgets.icon({ icon_file = "folder.svg" }, math.floor(cover_w * 0.7)),
         }
     end
 
-    local right
-    if entry.kind == "folder" then
-        right = Widgets.icon({ icon = "chevron.right" }, icon_size)
-    elseif self.library:isDownloaded(entry) then
-        right = Widgets.icon({ icon_file = "downloaded.svg" }, icon_size)
+    local cover_size = cover:getSize()
+    local cover_area = OverlapGroup:new{
+        dimen = Geom:new{ w = cover_w, h = cover_h },
+    }
+    local placed = CenterContainer:new{
+        dimen = Geom:new{ w = cover_size.w, h = cover_size.h },
+        cover,
+    }
+    placed.overlap_offset = { math.floor((cover_w - cover_size.w) / 2), cover_h - cover_size.h }
+    table.insert(cover_area, placed)
+    if entry.kind == "book" and self.library:isDownloaded(entry) then
+        local badge_size = Screen:scaleBySize(24)
+        local badge = Widgets.icon({ icon_file = "downloaded.svg" }, badge_size)
+        badge.overlap_offset = {
+            math.floor((cover_w + cover_size.w) / 2) - badge_size - Size.padding.small,
+            cover_h - badge_size - Size.padding.small,
+        }
+        table.insert(cover_area, badge)
     end
 
-    local text_w = self.width - 2 * padding - cover_w - padding - (right and (icon_size + padding) or 0)
-    local texts = VerticalGroup:new{ align = "left" }
-    table.insert(texts, TextBoxWidget:new{
-        text = entry.title,
-        face = Font:getFace("cfont", 20),
-        bold = true,
-        width = text_w,
-        height = Screen:scaleBySize(20) * 2 + Size.padding.small,
-        height_adjust = true,
-        height_overflow_show_ellipsis = true,
-    })
-    if entry.kind == "book" and entry.author then
-        table.insert(texts, VerticalSpan:new{ width = Size.padding.small })
-        table.insert(texts, TextWidget:new{
-            text = entry.author,
-            face = Font:getFace("cfont", 16),
-            fgcolor = Blitbuffer.COLOR_DARK_GRAY,
-            max_width = text_w,
-        })
-    end
-
-    local inner = Geom:new{ w = self.width - 2 * padding, h = self.height }
-    local overlap = OverlapGroup:new{
-        dimen = inner,
-        LeftContainer:new{
-            dimen = inner,
-            HorizontalGroup:new{
-                align = "center",
-                left,
-                HorizontalSpan:new{ width = padding },
-                texts,
+    self[1] = CenterContainer:new{
+        dimen = Geom:new{ w = self.width, h = self.height },
+        VerticalGroup:new{
+            align = "center",
+            cover_area,
+            VerticalSpan:new{ width = Size.padding.default },
+            TextBoxWidget:new{
+                text = entry.title,
+                face = TITLE_FACE,
+                bold = entry.kind == "folder",
+                width = self.width - 2 * Size.padding.default,
+                alignment = "center",
+                height = TITLE_HEIGHT,
+                height_adjust = true,
+                height_overflow_show_ellipsis = true,
             },
         },
     }
-    if right then
-        table.insert(overlap, RightContainer:new{ dimen = inner, right })
-    end
-    self[1] = FrameContainer:new{
-        padding = 0,
-        padding_left = padding,
-        padding_right = padding,
-        bordersize = 0,
-        background = Blitbuffer.COLOR_WHITE,
-        overlap,
-    }
     self.ges_events = {
-        TapRow = {
+        TapTile = {
             GestureRange:new{ ges = "tap", range = function() return self.dimen end },
         },
     }
 end
 
-function ListRow:onTapRow()
+function GridTile:onTapTile()
     if self.callback then
         Widgets.safeCall("boek of map", self.callback, self.entry)
     end
@@ -165,16 +162,11 @@ Widgets.guardPaint(LibraryScreen, "mijn boeken")
 function LibraryScreen:init()
     local width, height = Screen:getWidth(), Screen:getHeight()
     self.dimen = Geom:new{ x = 0, y = 0, w = width, h = height }
-    self.stack = { { url = self.library:rootUrl(), title = _("Mijn boeken"), page = 1 } }
+    self.stack = { { url = self.library:rootUrl(), title = _("Mijn boeken") } }
     self.synced = {}
     self.cover_failed = {}
 
     self:buildHeader()
-    self.ges_events = {
-        Swipe = {
-            GestureRange:new{ ges = "swipe", range = function() return self.body_dimen end },
-        },
-    }
     self:render()
 end
 
@@ -245,44 +237,72 @@ function LibraryScreen:render()
     local current = self:current()
     self:setTitle(current.title)
 
-    local footer_h = Screen:scaleBySize(56)
-    local body_h = height - self.header_h - footer_h
-    local row_h = Screen:scaleBySize(100)
-    local line_h = Widgets.line(width):getSize().h
-    local per_page = math.max(1, math.floor(body_h / (row_h + line_h)))
-    self.body_dimen = Geom:new{ x = 0, y = self.header_h, w = width, h = body_h + footer_h }
+    local body_h = height - self.header_h
+    -- Raster: minstens 3 kolommen; de omslag krimpt als het scherm laag is (2 rijen zichtbaar).
+    -- Breedte zonder de verticale schuifbalk, anders ontstaat een horizontale schuifbalk.
+    local grid_w = width - ScrollableContainer:getScrollbarWidth()
+    local columns = math.max(3, math.floor(grid_w / Screen:scaleBySize(120)))
+    local tile_w = math.floor(grid_w / columns)
+    local spacing = 3 * Size.padding.large
+    local cover_w = tile_w - 2 * spacing
+    local cover_h = math.floor(cover_w * 3 / 2)
+    local max_cover_h = math.floor(body_h / 2) - TITLE_HEIGHT - spacing - Size.padding.default
+    if cover_h > max_cover_h then
+        cover_h = max_cover_h
+        cover_w = math.floor(cover_h * 2 / 3)
+    end
+    local tile_h = cover_h + Size.padding.default + TITLE_HEIGHT + spacing
+
+    -- Schuifpositie bewaren bij opnieuw opbouwen (omslagen binnen, na sync).
+    if self.scroll and self.scroll_url == current.url then
+        current.offset = self.scroll:getScrolledOffset()
+    end
 
     local feed = self.library:cached(current.url)
     local items = feed and feed.items
-    local body, footer
-    self.page_entries = {}
-    self.pages = nil
+    local body
+    self.page_entries = items or {}
+    self.scroll, self.cropping_widget = nil, nil
     if not items then
         body = self:message(self.sync_item.busy and _("Bezig met synchroniseren…")
             or _("Nog niets gesynchroniseerd.\nZet wifi aan en tik op het sync-icoon."), width, body_h)
     elseif #items == 0 then
         body = self:message(_("Geen boeken."), width, body_h)
     else
-        local pages = math.ceil(#items / per_page)
-        current.page = math.max(1, math.min(current.page, pages))
-        self.pages = pages
-        local first = (current.page - 1) * per_page + 1
-        body = VerticalGroup:new{ align = "left" }
-        for i = first, math.min(first + per_page - 1, #items) do
-            local entry = items[i]
-            table.insert(self.page_entries, entry)
-            table.insert(body, ListRow:new{
+        local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = Size.padding.large } }
+        local rows_info = {}
+        local y = Size.padding.large
+        local row
+        for i, entry in ipairs(items) do
+            if (i - 1) % columns == 0 then
+                row = HorizontalGroup:new{ align = "top" }
+                table.insert(grid, row)
+                table.insert(rows_info, { top = y, bottom = y + tile_h - 1 })
+                y = y + tile_h
+            end
+            table.insert(row, GridTile:new{
                 entry = entry,
                 library = self.library,
-                width = width,
-                height = row_h,
+                width = tile_w,
+                height = tile_h,
+                cover_w = cover_w,
+                cover_h = cover_h,
+                show_parent = self,
                 callback = function(e) self:openEntry(e) end,
             })
-            table.insert(body, Widgets.line(width))
         end
-        if pages > 1 then
-            footer = self:buildFooter(width, footer_h, current.page, pages)
-        end
+        -- Verticaal schuiven (ScrollableContainer van KOReader); een veeg schuift een
+        -- schermhoogte en lijnt uit op een rij tegels.
+        self.scroll = ScrollableContainer:new{
+            dimen = Geom:new{ w = width, h = body_h },
+            show_parent = self,
+            step_scroll_grid = rows_info,
+            grid,
+        }
+        self.scroll_url = current.url
+        -- UIManager gebruikt cropping_widget om verversingen tot het schuifgebied te beperken.
+        self.cropping_widget = self.scroll
+        body = self.scroll
     end
 
     self[1] = FrameContainer:new{
@@ -294,56 +314,15 @@ function LibraryScreen:render()
         VerticalGroup:new{
             align = "left",
             self.header,
-            FrameContainer:new{
-                padding = 0, bordersize = 0,
-                width = width, height = body_h,
-                body,
-            },
-            footer or VerticalSpan:new{ width = footer_h },
+            body,
         },
     }
+    if self.scroll and current.offset then
+        self.scroll:initState()
+        self.scroll:setScrolledOffset(current.offset)
+    end
     UIManager:setDirty(self, "ui")
     self:queueCovers()
-end
-
-function LibraryScreen:buildFooter(width, h, page, pages)
-    local icon_size = Screen:scaleBySize(28)
-    local function nav(icon, enabled, fn)
-        return Item:new{
-            action = { icon = icon, enabled = enabled },
-            width = h, height = h, icon_size = icon_size,
-            show_parent = self,
-            on_tap = fn,
-        }
-    end
-    return CenterContainer:new{
-        dimen = Geom:new{ w = width, h = h },
-        HorizontalGroup:new{
-            align = "center",
-            nav("chevron.left", page > 1, function() self:changePage(-1) end),
-            HorizontalSpan:new{ width = Size.padding.large * 2 },
-            TextWidget:new{ text = T(_("%1 / %2"), page, pages), face = Font:getFace("cfont", 18) },
-            HorizontalSpan:new{ width = Size.padding.large * 2 },
-            nav("chevron.right", page < pages, function() self:changePage(1) end),
-        },
-    }
-end
-
-function LibraryScreen:changePage(delta)
-    local current = self:current()
-    local target = current.page + delta
-    if not self.pages or target < 1 or target > self.pages then return end
-    current.page = target
-    self:render()
-end
-
-function LibraryScreen:onSwipe(_, ges)
-    if ges.direction == "west" then
-        self:changePage(1)
-    elseif ges.direction == "east" then
-        self:changePage(-1)
-    end
-    return true
 end
 
 function LibraryScreen:goBack()
@@ -357,7 +336,7 @@ end
 
 function LibraryScreen:openEntry(entry)
     if entry.kind == "folder" then
-        table.insert(self.stack, { url = entry.url, title = entry.title, page = 1 })
+        table.insert(self.stack, { url = entry.url, title = entry.title })
         self:render()
         self:autoSync()
     elseif self.library:isDownloaded(entry) then
@@ -416,7 +395,7 @@ function LibraryScreen:autoSync()
     end
 end
 
--- Ontbrekende omslagen van deze pagina ophalen, één per tik; daarna één verversing.
+-- Ontbrekende omslagen ophalen, één per tik; per zes (en aan het eind) één verversing.
 function LibraryScreen:queueCovers()
     if self.closed or not Compat.isOnline() then return end
     local missing = {}
@@ -444,6 +423,12 @@ function LibraryScreen:queueCovers()
                 end
             end)
             if not ok then self.cover_failed[url] = true end
+            -- Per zes omslagen één verversing, zodat ze geleidelijk verschijnen.
+            if fetched >= 6 then
+                fetched = 0
+                self:render()
+                return -- render() start een nieuwe ronde voor de rest
+            end
             UIManager:scheduleIn(0.05, step)
         elseif fetched > 0 then
             self:render()
