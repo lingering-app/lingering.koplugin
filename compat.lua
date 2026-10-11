@@ -803,6 +803,26 @@ function Compat.turnOnWifiThen(fn)
     return ok and started
 end
 
+--[[--
+Maakt van een MultiInputDialog een kale kaart: geen rand om het venster en geen titelbalk;
+de invoervelden houden hun rand. Leunt op MultiInputDialog:init
+(frontend/ui/widget/multiinputdialog.lua): dialog_frame (FrameContainer) met als eerste
+element een VerticalGroup waarvan [1] de title_bar is. Faalt het, dan blijft het venster
+zoals KOReader het maakt.
+]]
+function Compat.plainDialog(dialog)
+    return try("plainDialog", function()
+        local frame = assert(dialog.dialog_frame, "dialog_frame ontbreekt")
+        local group = assert(frame[1], "inhoud ontbreekt")
+        frame.bordersize = 0
+        frame.radius = 0
+        if group[1] == dialog.title_bar then
+            table.remove(group, 1)
+            group:resetLayout()
+        end
+    end)
+end
+
 --- Opent een boek (ReaderUI:showReader, de enige veilige manier volgens readerui.lua).
 function Compat.openBook(file)
     return try("ReaderUI:showReader", function()

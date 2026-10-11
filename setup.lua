@@ -31,6 +31,15 @@ local Widgets = require("lingering_widgets")
 
 local Setup = {}
 
+-- Invoervenster zonder rand en titel: "Lingering" en de uitleg staan er al boven.
+-- In init, omdat KOReader het venster soms opnieuw opbouwt (bijv. bij het toetsenbord).
+local LoginDialog = MultiInputDialog:extend{}
+
+function LoginDialog:init()
+    MultiInputDialog.init(self)
+    Compat.plainDialog(self)
+end
+
 -- Witte achtergrond bij de eerste keer, zodat de bestandsbeheerder niet zichtbaar is.
 local Background = InputContainer:extend{
     on_emergency = nil,
@@ -212,7 +221,7 @@ function Setup.show(opts)
         end,
     })
 
-    dialog = MultiInputDialog:new{
+    dialog = LoginDialog:new{
         title = _("Inloggen"),
         fields = {
             {
