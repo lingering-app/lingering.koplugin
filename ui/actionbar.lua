@@ -25,7 +25,7 @@ local logger = require("logger")
 local time = require("ui/time")
 local Screen = Device.screen
 
-local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
+local plugin_dir = require("lingering.plugin").dir
 
 -- Tijd tussen twee frames van een draaiend icoon, en hoe lang een taak maximaal mag duren.
 local FRAME_INTERVAL = 0.4
@@ -191,8 +191,8 @@ local ActionBar = InputContainer:extend{
     modal = true,
     stop_events_propagation = true,
 }
-require("lingering_widgets").guardPaint(ActionBar, "actiebalk")
-require("lingering_widgets").guardEvents(ActionBar, "actiebalk")
+require("lingering.ui.widgets").guardPaint(ActionBar, "actiebalk")
+require("lingering.ui.widgets").guardEvents(ActionBar, "actiebalk")
 
 function ActionBar:init()
     local screen_w = Screen:getWidth()

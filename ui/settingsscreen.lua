@@ -16,8 +16,8 @@ local logger = require("logger")
 local _ = require("gettext")
 local Screen = Device.screen
 
-local Compat = require("lingering_compat")
-local Widgets = require("lingering_widgets")
+local Compat = require("lingering.koreader.compat")
+local Widgets = require("lingering.ui.widgets")
 
 local SettingsScreen = InputContainer:extend{
     on_account = nil,

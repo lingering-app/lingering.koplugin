@@ -7,18 +7,30 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local logger = require("logger")
 local _ = require("gettext")
 
--- Onze modules krijgen unieke namen in de gedeelde require-cache. Namen als "reader" of
--- "settings" zouden anders bij KOReader's eigen reader.lua of bij een andere plugin uitkomen.
+-- Onze modules heten "lingering.<map>.<naam>" en worden uit de eigen pluginmap geladen.
+-- Unieke namen zijn nodig: de require-cache is gedeeld met KOReader en andere plugins, en
+-- namen als "reader" of "settings" zouden bij KOReader's eigen bestanden uitkomen.
+--   domain/    business rules, pure Lua (geen KOReader)
+--   app/       use cases en eigen instellingen
+--   koreader/  anti-corruption layer: het enige dat KOReader-internals kent
+--   ui/        schermen (KOReader-widgets)
 local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
-for _, module in ipairs({ "actionbar", "compat", "config", "homescreen", "library",
-                          "libraryscreen", "reader", "settings", "settingsscreen", "setup",
-                          "widgets" }) do
-    package.preload["lingering_" .. module] = function()
-        return dofile(plugin_dir .. "/" .. module .. ".lua")
-    end
+package.loaded["lingering.plugin"] = { dir = plugin_dir }
+if not package.loaded["lingering.loader"] then
+    package.loaded["lingering.loader"] = true
+    table.insert(package.loaders, 2, function(name)
+        local relative = name:match("^lingering%.(.+)$")
+        if not relative then return nil end
+        local path = plugin_dir .. "/" .. relative:gsub("%.", "/") .. ".lua"
+        local chunk, err = loadfile(path)
+        if not chunk then
+            return "\n\tLingering: " .. tostring(err)
+        end
+        return chunk
+    end)
 end
 
-local Settings = require("lingering_settings")
+local Settings = require("lingering.app.session")
 
 local Lingering = WidgetContainer:extend{
     name = "lingering",
@@ -29,7 +41,7 @@ function Lingering:init()
     logger.info("Lingering: plugin geladen in", self.in_reader and "ReaderUI" or "FileManager",
         Settings:isActive() and "(actief)" or "(uitgeschakeld voor deze sessie)")
     if Settings:isActive() then
-        require("lingering_compat").enforceGlobalSettings()
+        require("lingering.koreader.compat").enforceGlobalSettings()
     end
     if not self.in_reader then
         if self.ui.menu then
@@ -48,9 +60,9 @@ function Lingering:onReaderReady()
     -- (<datadir>/plugins) komt vóór plugins/kosync.koplugin, dus ui.kosync bestaat in
     -- init nog niet, en onze onReaderReady draait vóór die van kosync (die registerEvents
     -- aanroept en zijn eerste ophaalpoging op de volgende tik plant).
-    require("lingering_compat").installKosyncRules(self.ui)
-    require("lingering_compat").ensureKosyncBinary(self.ui)
-    require("lingering_reader").install(self.ui)
+    require("lingering.koreader.compat").installKosyncRules(self.ui)
+    require("lingering.koreader.compat").ensureKosyncBinary(self.ui)
+    require("lingering.ui.reader").install(self.ui)
 end
 
 --- Toont het homescreen. Faalt dat, dan blijft de gewone bestandsbeheerder zichtbaar.
@@ -61,7 +73,7 @@ function Lingering:showHomeScreen()
         return
     end
     local ok, err = pcall(function()
-        local HomeScreen = require("lingering_homescreen")
+        local HomeScreen = require("lingering.ui.homescreen")
         local home = HomeScreen:new{
             fm = self.ui,
             on_local_books = function() self:showLibrary() end,
@@ -82,11 +94,11 @@ end
 
 --- Mijn boeken: de OPDS-catalogus, gecachet; tik op een boek opent of downloadt het.
 function Lingering:showLibrary()
-    local LibraryScreen = require("lingering_libraryscreen")
+    local LibraryScreen = require("lingering.ui.libraryscreen")
     LibraryScreen:new{
-        library = require("lingering_library"),
+        library = require("lingering.app.library"),
         on_open_book = function(path)
-            require("lingering_compat").openBook(path)
+            require("lingering.koreader.compat").openBook(path)
         end,
     }:show()
     logger.info("Lingering: mijn boeken getoond")
@@ -95,7 +107,7 @@ end
 --- Inlogscherm. Eerste keer: in plaats van het homescreen; anders vanuit Instellingen.
 function Lingering:showSetup(first_run)
     local ok, err = pcall(function()
-        require("lingering_setup").show{
+        require("lingering.ui.setup").show{
             first_run = first_run,
             fm = self.ui,
             on_done = first_run and function() self:showHomeScreen() end or nil,
@@ -110,7 +122,7 @@ function Lingering:showSetup(first_run)
 end
 
 function Lingering:showSettings()
-    local SettingsScreen = require("lingering_settingsscreen")
+    local SettingsScreen = require("lingering.ui.settingsscreen")
     SettingsScreen:new{
         on_account = function() self:showSetup(false) end,
         on_emergency = function() self:openEmergencyMenu() end,
@@ -123,7 +135,7 @@ function Lingering:openEmergencyMenu()
     if self.home then
         self.home:close()
     end
-    require("lingering_compat").showFileManagerMenu(self.ui)
+    require("lingering.koreader.compat").showFileManagerMenu(self.ui)
 end
 
 function Lingering:addToMainMenu(menu_items)

@@ -31,8 +31,8 @@ local _ = require("gettext")
 local T = require("ffi/util").template
 local Screen = Device.screen
 
-local Compat = require("lingering_compat")
-local Widgets = require("lingering_widgets")
+local Compat = require("lingering.koreader.compat")
+local Widgets = require("lingering.ui.widgets")
 
 -- Zo lang ingedrukt houden op de statusregel opent het noodluik (na de hold-drempel).
 local EMERGENCY_HOLD_SECONDS = 2.5
@@ -92,7 +92,7 @@ function HomeScreen:buildStatus(width)
     local face = Font:getFace("cfont", 16)
     local height = Screen:scaleBySize(60)
     local inner = Geom:new{ w = width - 2 * padding, h = height }
-    local Item = require("lingering_actionbar").Item
+    local Item = require("lingering.ui.actionbar").Item
 
     -- Ruim tikvlak per icoon (de hele hoogte van de statusregel).
     local function item(action)

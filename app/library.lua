@@ -14,8 +14,8 @@ local logger = require("logger")
 local md5 = require("ffi/sha2").md5
 local util = require("util")
 
-local Compat = require("lingering_compat")
-local Config = require("lingering_config")
+local Compat = require("lingering.koreader.compat")
+local Config = require("lingering.config")
 
 local CACHE_DIR = DataStorage:getDataDir() .. "/cache/lingering"
 local COVER_DIR = CACHE_DIR .. "/covers"

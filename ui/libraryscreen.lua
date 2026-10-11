@@ -33,9 +33,9 @@ local _ = require("gettext")
 local T = require("ffi/util").template
 local Screen = Device.screen
 
-local Compat = require("lingering_compat")
-local Widgets = require("lingering_widgets")
-local Item = require("lingering_actionbar").Item
+local Compat = require("lingering.koreader.compat")
+local Widgets = require("lingering.ui.widgets")
+local Item = require("lingering.ui.actionbar").Item
 
 -- Titel onder een tegel: twee regels. Regelhoogte zoals TextBoxWidget die berekent:
 -- (1 + line_height) * face.size, met line_height = 0.3 als standaard.

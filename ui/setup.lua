@@ -24,10 +24,10 @@ local util = require("util")
 local _ = require("gettext")
 local Screen = Device.screen
 
-local Compat = require("lingering_compat")
-local Config = require("lingering_config")
-local Settings = require("lingering_settings")
-local Widgets = require("lingering_widgets")
+local Compat = require("lingering.koreader.compat")
+local Config = require("lingering.config")
+local Settings = require("lingering.app.session")
+local Widgets = require("lingering.ui.widgets")
 
 local Setup = {}
 

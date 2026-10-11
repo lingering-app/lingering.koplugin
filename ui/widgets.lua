@@ -22,7 +22,7 @@ local Screen = Device.screen
 
 local Widgets = {}
 
-Widgets.plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
+Widgets.plugin_dir = require("lingering.plugin").dir
 
 --- Callbacks van tikken vallen niet onder de HandlerSandbox van de pluginloader: zelf afvangen.
 function Widgets.safeCall(label, fn, ...)

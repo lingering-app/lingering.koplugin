@@ -8,13 +8,13 @@ local UIManager = require("ui/uimanager")
 local logger = require("logger")
 local _ = require("gettext")
 
-local Compat = require("lingering_compat")
-local Settings = require("lingering_settings")
+local Compat = require("lingering.koreader.compat")
+local Settings = require("lingering.app.session")
 
 local Reader = {}
 
 local function showActionBar(ui)
-    local ActionBar = require("lingering_actionbar")
+    local ActionBar = require("lingering.ui.actionbar")
     ActionBar:new{
         actions = {
             {
