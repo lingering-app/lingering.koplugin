@@ -1,5 +1,5 @@
 --[[--
-Homescreen: statusregel, huidig boek in het midden, navigatiebalk onder
+Homescreen: statusregel, huidig boek eronder, navigatiebalk onderaan
 (Mijn boeken, Instellingen).
 Ligt schermvullend over de bestandsbeheerder; vangt alle gebaren af, zodat het menu
 van de bestandsbeheerder niet open kan.
@@ -191,8 +191,7 @@ function HomeScreen:buildBook(width, height)
     end
 
     -- Omslag in de verhouding 2:3, zo groot als past.
-    local header_h = Font:getFace("cfont", 18).size + Size.padding.large * 3
-    local cover_h = height - 2 * padding - header_h
+    local cover_h = height - 2 * padding
     local cover_w = math.floor(math.min(cover_h * 2 / 3, inner_w * 0.42))
     cover_h = math.floor(cover_w * 3 / 2)
     local cover
@@ -247,7 +246,10 @@ function HomeScreen:buildBook(width, height)
         margin_h = 0,
         margin_v = 0,
         radius = 0,
-        fillcolor = Blitbuffer.COLOR_BLACK,
+        -- Lichtgrijze baan, gelezen deel donkergrijs, geen rand.
+        bordersize = 0,
+        bgcolor = Blitbuffer.COLOR_LIGHT_GRAY,
+        fillcolor = Blitbuffer.COLOR_DARK_GRAY,
     })
     table.insert(info, VerticalSpan:new{ width = Size.padding.default })
     -- Met de statistics-plugin aan: resterende en gelezen tijd; anders het percentage.
@@ -267,20 +269,11 @@ function HomeScreen:buildBook(width, height)
     return FrameContainer:new{
         padding = padding,
         bordersize = 0,
-        VerticalGroup:new{
-            align = "left",
-            TextWidget:new{
-                text = _("Aan het lezen"),
-                face = Font:getFace("cfont", 18),
-                bold = true,
-            },
-            VerticalSpan:new{ width = Size.padding.large * 2 },
-            HorizontalGroup:new{
-                align = "center",
-                cover,
-                HorizontalSpan:new{ width = padding },
-                info,
-            },
+        HorizontalGroup:new{
+            align = "center",
+            cover,
+            HorizontalSpan:new{ width = padding },
+            info,
         },
     }
 end
@@ -303,19 +296,18 @@ function HomeScreen:build()
 
     local status = self:buildStatus(width)
     local status_h = status:getSize().h
-    local line_h = Widgets.line(width):getSize().h
-    local book_h = height - status_h - line_h - nav:getSize().h
+    local book_h = height - status_h - nav:getSize().h
     local book = self:buildBook(width, book_h)
 
     self.status_dimen = Geom:new{ x = 0, y = 0, w = width, h = status_h }
-    self.book_dimen = Geom:new{ x = 0, y = status_h + line_h, w = width, h = book_h }
+    self.book_dimen = Geom:new{ x = 0, y = status_h, w = width, h = book_h }
 
-    -- Statusregel boven, huidig boek in het midden, navigatiebalk onder.
+    -- Statusregel boven (zonder lijn), huidig boek direct eronder, navigatiebalk onderaan.
     self.layout_group = VerticalGroup:new{
         align = "left",
         status,
-        Widgets.line(width),
-        CenterContainer:new{ dimen = Geom:new{ w = width, h = book_h }, book },
+        book,
+        VerticalSpan:new{ width = math.max(0, book_h - book:getSize().h) },
         nav,
     }
     self[1] = FrameContainer:new{

@@ -246,7 +246,7 @@ function Widgets.navBar(width, items)
     end
     return VerticalGroup:new{
         LineWidget:new{
-            dimen = Geom:new{ w = width, h = Size.line.thick },
+            dimen = Geom:new{ w = width, h = Size.line.thin },
             background = Blitbuffer.COLOR_BLACK,
         },
         FrameContainer:new{
