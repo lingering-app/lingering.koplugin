@@ -81,6 +81,34 @@ function GridTile:init()
             local w, h = math.floor(bb:getWidth() * scale), math.floor(bb:getHeight() * scale)
             cover = ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 }
         else
+            -- Geen omslag: titel (en auteur) in een vak van omslaggrootte.
+            local inner_w = cover_w - 2 * Size.border.thin - 2 * Size.padding.default
+            local label = VerticalGroup:new{
+                align = "center",
+                TextBoxWidget:new{
+                    text = entry.title,
+                    face = Font:getFace("cfont", 16),
+                    bold = true,
+                    width = inner_w,
+                    alignment = "center",
+                    height = math.floor(cover_h * 0.6),
+                    height_adjust = true,
+                    height_overflow_show_ellipsis = true,
+                },
+            }
+            if entry.author then
+                table.insert(label, VerticalSpan:new{ width = Size.padding.default })
+                table.insert(label, TextBoxWidget:new{
+                    text = entry.author,
+                    face = Font:getFace("cfont", 13),
+                    fgcolor = Blitbuffer.COLOR_DARK_GRAY,
+                    width = inner_w,
+                    alignment = "center",
+                    height = math.floor(cover_h * 0.25),
+                    height_adjust = true,
+                    height_overflow_show_ellipsis = true,
+                })
+            end
             cover = FrameContainer:new{
                 width = cover_w, height = cover_h,
                 padding = 0,
@@ -88,7 +116,7 @@ function GridTile:init()
                 color = Blitbuffer.COLOR_GRAY,
                 CenterContainer:new{
                     dimen = Geom:new{ w = cover_w - 2 * Size.border.thin, h = cover_h - 2 * Size.border.thin },
-                    Widgets.icon({ icon = "book.opened" }, math.floor(cover_w * 0.4), true),
+                    label,
                 },
             }
         end
@@ -119,26 +147,26 @@ function GridTile:init()
         table.insert(cover_area, badge)
     end
 
-    -- Alleen horizontaal centreren: omslagen staan bovenaan op één lijn, ook als een
-    -- titel twee regels heeft.
+    -- Boeken: alleen de omslag (de titel staat er meestal op). Mappen: icoon met naam.
+    local content = VerticalGroup:new{ align = "center", cover_area }
+    if entry.kind == "folder" then
+        table.insert(content, VerticalSpan:new{ width = Size.padding.small })
+        table.insert(content, TextBoxWidget:new{
+            text = entry.title,
+            face = TITLE_FACE,
+            bold = true,
+            width = self.width - 2 * Size.padding.default,
+            alignment = "center",
+            height = TITLE_HEIGHT,
+            height_adjust = true,
+            height_overflow_show_ellipsis = true,
+        })
+    end
+    -- Alleen horizontaal centreren: alles staat bovenaan op één lijn.
     self[1] = CenterContainer:new{
         dimen = Geom:new{ w = self.width, h = self.height },
         ignore = "height",
-        VerticalGroup:new{
-            align = "center",
-            cover_area,
-            VerticalSpan:new{ width = Size.padding.small },
-            TextBoxWidget:new{
-                text = entry.title,
-                face = TITLE_FACE,
-                bold = entry.kind == "folder",
-                width = self.width - 2 * Size.padding.default,
-                alignment = "center",
-                height = TITLE_HEIGHT,
-                height_adjust = true,
-                height_overflow_show_ellipsis = true,
-            },
-        },
+        content,
     }
     self.ges_events = {
         TapTile = {
@@ -256,20 +284,23 @@ function LibraryScreen:render()
     local tile_w = math.floor(grid_w / columns)
     local gap = Size.padding.default
     local cover_w, cover_h
+    local tile_h
     if has_books then
+        -- Alleen omslagen, zonder titel eronder.
         cover_w = tile_w - 2 * gap
         cover_h = math.floor(cover_w * 3 / 2)
         -- Eén tegel moet altijd in beeld passen.
-        local max_cover_h = body_h - TITLE_HEIGHT - 3 * gap
+        local max_cover_h = body_h - 3 * gap
         if cover_h > max_cover_h then
             cover_h = max_cover_h
             cover_w = math.floor(cover_h * 2 / 3)
         end
+        tile_h = cover_h + 2 * gap
     else
         cover_w = tile_w - 2 * gap
         cover_h = Screen:scaleBySize(110)
+        tile_h = cover_h + gap + TITLE_HEIGHT + 2 * gap
     end
-    local tile_h = cover_h + gap + TITLE_HEIGHT + 2 * gap
 
     -- Schuifpositie bewaren bij opnieuw opbouwen (omslagen binnen, na sync).
     if self.scroll and self.scroll_url == current.url then

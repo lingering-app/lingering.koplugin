@@ -22,6 +22,7 @@ local Size = require("ui/size")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local logger = require("logger")
+local time = require("ui/time")
 local Screen = Device.screen
 
 local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
@@ -29,6 +30,8 @@ local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
 -- Tijd tussen twee frames van een draaiend icoon, en hoe lang een taak maximaal mag duren.
 local FRAME_INTERVAL = 0.4
 local TASK_TIMEOUT = 30
+-- Minimale draaitijd van een taak-icoon, in seconden.
+local MIN_SPIN = 1.2
 
 -- Callbacks vallen niet onder de HandlerSandbox van de pluginloader: zelf afvangen.
 local function safeCall(label, fn, ...)
@@ -113,6 +116,9 @@ function Item:startTask()
     self.busy = true
     self.frame = 1
     self:redraw()
+    -- Het gedraaide icoon eerst echt tonen: de taak kan de UI even blokkeren.
+    UIManager:forceRePaint()
+    local started = UIManager:getElapsedTimeSinceBoot()
 
     self.next_frame = function()
         self.frame = self.frame % #self.action.frames + 1
@@ -122,21 +128,33 @@ function Item:startTask()
     UIManager:scheduleIn(FRAME_INTERVAL, self.next_frame)
 
     local finished = false
-    local function done(ok)
-        if finished then return end
-        finished = true
+    local function finish(ok)
         self:stopTask()
         logger.info("Lingering: taak", self.action.name or "?", ok and "gelukt" or "mislukt")
         if self.action.on_done then
             safeCall("on_done", self.action.on_done, ok)
         end
     end
+    local function done(ok)
+        if finished then return end
+        finished = true
+        -- Minstens MIN_SPIN laten draaien, zodat ook een snelle taak zichtbaar is.
+        local elapsed = time.to_s(UIManager:getElapsedTimeSinceBoot() - started)
+        if elapsed < MIN_SPIN then
+            UIManager:scheduleIn(MIN_SPIN - elapsed, function() safeCall("taak afronden", finish, ok) end)
+        else
+            finish(ok)
+        end
+    end
     self.timeout = function() done(false) end
     UIManager:scheduleIn(TASK_TIMEOUT, self.timeout)
 
-    if not safeCall("taak", self.action.run, done) then
-        done(false)
-    end
+    -- In de volgende tik beginnen, na het tekenen van het eerste frame.
+    UIManager:nextTick(function()
+        if not safeCall("taak", self.action.run, done) then
+            done(false)
+        end
+    end)
 end
 
 function Item:stopTask()
