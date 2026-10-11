@@ -222,7 +222,7 @@ function HomeScreen:updateStatusTexts()
     local battery = DeviceAdapter.batteryPercent()
     self.status_right[4] = TextWidget:new{ text = time, face = self.status_face }
     if battery then
-        self.status_right[6] = Widgets.battery(battery)
+        self.status_right[6] = Widgets.battery(battery, DeviceAdapter.isCharging())
         self.status_right[7] = HorizontalSpan:new{ width = Size.padding.default }
     end
     self.status_right[8] = TextWidget:new{ text = battery and T(_("%1%"), battery) or "", face = self.status_face }
@@ -500,6 +500,9 @@ end
 HomeScreen.onResume = HomeScreen.refreshStatus
 HomeScreen.onNetworkConnected = HomeScreen.refreshStatus
 HomeScreen.onNetworkDisconnected = HomeScreen.refreshStatus
+-- Lader in of uit (Device:_beforeCharging / _afterNotCharging).
+HomeScreen.onCharging = HomeScreen.refreshStatus
+HomeScreen.onNotCharging = HomeScreen.refreshStatus
 
 -- Een andere route opent een boek (bijv. de OPDS-browser): dan gaan wij ook weg.
 function HomeScreen:onShowingReader()

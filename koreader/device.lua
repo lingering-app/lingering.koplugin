@@ -94,6 +94,14 @@ function M.isFrontlightOn()
 end
 
 --- Batterij in procenten, of nil (BasePowerD:getCapacity).
+--- Aan het laden? (BasePowerD:isCharging; op Kobo ook nog waar als hij vol is)
+function M.isCharging()
+    local ok, charging = try("isCharging", function()
+        return require("device"):getPowerDevice():isCharging()
+    end)
+    return ok and charging or false
+end
+
 function M.batteryPercent()
     local Device = require("device")
     if not Device:hasBattery() then return nil end
