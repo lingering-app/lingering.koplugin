@@ -374,7 +374,7 @@ end
 Voortgang nu wegschrijven, met terugmelding done(ok).
 Gebruikt de kosync-instantie (ui.kosync) voor instellingen en document-gegevens en de
 KOSyncClient van kosync voor het verzoek (zoals KOSync:updateProgress, maar met callback).
-Wifi gaat zo nodig aan zonder te vragen (turnOnWifiThen).
+Wifi gaat zo nodig aan zonder te vragen (turnOnWifiThen) en daarna weer uit als hij uit stond.
 ]]
 function Compat.syncNow(ui, done)
     local kosync = ui.kosync
@@ -383,7 +383,15 @@ function Compat.syncNow(ui, done)
         done(false)
         return
     end
-    -- Wifi aan zonder te vragen, net als in Mijn boeken.
+    -- Wifi aan zonder te vragen; stond hij uit, dan na afloop weer uit.
+    if not Compat.isWifiOn() then
+        local finish = done
+        done = function(ok)
+            logger.info("Lingering: wifi weer uit na synchroniseren")
+            Compat.disableWifi()
+            finish(ok)
+        end
+    end
     local started = Compat.turnOnWifiThen(function()
         local ok = try("syncNow", function()
             local Device = require("device")
@@ -875,6 +883,16 @@ function Compat.isWifiConnected()
         return require("ui/network/manager"):isConnected()
     end)
     return ok and connected or false
+end
+
+--[[--
+Wifi stil uit (NetworkMgr:disableWifi, zonder "Turning off Wi-Fi…"-melding).
+interactive = true zet wifi_was_on op false, zodat wifi bij ontwaken niet terugkomt.
+]]
+function Compat.disableWifi()
+    return try("disableWifi", function()
+        require("ui/network/manager"):disableWifi(nil, true)
+    end)
 end
 
 --- Wifi aan/uit (NetworkMgr:toggleWifiOn/toggleWifiOff). Alleen als het apparaat het kan.
