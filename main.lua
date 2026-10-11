@@ -83,6 +83,8 @@ function Lingering:showHomeScreen()
         local HomeScreen = require("lingering.ui.homescreen")
         local home = HomeScreen:new{
             fm = self.ui,
+            library = require("lingering.app.library_service"),
+            on_open_book = function(path) require("lingering.koreader.navigation").openBook(path) end,
             on_local_books = function() self:showLibrary() end,
             on_settings = function() self:showSettings() end,
             on_emergency = function() self:openEmergencyMenu() end,

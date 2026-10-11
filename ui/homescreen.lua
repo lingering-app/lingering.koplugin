@@ -32,6 +32,7 @@ local T = require("ffi/util").template
 local Screen = Device.screen
 
 local Books = require("lingering.koreader.books")
+local BookOpener = require("lingering.ui.book_opener")
 local ReadingTime = require("lingering.domain.reading_time")
 local DeviceAdapter = require("lingering.koreader.device")
 local Navigation = require("lingering.koreader.navigation")
@@ -50,8 +51,77 @@ local function formatDuration(secs)
     return T(_("%1 min"), minutes)
 end
 
+--[[--
+Tegel in de rij "Aan het lezen": omslag (of titel in een vak) met een dun voortgangsbalkje
+voor boeken die al op het apparaat staan. Een tik roept callback(entry) aan.
+]]
+local ShelfTile = InputContainer:extend{
+    entry = nil,
+    library = nil,
+    cover_w = nil,
+    cover_h = nil,
+    callback = nil,
+}
+
+function ShelfTile:init()
+    local entry, w, h = self.entry, self.cover_w, self.cover_h
+    local cover
+    local bb = Widgets.loadCover(self.library, entry.thumbnail, w, h)
+    if bb then
+        cover = ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 }
+    else
+        cover = FrameContainer:new{
+            width = w, height = h, padding = 0,
+            bordersize = Size.border.thin, color = Blitbuffer.COLOR_GRAY,
+            CenterContainer:new{
+                dimen = Geom:new{ w = w - 2 * Size.border.thin, h = h - 2 * Size.border.thin },
+                TextBoxWidget:new{
+                    text = entry.title,
+                    face = Font:getFace("cfont", 12),
+                    bold = true,
+                    width = w - 2 * Size.padding.default,
+                    alignment = "center",
+                    height = math.floor(h * 0.8),
+                    height_adjust = true,
+                    height_overflow_show_ellipsis = true,
+                },
+            },
+        }
+    end
+    local percent
+    if self.library:isDownloaded(entry) then
+        percent = Books.percent((self.library:bookPath(entry)))
+    end
+    local bar_h = Screen:scaleBySize(5)
+    local group = VerticalGroup:new{
+        align = "center",
+        CenterContainer:new{ dimen = Geom:new{ w = w, h = h }, cover },
+        VerticalSpan:new{ width = Size.padding.default },
+    }
+    if percent then
+        table.insert(group, ProgressWidget:new{
+            width = w, height = bar_h, percentage = percent,
+            margin_h = 0, margin_v = 0, radius = 0, bordersize = 0,
+            bgcolor = Blitbuffer.COLOR_LIGHT_GRAY, fillcolor = Blitbuffer.COLOR_DARK_GRAY,
+        })
+    else
+        table.insert(group, VerticalSpan:new{ width = bar_h })
+    end
+    self[1] = group
+    self.ges_events = {
+        TapTile = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
+    }
+end
+
+function ShelfTile:onTapTile()
+    if self.callback then Widgets.safeCall("aan het lezen", self.callback, self.entry) end
+    return true
+end
+
 local HomeScreen = InputContainer:extend{
     fm = nil,               -- FileManager-instantie
+    library = nil,          -- app/library_service (plank "aan het lezen")
+    on_open_book = nil,     -- function(pad)
     on_local_books = nil,
     on_settings = nil,
     on_emergency = nil,
@@ -303,20 +373,31 @@ function HomeScreen:build()
 
     local status = self:buildStatus(width)
     local status_h = status:getSize().h
-    local book_h = height - status_h - nav:getSize().h
+    local area_h = height - status_h - nav:getSize().h
+
+    -- Rij "Aan het lezen" onder het huidige boek, als er boeken zijn en het past.
+    local shelf = self:buildShelf(width)
+    local shelf_h = shelf and shelf:getSize().h or 0
+    if shelf and area_h - shelf_h < Screen:scaleBySize(240) then
+        shelf, shelf_h = nil, 0
+    end
+    local book_h = area_h - shelf_h
     local book = self:buildBook(width, book_h)
+    local card_h = math.min(book:getSize().h, book_h)
 
     self.status_dimen = Geom:new{ x = 0, y = 0, w = width, h = status_h }
-    self.book_dimen = Geom:new{ x = 0, y = status_h, w = width, h = book_h }
+    self.book_dimen = Geom:new{ x = 0, y = status_h, w = width, h = card_h }
+    self.shelf_dimen = Geom:new{ x = 0, y = status_h + card_h, w = width, h = shelf_h }
 
-    -- Statusregel boven (zonder lijn), huidig boek direct eronder, navigatiebalk onderaan.
+    -- Statusregel boven (zonder lijn), huidig boek, rij "Aan het lezen", navigatiebalk onderaan.
     self.layout_group = VerticalGroup:new{
         align = "left",
         status,
         book,
-        VerticalSpan:new{ width = math.max(0, book_h - book:getSize().h) },
-        nav,
     }
+    if shelf then table.insert(self.layout_group, shelf) end
+    table.insert(self.layout_group, VerticalSpan:new{ width = math.max(0, area_h - card_h - shelf_h) })
+    table.insert(self.layout_group, nav)
     self[1] = FrameContainer:new{
         width = width,
         height = height,
@@ -325,6 +406,93 @@ function HomeScreen:build()
         background = Blitbuffer.COLOR_WHITE,
         self.layout_group,
     }
+end
+
+-- Rij "Aan het lezen": klein kopje en tot vier omslagen uit de plank (cache).
+local SHELF_COLUMNS = 4
+
+function HomeScreen:buildShelf(width)
+    if not self.library then return nil end
+    local ok, books = pcall(self.library.readingBooks, self.library, self.book and self.book.file)
+    if not ok or not books or #books == 0 then return nil end
+    self.shelf_books = books
+
+    local padding = Size.padding.large * 2
+    local gap = Size.padding.large * 2
+    local cover_w = math.floor((width - 2 * padding - (SHELF_COLUMNS - 1) * gap) / SHELF_COLUMNS)
+    local cover_h = math.floor(cover_w * 3 / 2)
+
+    local row = HorizontalGroup:new{ align = "top" }
+    for i = 1, math.min(SHELF_COLUMNS, #books) do
+        if i > 1 then table.insert(row, HorizontalSpan:new{ width = gap }) end
+        table.insert(row, ShelfTile:new{
+            entry = books[i],
+            library = self.library,
+            cover_w = cover_w,
+            cover_h = cover_h,
+            show_parent = self,
+            callback = function(entry) self:openShelfBook(entry) end,
+        })
+    end
+    return FrameContainer:new{
+        padding = 0,
+        padding_left = padding,
+        padding_right = padding,
+        padding_bottom = padding,
+        bordersize = 0,
+        VerticalGroup:new{
+            align = "left",
+            TextWidget:new{
+                text = _("Aan het lezen"),
+                face = Font:getFace("cfont", 16),
+                fgcolor = Blitbuffer.COLOR_DARK_GRAY,
+            },
+            VerticalSpan:new{ width = Size.padding.large },
+            row,
+        },
+    }
+end
+
+function HomeScreen:openShelfBook(entry)
+    logger.info("Lingering: homescreen, boek uit 'aan het lezen'")
+    BookOpener.open(self.library, entry, function(path)
+        self:close()
+        if self.on_open_book then self.on_open_book(path) end
+    end)
+end
+
+--[[--
+Met verbinding: plank verversen (hooguit eens per tien minuten) en ontbrekende omslagen
+ophalen, daarna alleen de rij opnieuw tekenen.
+]]
+function HomeScreen:refreshShelf()
+    if self.closed or not self.library or not Network.isOnline() then return end
+    self.library:refreshReadingShelf(function(changed)
+        if self.closed then return end
+        local missing = {}
+        for _, entry in ipairs(self.library:readingBooks(self.book and self.book.file)) do
+            if entry.thumbnail and not self.library:hasCover(entry.thumbnail) then
+                table.insert(missing, entry.thumbnail)
+            end
+        end
+        local function redraw()
+            if self.closed then return end
+            self:build()
+            UIManager:setDirty(self, "ui", Geom:new{ x = 0, y = self.book_dimen.y, w = self.dimen.w, h = self.dimen.h - self.book_dimen.y })
+        end
+        local index = 0
+        local function next_cover()
+            if self.closed then return end
+            index = index + 1
+            if missing[index] then
+                pcall(self.library.fetchCover, self.library, missing[index])
+                UIManager:scheduleIn(0.05, next_cover)
+            elseif changed or #missing > 0 then
+                redraw()
+            end
+        end
+        next_cover()
+    end)
 end
 
 function HomeScreen:onTapBook()
@@ -379,6 +547,7 @@ function HomeScreen:onShowingReader()
 end
 
 function HomeScreen:onCloseWidget()
+    self.closed = true
     if self.emergency_task then
         UIManager:unschedule(self.emergency_task)
         self.emergency_task = nil
@@ -394,9 +563,13 @@ end
 
 function HomeScreen:show()
     UIManager:show(self, "full")
+    UIManager:scheduleIn(1, function()
+        Widgets.safeCall("aan het lezen verversen", function() self:refreshShelf() end)
+    end)
 end
 
 function HomeScreen:close()
+    self.closed = true
     UIManager:close(self, "full")
 end
 

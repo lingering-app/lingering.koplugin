@@ -71,6 +71,19 @@ function Widgets.guardEvents(class, label)
     end
 end
 
+--- Omslag uit de cache van Mijn boeken als BlitBuffer, of nil. Zelf decoderen in een pcall:
+--- een kapotte afbeelding mag het scherm niet breken (en wordt verwijderd).
+function Widgets.loadCover(library, url, w, h)
+    if not (url and library:hasCover(url)) then return nil end
+    local path = library:coverPath(url)
+    local ok, bb = pcall(function()
+        return require("ui/renderimage"):renderImageFile(path, false, w, h)
+    end)
+    if ok and bb then return bb end
+    logger.warn("Lingering: omslag onleesbaar, verwijderd:", url)
+    os.remove(path)
+end
+
 --- Icoon uit KOReader (icon = naam) of uit de plugin (icon_file = bestandsnaam in icons/).
 function Widgets.icon(spec, size, dim)
     return IconWidget:new{

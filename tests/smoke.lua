@@ -41,6 +41,23 @@ function Smoke.filemanager(plugin)
             assert(plugin.home, "geen homescreen")
             shot("1-home")
         end },
+        { name = "aan het lezen (nep-plank)", fn = function()
+            -- Alleen in deze test: de plank vullen met kopieën van het eerste boek.
+            local Library = require("lingering.app.library_service")
+            local book = Smoke.firstBook(Library)
+            assert(book, "geen boek in de catalogus")
+            local real = Library.readingBooks
+            Library.readingBooks = function() return { book, book, book, book } end
+            plugin.home:build()
+            Library.readingBooks = real
+            UIManager:setDirty(plugin.home, "ui")
+        end },
+        { name = "aan het lezen getekend", fn = function()
+            assert(plugin.home.shelf_dimen and plugin.home.shelf_dimen.h > 0, "rij niet getoond")
+            shot("1b-home-shelf")
+            plugin.home:build()
+            UIManager:setDirty(plugin.home, "ui")
+        end },
         { name = "mijn boeken", fn = function()
             local LibraryScreen = require("lingering.ui.libraryscreen")
             lib = LibraryScreen:new{ library = require("lingering.app.library_service"), on_open_book = function() end }

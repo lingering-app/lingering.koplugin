@@ -16,7 +16,6 @@ local GestureRange = require("ui/gesturerange")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan = require("ui/widget/horizontalspan")
 local ImageWidget = require("ui/widget/imagewidget")
-local InfoMessage = require("ui/widget/infomessage")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local LeftContainer = require("ui/widget/container/leftcontainer")
 local OverlapGroup = require("ui/widget/overlapgroup")
@@ -30,10 +29,10 @@ local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local logger = require("logger")
 local _ = require("gettext")
-local T = require("ffi/util").template
 local Screen = Device.screen
 
 local Network = require("lingering.koreader.network")
+local BookOpener = require("lingering.ui.book_opener")
 local Widgets = require("lingering.ui.widgets")
 local Layout = require("lingering.domain.layout")
 local Item = require("lingering.ui.actionbar").Item
@@ -43,16 +42,8 @@ local Item = require("lingering.ui.actionbar").Item
 local TITLE_FACE = Font:getFace("cfont", 15)
 local TITLE_HEIGHT = 2 * math.floor((1 + 0.3) * TITLE_FACE.size + 0.5)
 
--- Omslag zelf decoderen in een pcall: een kapotte afbeelding mag het scherm niet breken.
 local function loadCover(library, url, w, h)
-    if not library:hasCover(url) then return nil end
-    local path = library:coverPath(url)
-    local ok, bb = pcall(function()
-        return require("ui/renderimage"):renderImageFile(path, false, w, h)
-    end)
-    if ok and bb then return bb end
-    logger.warn("Lingering: omslag onleesbaar, verwijderd:", url)
-    os.remove(path)
+    return Widgets.loadCover(library, url, w, h)
 end
 
 --[[--
@@ -397,27 +388,8 @@ function LibraryScreen:openEntry(entry)
         table.insert(self.stack, { url = entry.url, title = entry.title })
         self:render()
         self:autoSync()
-    elseif self.library:isDownloaded(entry) then
-        self:openBook((self.library:bookPath(entry)))
     else
-        self:downloadAndOpen(entry)
-    end
-end
-
-function LibraryScreen:downloadAndOpen(entry)
-    local started = Network.turnOnWifiThen(function() Widgets.safeCall("downloaden", function()
-        local busy = InfoMessage:new{ text = T(_("Downloaden…\n%1"), entry.title) }
-        UIManager:show(busy)
-        UIManager:forceRePaint()
-        local ok, path = self.library:download(entry)
-        UIManager:close(busy)
-        -- Bij een fout toont OPDSBrowser:downloadFile zelf een melding.
-        if ok then
-            self:openBook(path)
-        end
-    end) end)
-    if not started then
-        UIManager:show(InfoMessage:new{ text = _("Geen wifi-verbinding."), timeout = 3 })
+        BookOpener.open(self.library, entry, function(path) self:openBook(path) end)
     end
 end
 
