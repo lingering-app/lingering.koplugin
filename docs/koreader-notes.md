@@ -226,6 +226,12 @@ markeringen gaan standaard dus vóór bladeren.
 | `batteryPercent`, `isWifiOn`, `isWifiConnected`, `setWifi` | `Device:getPowerDevice():getCapacity()`, `NetworkMgr:isWifiOn()` (radio, voor de schakelaar), `NetworkMgr:isConnected()` (verbinding, voor het icoon; op Kobo `ifHasAnAddress`), `NetworkMgr:toggleWifiOn/Off` | Statusregel zonder batterij/wifi; wifi-schakelaar doet niets |
 | Statusregel homescreen | lamp: `toggleFrontlight(fm)` (FileManager heeft ook een `DeviceListener`); wifi: `setWifi` + `isWifiOn`/`isWifiConnected`; iconen via `ActionBar.Item` (switch met `icon_spec`) | Iconen grijs/zonder effect |
 | Homescreen tonen | eigen widget via `UIManager:show` vanuit `init` in FileManager-context (`nextTick`); sluit zichzelf bij event `ShowingReader` | Gewone bestandsbeheerder blijft zichtbaar |
+| `checkOpds` | eigen GET met `socket.http` + `socketutil` (zoals `OPDSBrowser:fetchFeed`, maar zonder eigen melding) | Inloggen meldt "mislukt bij de bibliotheek" |
+| `checkKosync` | `KOSyncClient:new{custom_url, service_spec}` + `client:authorize(user, md5(pass))`; `api.json` naast `KOSyncClient.lua` (`package.searchpath`) | Inloggen meldt "mislukt bij de syncserver" |
+| `writeOpdsAccount` | `<settings>/opds.lua` → `servers` (bijwerken op gelijk adres, anders toevoegen); geladen `fm.opds.servers` krijgt dezelfde wijziging | Melding "kon niet worden opgeslagen" |
+| `writeKosyncAccount` | `<settings>/kosync.lua` → `settings`; gedeeld `KOSync.settings_obj` via `PluginLoader.enabled_plugins` als kosync al geladen was | idem |
+| `ensureAutoWifi` | `wifi_enable_action = "turn_on"` alleen als `Device:hasSeamlessWifiToggle()` (zie `KOSync:init`) | Auto-sync kan door kosync worden uitgezet |
+| `opdsCredentials`, `opdsClient`, `opdsFetchPage`, `opdsFiletype`, `opdsDownload` | `opds.lua`-servers; kaal object met metatable `OPDSBrowser` (`sync = true`); `genItemTableFromURL`, `OPDSBrowser.getFiletype`, `downloadFile` | Mijn boeken toont alleen de cache / downloaden mislukt |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak in compat: standaard plugin-API |
 
 Bewuste keuzes in het leesscherm:
@@ -255,6 +261,13 @@ Netwerk-events (`NetworkConnected`, `NetworkDisconnected`, `NetworkConnecting`,
 (`frontend/ui/network/manager.lua`, `frontend/device/generic/device.lua`).
 Op de desktop (SDL) geven `isWifiOn`/`isConnected` altijd `true` en is
 `hasWifiToggle` onwaar.
+
+## Vensterstapel en `modal`
+
+`UIManager:show` zet een niet-modaal venster **onder** het bovenste modale venster
+(`frontend/ui/uimanager.lua`). `MultiInputDialog` is niet modaal. Onze schermvullende
+schermen (homescreen, instellingen, inlog-achtergrond) zijn daarom niet `modal`; anders
+verdwijnen dialogen van KOReader eronder.
 
 ## Tekenen en vangnetten
 

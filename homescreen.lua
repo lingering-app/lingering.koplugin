@@ -54,7 +54,8 @@ local HomeScreen = InputContainer:extend{
     on_emergency = nil,
     on_closed = nil,
     covers_fullscreen = true,
-    modal = true,
+    -- Niet modal: anders komen dialogen van KOReader (bijv. MultiInputDialog) eronder
+    -- (UIManager:show zet niet-modale vensters onder het bovenste modale venster).
     stop_events_propagation = true,
 }
 Widgets.guardPaint(HomeScreen, "homescreen")

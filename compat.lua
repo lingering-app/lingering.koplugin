@@ -529,6 +529,263 @@ function Compat.bookStats(fm, file, percent)
     return ok and stats or nil
 end
 
+--[[--
+OPDS (plugins/opds.koplugin). Inloggegevens staan in <settings>/opds.lua, lijst "servers",
+waar de OPDS-plugin ze zelf ook bewaart. Wachtwoorden worden nooit gelogd.
+]]
+local function sameUrl(a, b)
+    return a and b and (a:gsub("/+$", "") == b:gsub("/+$", ""))
+end
+
+--- Gebruikersnaam en wachtwoord van de server met dit adres, of nil.
+function Compat.opdsCredentials(opds_url)
+    local ok, user, pass = try("opdsCredentials", function()
+        local DataStorage = require("datastorage")
+        local LuaSettings = require("luasettings")
+        local servers = LuaSettings:open(DataStorage:getSettingsDir() .. "/opds.lua"):readSetting("servers") or {}
+        for _, server in ipairs(servers) do
+            if sameUrl(server.url, opds_url) then
+                return server.username, server.password
+            end
+        end
+    end)
+    if ok then return user, pass end
+end
+
+--[[--
+Een "kaal" OPDSBrowser-object: de methoden van de OPDS-plugin zonder het scherm.
+sync = true slaat in genItemTableFromCatalog het ophalen van zoek- en facetlinks over.
+]]
+function Compat.opdsClient(username, password)
+    local ok, client = try("opdsClient", function()
+        local OPDSBrowser = require("opdsbrowser")
+        return setmetatable({
+            root_catalog_username = username,
+            root_catalog_password = password,
+            sync = true,
+        }, { __index = OPDSBrowser })
+    end)
+    return ok and client or nil
+end
+
+--[[--
+Haalt één pagina van een catalogus op via OPDSBrowser:genItemTableFromURL
+(parser van de plugin, OPDS 1 en 2). Geeft { items = {...}, next = url|nil } of nil.
+Elk item: { title, author, url (map) | acquisitions (boek), thumbnail, image }.
+]]
+function Compat.opdsFetchPage(client, feed_url)
+    local ok, page = try("opdsFetchPage", function()
+        local item_table = client:genItemTableFromURL(feed_url)
+        local items = {}
+        for _, item in ipairs(item_table) do
+            table.insert(items, item)
+        end
+        return { items = items, next = item_table.hrefs and item_table.hrefs.next }
+    end)
+    return ok and page or nil
+end
+
+--- Bestandstype van een acquisitie-link (OPDSBrowser.getFiletype), bijv. "epub".
+function Compat.opdsFiletype(acquisition)
+    local ok, filetype = try("opdsFiletype", function()
+        return require("opdsbrowser").getFiletype(acquisition)
+    end)
+    return ok and filetype or nil
+end
+
+--- Downloadt een boek met OPDSBrowser:downloadFile (toont zelf een melding bij een fout).
+function Compat.opdsDownload(client, local_path, remote_url, username, password)
+    local ok, result = try("opdsDownload", client.downloadFile, client, local_path, remote_url, username, password)
+    return ok and result == true
+end
+
+--- Thuismap van KOReader (filemanagerutil.getHomeFolder).
+function Compat.homeFolder()
+    local ok, dir = try("getHomeFolder", function()
+        return require("apps/filemanager/filemanagerutil").getHomeFolder()
+    end)
+    return ok and dir or "."
+end
+
+--- Online? (NetworkMgr:isOnline)
+function Compat.isOnline()
+    local ok, online = try("isOnline", function()
+        return require("ui/network/manager"):isOnline()
+    end)
+    return ok and online or false
+end
+
+--- Voert fn uit zodra er netwerk is; zet wifi zo nodig aan (NetworkMgr:runWhenOnline).
+function Compat.runWhenOnline(fn)
+    return try("runWhenOnline", function()
+        require("ui/network/manager"):runWhenOnline(fn)
+    end)
+end
+
+--[[--
+Controle van de OPDS-catalogus voor het inlogscherm: één GET met inloggegevens.
+Bewust geen OPDSBrowser:fetchFeed, want die toont zelf een melding; hier willen we
+zelf zeggen wat er misging. Geeft true of false, reden.
+]]
+function Compat.checkOpds(opds_url, username, password)
+    local ok, success, reason = try("checkOpds", function()
+        local http = require("socket.http")
+        local ltn12 = require("ltn12")
+        local socket = require("socket")
+        local socketutil = require("socketutil")
+        local _ = require("gettext")
+        local sink = {}
+        socketutil:set_timeout(socketutil.LARGE_BLOCK_TIMEOUT, socketutil.LARGE_TOTAL_TIMEOUT)
+        local code = socket.skip(1, http.request{
+            url = opds_url,
+            method = "GET",
+            headers = {
+                ["Accept-Encoding"] = "identity",
+                ["Accept"] = "application/opds+json, application/atom+xml;profile=opds-catalog, */*",
+            },
+            sink = ltn12.sink.table(sink),
+            user = username,
+            password = password,
+        })
+        socketutil:reset_timeout()
+        if type(code) ~= "number" then
+            return false, _("server niet bereikbaar") .. " (" .. tostring(code) .. ")"
+        elseif code == 401 or code == 403 then
+            return false, _("gebruikersnaam of wachtwoord onjuist")
+        elseif code ~= 200 then
+            return false, _("server antwoordt met code") .. " " .. code
+        end
+        local first = table.concat(sink):match("^%s*(.)")
+        if first ~= "<" and first ~= "{" then
+            return false, _("geen geldige catalogus")
+        end
+        return true
+    end)
+    if not ok then return false, "?" end
+    return success, reason
+end
+
+--- Pad naar api.json van de kosync-plugin (naast KOSyncClient.lua).
+local function kosyncServiceSpec()
+    local client_file = package.searchpath("KOSyncClient", package.path)
+    return assert(client_file, "KOSyncClient niet gevonden"):match("^(.*)/[^/]*$") .. "/api.json"
+end
+
+--[[--
+Controle van de syncserver: KOSyncClient:authorize met userkey = md5(wachtwoord),
+zoals KOSync:doLogin. Geeft true of false, reden.
+]]
+function Compat.checkKosync(sync_url, username, password)
+    local ok, success, reason = try("checkKosync", function()
+        local KOSyncClient = require("KOSyncClient")
+        local md5 = require("ffi/sha2").md5
+        local _ = require("gettext")
+        local client = KOSyncClient:new{
+            custom_url = sync_url,
+            service_spec = kosyncServiceSpec(),
+        }
+        local call_ok, authorized, body = pcall(client.authorize, client, username, md5(password))
+        if not call_ok then
+            return false, _("fout bij verbinden")
+        elseif authorized then
+            return true
+        elseif body == nil then
+            return false, _("server niet bereikbaar")
+        end
+        return false, (type(body) == "table" and body.message) or _("gebruikersnaam of wachtwoord onjuist")
+    end)
+    if not ok then return false, "?" end
+    return success, reason
+end
+
+--- De geladen plugin-klasse met deze naam (PluginLoader.enabled_plugins), of nil.
+local function pluginClass(name)
+    local PluginLoader = require("pluginloader")
+    for _, plugin in ipairs(PluginLoader.enabled_plugins or {}) do
+        if plugin.name == name then return plugin end
+    end
+end
+
+--[[--
+Schrijft de OPDS-catalogus met inloggegevens in <settings>/opds.lua (lijst "servers"):
+een bestaande ingang met hetzelfde adres wordt bijgewerkt, anders komt er een bij.
+Een al geladen OPDS-instantie in de bestandsbeheerder (fm.opds.servers) krijgt dezelfde
+wijziging, zodat die bij een eigen flush niets terugzet.
+]]
+function Compat.writeOpdsAccount(opds_url, username, password, fm)
+    return try("writeOpdsAccount", function()
+        local DataStorage = require("datastorage")
+        local LuaSettings = require("luasettings")
+        local file = DataStorage:getSettingsDir() .. "/opds.lua"
+        assert(Compat.backupOnce(file), "back-up van opds.lua mislukt")
+
+        local function apply(servers)
+            for _, server in ipairs(servers) do
+                if sameUrl(server.url, opds_url) then
+                    server.username, server.password = username, password
+                    return
+                end
+            end
+            table.insert(servers, { title = "Lingering", url = opds_url, username = username, password = password })
+        end
+
+        local store = LuaSettings:open(file)
+        local servers = store:readSetting("servers") or {}
+        apply(servers)
+        store:saveSetting("servers", servers)
+        store:flush()
+        if fm and fm.opds and type(fm.opds.servers) == "table" and fm.opds.servers ~= servers then
+            apply(fm.opds.servers)
+        end
+        logger.info("Lingering: OPDS-catalogus ingesteld voor gebruiker", username)
+    end)
+end
+
+--[[--
+Schrijft de kosync-instellingen in <settings>/kosync.lua (sleutel "settings"):
+custom_server, username, userkey = md5(wachtwoord), auto_sync aan,
+sync_forward = SILENT (2), sync_backward = PROMPT (1) (SYNC_STRATEGY in kosync main.lua).
+Gebruikt het gedeelde KOSync.settings_obj als kosync dat deze sessie al opende.
+]]
+function Compat.writeKosyncAccount(sync_url, username, password)
+    return try("writeKosyncAccount", function()
+        local DataStorage = require("datastorage")
+        local LuaSettings = require("luasettings")
+        local md5 = require("ffi/sha2").md5
+        local file = DataStorage:getSettingsDir() .. "/kosync.lua"
+        assert(Compat.backupOnce(file), "back-up van kosync.lua mislukt")
+
+        local class = pluginClass("kosync")
+        local store = (class and class.settings_obj) or LuaSettings:open(file)
+        local settings = store:readSetting("settings") or {}
+        settings.custom_server = sync_url
+        settings.username = username
+        settings.userkey = md5(password)
+        settings.auto_sync = true
+        settings.sync_forward = 2
+        settings.sync_backward = 1
+        store:saveSetting("settings", settings)
+        store:flush()
+        logger.info("Lingering: kosync ingesteld voor gebruiker", username)
+    end)
+end
+
+--[[--
+Automatische sync van kosync blijft alleen aan als wifi zonder vragen aan mag
+(KOSync:init zet auto_sync anders uit op apparaten met hasSeamlessWifiToggle, zoals Kobo).
+]]
+function Compat.ensureAutoWifi()
+    return try("ensureAutoWifi", function()
+        local Device = require("device")
+        if Device:hasSeamlessWifiToggle() and G_reader_settings:readSetting("wifi_enable_action") ~= "turn_on" then
+            if not Compat.backupOnce(G_reader_settings.file) then return end
+            logger.info("Lingering: KOReader-instelling wifi_enable_action = turn_on")
+            G_reader_settings:saveSetting("wifi_enable_action", "turn_on")
+            G_reader_settings:flush()
+        end
+    end)
+end
+
 --- Opent een boek (ReaderUI:showReader, de enige veilige manier volgens readerui.lua).
 function Compat.openBook(file)
     return try("ReaderUI:showReader", function()

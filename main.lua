@@ -12,7 +12,7 @@ local _ = require("gettext")
 -- "settings" zouden anders bij KOReader's eigen reader.lua of bij een andere plugin uitkomen.
 local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
 for _, module in ipairs({ "actionbar", "compat", "config", "homescreen", "reader",
-                          "settings", "settingsscreen", "widgets" }) do
+                          "settings", "settingsscreen", "setup", "widgets" }) do
     package.preload["lingering_" .. module] = function()
         return dofile(plugin_dir .. "/" .. module .. ".lua")
     end
@@ -57,6 +57,10 @@ end
 --- Toont het homescreen. Faalt dat, dan blijft de gewone bestandsbeheerder zichtbaar.
 function Lingering:showHomeScreen()
     if self.home or not Settings:isActive() then return end
+    if not Settings:read("lingering_setup_done") then
+        self:showSetup(true)
+        return
+    end
     local ok, err = pcall(function()
         local HomeScreen = require("lingering_homescreen")
         local home = HomeScreen:new{
@@ -77,11 +81,28 @@ function Lingering:showHomeScreen()
     end
 end
 
+--- Inlogscherm. Eerste keer: in plaats van het homescreen; anders vanuit Instellingen.
+function Lingering:showSetup(first_run)
+    local ok, err = pcall(function()
+        require("lingering_setup").show{
+            first_run = first_run,
+            fm = self.ui,
+            on_done = first_run and function() self:showHomeScreen() end or nil,
+            on_emergency = function() self:openEmergencyMenu() end,
+        }
+    end)
+    if ok then
+        logger.info("Lingering: inlogscherm getoond")
+    else
+        logger.warn("Lingering: inlogscherm kon niet laden, bestandsbeheerder blijft zichtbaar:", err)
+    end
+end
+
 function Lingering:showSettings()
     local SettingsScreen = require("lingering_settingsscreen")
     SettingsScreen:new{
         on_sync = notYet,
-        on_account = notYet,
+        on_account = function() self:showSetup(false) end,
         on_emergency = function() self:openEmergencyMenu() end,
     }:show()
 end
