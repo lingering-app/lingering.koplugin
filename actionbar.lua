@@ -29,7 +29,8 @@ local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or "."
 
 -- Tijd tussen twee frames van een draaiend icoon, en hoe lang een taak maximaal mag duren.
 local FRAME_INTERVAL = 0.4
-local TASK_TIMEOUT = 30
+-- Ruim, want wifi aanzetten en verbinden kost op een Kobo al 10-20 seconden.
+local TASK_TIMEOUT = 60
 -- Minimale draaitijd van een taak-icoon, in seconden.
 local MIN_SPIN = 1.2
 

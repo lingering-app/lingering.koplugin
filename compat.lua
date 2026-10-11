@@ -374,7 +374,7 @@ end
 Voortgang nu wegschrijven, met terugmelding done(ok).
 Gebruikt de kosync-instantie (ui.kosync) voor instellingen en document-gegevens en de
 KOSyncClient van kosync voor het verzoek (zoals KOSync:updateProgress, maar met callback).
-Wifi gaat zo nodig aan via NetworkMgr:runWhenOnline.
+Wifi gaat zo nodig aan zonder te vragen (turnOnWifiThen).
 ]]
 function Compat.syncNow(ui, done)
     local kosync = ui.kosync
@@ -383,8 +383,8 @@ function Compat.syncNow(ui, done)
         done(false)
         return
     end
-    local NetworkMgr = require("ui/network/manager")
-    NetworkMgr:runWhenOnline(function()
+    -- Wifi aan zonder te vragen, net als in Mijn boeken.
+    local started = Compat.turnOnWifiThen(function()
         local ok = try("syncNow", function()
             local Device = require("device")
             local KOSyncClient = require("KOSyncClient")
@@ -409,6 +409,7 @@ function Compat.syncNow(ui, done)
         end)
         if not ok then done(false) end
     end)
+    if not started then done(false) end
 end
 
 --- Licht aan/uit via DeviceListener:onToggleFrontlight (event ToggleFrontlight).
