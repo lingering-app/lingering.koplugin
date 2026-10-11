@@ -40,9 +40,11 @@ function LoginDialog:init()
     Compat.plainDialog(self, "login")
 end
 
--- Witte achtergrond bij de eerste keer, zodat de bestandsbeheerder niet zichtbaar is.
+-- Witte achtergrond met titel; het randloze invoervenster staat erop.
 local Background = InputContainer:extend{
-    on_emergency = nil,
+    title = nil,
+    subtitle = nil,
+    on_emergency = nil,     -- alleen bij de eerste start
     covers_fullscreen = true,
     -- Krijgt ook gebaren die het invoervenster erboven niet afhandelt (zoals ingedrukt
     -- houden), voor de verborgen ingang naar het volledige menu.
@@ -58,6 +60,7 @@ Widgets.guardPaint(Background, "inlogscherm")
 local EMERGENCY_HOLD_SECONDS = 2.5
 
 function Background:onHoldTitle()
+    if not self.on_emergency then return true end
     self.emergency_task = function()
         self.emergency_task = nil
         logger.info("Lingering: titel inlogscherm lang ingedrukt, noodluik")
@@ -102,9 +105,9 @@ function Background:init()
             dimen = Geom:new{ w = width, h = math.floor(height / 3) },
             VerticalGroup:new{
                 align = "center",
-                TextWidget:new{ text = "Lingering", face = Font:getFace("cfont", 32), bold = true },
+                TextWidget:new{ text = self.title, face = Font:getFace("cfont", 32), bold = true },
                 VerticalSpan:new{ width = Screen:scaleBySize(12) },
-                TextWidget:new{ text = _("Log in met je account."), face = Font:getFace("cfont", 20) },
+                TextWidget:new{ text = self.subtitle, face = Font:getFace("cfont", 20) },
             },
         },
     }
@@ -112,7 +115,7 @@ end
 
 --[[--
 opts:
-- first_run: eerste keer (witte achtergrond, alleen "Inloggen", niet weg te klikken)
+- first_run: eerste keer (alleen "Inloggen", niet weg te klikken); anders "Account" met "Annuleren"
 - fm: FileManager-instantie
 - on_done: na succesvol inloggen
 - on_emergency: noodluik via "Lingering" lang ingedrukt (alleen bij first_run, onzichtbaar)
@@ -120,22 +123,23 @@ opts:
 function Setup.show(opts)
     local background
     local dialog
-    if opts.first_run then
-        background = Background:new{
-            on_emergency = function()
-                UIManager:close(dialog)
-                UIManager:close(background, "full")
-                if opts.on_emergency then opts.on_emergency() end
-            end,
-        }
-        UIManager:show(background, "full")
-    end
+    background = Background:new{
+        title = opts.first_run and "Lingering" or _("Account"),
+        subtitle = opts.first_run and _("Log in met je account.")
+            or _("Wijzig je gebruikersnaam en wachtwoord."),
+        on_emergency = opts.first_run and function()
+            UIManager:close(dialog)
+            UIManager:close(background, "full")
+            if opts.on_emergency then opts.on_emergency() end
+        end or nil,
+    }
+    UIManager:show(background, "full")
 
     local username_prefill = Compat.opdsCredentials(Config.opds_url) or ""
 
     local function closeAll()
         UIManager:close(dialog)
-        if background then UIManager:close(background, "full") end
+        UIManager:close(background, "full")
     end
 
     local function fail(service, reason)
