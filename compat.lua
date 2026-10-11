@@ -5,6 +5,7 @@ Elke haak loopt via try(): faalt hij, dan logt Lingering een waarschuwing en bli
 alleen dat onderdeel bij het standaardgedrag van KOReader. Zie docs/koreader-notes.md
 voor waar elke haak in de KOReader-bron op leunt.
 ]]
+local UIManager = require("ui/uimanager")
 local logger = require("logger")
 
 local Compat = {}
@@ -370,20 +371,28 @@ local function sendEvent(name, ui, event_name)
     return ok and handled and true or false
 end
 
+local function kosyncLoggedIn(kosync)
+    return kosync and kosync.settings and kosync.settings.username and kosync.settings.userkey
+end
+
 --[[--
-Voortgang nu wegschrijven, met terugmelding done(ok).
-Gebruikt de kosync-instantie (ui.kosync) voor instellingen en document-gegevens en de
-KOSyncClient van kosync voor het verzoek (zoals KOSync:updateProgress, maar met callback).
-Wifi gaat zo nodig aan zonder te vragen (turnOnWifiThen) en daarna weer uit als hij uit stond.
+Sync-knop in het boek: tweezijdig, met terugmelding done(ok).
+1. wifi aan zonder te vragen (en na afloop weer uit als hij uit stond);
+2. voortgang ophalen (KOSyncClient:get_progress). Is die van een ander apparaat en nieuwer
+   dan de laatste paginawissel hier (zoals KOSync:getProgress het bepaalt), dan springt
+   het boek erheen via KOSync:syncToProgress;
+3. anders de eigen voortgang wegschrijven (KOSyncClient:update_progress).
+Gebruikt van de kosync-instantie (ui.kosync): settings, path, device_id,
+last_page_turn_timestamp, pull_timestamp, getDocumentDigest, getMetadata,
+getLastProgress, getLastPercent, syncToProgress.
 ]]
 function Compat.syncNow(ui, done)
     local kosync = ui.kosync
-    if not (kosync and kosync.settings and kosync.settings.username and kosync.settings.userkey) then
+    if not kosyncLoggedIn(kosync) then
         logger.warn("Lingering: synchroniseren niet mogelijk, kosync niet ingelogd of niet geladen")
         done(false)
         return
     end
-    -- Wifi aan zonder te vragen; stond hij uit, dan na afloop weer uit.
     if not Compat.isWifiOn() then
         local finish = done
         done = function(ok)
@@ -392,6 +401,10 @@ function Compat.syncNow(ui, done)
             finish(ok)
         end
     end
+    -- KOSync:_onNetworkConnected haalt bij een nieuwe verbinding zelf ook voortgang op;
+    -- via zijn eigen vertraging (pull_timestamp, 25 s) slaan we die over: wij doen het al.
+    pcall(function() kosync.pull_timestamp = UIManager:getElapsedTimeSinceBoot() end)
+
     local started = Compat.turnOnWifiThen(function()
         local ok = try("syncNow", function()
             local Device = require("device")
@@ -401,28 +414,81 @@ function Compat.syncNow(ui, done)
                 custom_url = settings.custom_server,
                 service_spec = kosync.path .. "/api.json",
             }
-            client:update_progress(
-                settings.username,
-                settings.userkey,
-                kosync:getDocumentDigest(),
-                kosync:getMetadata(),
-                kosync:getLastProgress(),
-                kosync:getLastPercent(),
-                settings.kosync_hostname or Device.model,
-                kosync.device_id,
-                function(success, status)
-                    logger.info("Lingering: voortgang weggeschreven:", success and "ok" or ("fout " .. tostring(status)))
-                    done(success and true or false)
+            local digest = kosync:getDocumentDigest()
+
+            local function push()
+                client:update_progress(
+                    settings.username,
+                    settings.userkey,
+                    digest,
+                    kosync:getMetadata(),
+                    kosync:getLastProgress(),
+                    kosync:getLastPercent(),
+                    settings.kosync_hostname or Device.model,
+                    kosync.device_id,
+                    function(success, status)
+                        logger.info("Lingering: voortgang weggeschreven:", success and "ok" or ("fout " .. tostring(status)))
+                        done(success and true or false)
+                    end)
+            end
+
+            client:get_progress(settings.username, settings.userkey, digest, function(success, body)
+                local jumped = false
+                local cb_ok, err = pcall(function()
+                    if not (success and type(body) == "table" and body.percentage and body.progress) then
+                        return
+                    end
+                    if body.device == Device.model and body.device_id == kosync.device_id then
+                        return -- laatste stand komt van dit apparaat
+                    end
+                    if body.progress == kosync:getLastProgress() then
+                        return -- al gelijk
+                    end
+                    local server_newer
+                    if body.timestamp then
+                        server_newer = body.timestamp > (kosync.last_page_turn_timestamp or 0)
+                    else
+                        server_newer = body.percentage > kosync:getLastPercent()
+                    end
+                    if server_newer then
+                        logger.info("Lingering: nieuwere voortgang van", tostring(body.device), "ingesteld")
+                        kosync:syncToProgress(body.progress)
+                        jumped = true
+                    end
                 end)
+                if not cb_ok then
+                    logger.warn("Lingering: voortgang verwerken mislukt:", err)
+                end
+                if jumped then
+                    done(true)
+                elseif not pcall(push) then
+                    done(false)
+                end
+            end)
         end)
         if not ok then done(false) end
     end)
     if not started then done(false) end
 end
 
---- Licht aan/uit via DeviceListener:onToggleFrontlight (event ToggleFrontlight).
-function Compat.toggleFrontlight(ui)
-    return sendEvent("ToggleFrontlight", ui, "ToggleFrontlight")
+--[[--
+Geen wifi: automatisch ophalen stil overslaan. KOSync roept bij openen (onReaderReady) en
+ontwaken (_onResume) getProgress(true, false) aan; met ensure_networking zou dat wifi
+aanzetten. Zonder verbinding slaan we dat over; de sync-knop in het boek haalt het op.
+Vervangt getProgress alleen op deze kosync-instantie.
+]]
+function Compat.guardKosyncNetworking(ui)
+    return try("guardKosyncNetworking", function()
+        local kosync = assert(ui.kosync, "kosync niet geladen")
+        local getProgress = assert(kosync.getProgress, "KOSync:getProgress ontbreekt")
+        kosync.getProgress = function(this, ensure_networking, interactive)
+            if ensure_networking and not interactive and not Compat.isOnline() then
+                logger.info("Lingering: geen verbinding, voortgang ophalen overgeslagen")
+                return
+            end
+            return getProgress(this, ensure_networking, interactive)
+        end
+    end)
 end
 
 --- Staat het voorlicht aan? (BasePowerD:isFrontlightOn, frontend/device/generic/powerd.lua)

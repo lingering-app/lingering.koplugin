@@ -214,7 +214,8 @@ markeringen gaan standaard dus vóór bladeren.
 | `blockReaderMenu` | vervangt `onShowMenu`, `onTapShowMenu`, `onSwipeShowMenu` op de `ReaderMenu`-instantie (`ui.menu`) | Bovenmenu blijft bereikbaar via andere routes dan onze zones |
 | `closeBook` | `ReaderUI:onHome()`, anders `ReaderUI:onClose()` + `showFileManager()` | Tik in het midden doet niets |
 | `turnPage` | event `GotoViewRel` (afgehandeld door `ReaderRolling`/`ReaderPaging:onGotoViewRel`) | Tik links/rechts doet niets |
-| `syncNow` | `ui.kosync` (instantie): `settings`, `path`, `device_id`, `getDocumentDigest()`, `getMetadata()`, `getLastProgress()`, `getLastPercent()`; `KOSyncClient:new{custom_url, service_spec}` + `client:update_progress(..., callback)` (async via `AsyncHTTP`-coroutine als de Turbo-looper er is); `NetworkMgr:runWhenOnline` | Taak meldt mislukt; melding "Synchroniseren mislukt" |
+| `syncNow` (sync-knop in het boek) | tweezijdig: `KOSyncClient:get_progress` → nieuwer dan `kosync.last_page_turn_timestamp` (zoals `KOSync:getProgress`) → `kosync:syncToProgress`, anders `update_progress`; `kosync.pull_timestamp` gezet om de eigen pull van `_onNetworkConnected` over te slaan; wifi aan via `turnOnWifiThen`, daarna `disableWifi` als hij uit stond | Melding "Synchroniseren mislukt" |
+| `guardKosyncNetworking` | vervangt `getProgress` op de kosync-instantie: `ensure_networking` zonder verbinding en niet interactief → overslaan (bij openen via `onReaderReady`, bij ontwaken via `_onResume`) | Kosync zet zelf wifi aan bij openen/ontwaken |
 | `isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
 | `toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
 | Actiebalk (`actionbar.lua`) | geen haak: eigen `InputContainer` met `Button`s, getoond met `UIManager:show` | — |
@@ -271,6 +272,23 @@ Op de desktop (SDL) geven `isWifiOn`/`isConnected` altijd `true` en is
 (`frontend/ui/uimanager.lua`). `MultiInputDialog` is niet modaal. Onze schermvullende
 schermen (homescreen, instellingen, inlog-achtergrond) zijn daarom niet `modal`; anders
 verdwijnen dialogen van KOReader eronder.
+
+## Volgorde van plugins
+
+`PluginLoader:loadPlugins` sorteert op **pad**. Onze map `<datadir>/plugins/lingering.koplugin`
+(absoluut, begint met `/`) komt vóór de ingebouwde `plugins/…`. In `init` bestaan
+`ui.kosync`, `ui.gestures` enz. dus nog niet; `onReaderReady` van Lingering draait ook vóór
+die van kosync. Kosync plant zijn eerste `getProgress` met `UIManager:nextTick`.
+
+## Voortgang (fase 6)
+
+- Openen met verbinding: kosync haalt op (nieuwer → stil springen, met kosyncs melding
+  "Progress has been synchronized"; ouder → vragen).
+- Openen of ontwaken zonder verbinding: stil overgeslagen (`guardKosyncNetworking`).
+- Sluiten: kosync `_onCloseDocument` pusht als je online bent, anders `KOSyncQueue`.
+  De wachtrij gaat weg bij `NetworkConnected` in de lezer (sync-knop, slaapstand).
+- Slaapstand: kosync `_onSuspend` zet wifi aan, pusht en zet wifi weer uit.
+- Sync-knop: zie `syncNow`.
 
 ## Mijn boeken (fase 5)
 
