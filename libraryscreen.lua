@@ -95,7 +95,7 @@ function GridTile:init()
     else
         cover = CenterContainer:new{
             dimen = Geom:new{ w = cover_w, h = cover_h },
-            Widgets.icon({ icon_file = "folder.svg" }, math.floor(cover_w * 0.7)),
+            Widgets.icon({ icon_file = "folder.svg" }, math.min(cover_h, math.floor(cover_w * 0.7))),
         }
     end
 
@@ -119,12 +119,15 @@ function GridTile:init()
         table.insert(cover_area, badge)
     end
 
+    -- Alleen horizontaal centreren: omslagen staan bovenaan op één lijn, ook als een
+    -- titel twee regels heeft.
     self[1] = CenterContainer:new{
         dimen = Geom:new{ w = self.width, h = self.height },
+        ignore = "height",
         VerticalGroup:new{
             align = "center",
             cover_area,
-            VerticalSpan:new{ width = Size.padding.default },
+            VerticalSpan:new{ width = Size.padding.small },
             TextBoxWidget:new{
                 text = entry.title,
                 face = TITLE_FACE,
@@ -241,25 +244,38 @@ function LibraryScreen:render()
     -- Raster: minstens 3 kolommen; de omslag krimpt als het scherm laag is (2 rijen zichtbaar).
     -- Breedte zonder de verticale schuifbalk, anders ontstaat een horizontale schuifbalk.
     local grid_w = width - ScrollableContainer:getScrollbarWidth()
-    local columns = math.max(3, math.floor(grid_w / Screen:scaleBySize(120)))
-    local tile_w = math.floor(grid_w / columns)
-    local spacing = 3 * Size.padding.large
-    local cover_w = tile_w - 2 * spacing
-    local cover_h = math.floor(cover_w * 3 / 2)
-    local max_cover_h = math.floor(body_h / 2) - TITLE_HEIGHT - spacing - Size.padding.default
-    if cover_h > max_cover_h then
-        cover_h = max_cover_h
-        cover_w = math.floor(cover_h * 2 / 3)
+    local feed = self.library:cached(current.url)
+    local items = feed and feed.items
+    local has_books = false
+    for _, entry in ipairs(items or {}) do
+        if entry.kind == "book" then has_books = true break end
     end
-    local tile_h = cover_h + Size.padding.default + TITLE_HEIGHT + spacing
+
+    -- Boeken: raster van 4 met omslagen zo groot als past. Alleen collecties: raster van 2.
+    local columns = has_books and 4 or 2
+    local tile_w = math.floor(grid_w / columns)
+    local gap = Size.padding.default
+    local cover_w, cover_h
+    if has_books then
+        cover_w = tile_w - 2 * gap
+        cover_h = math.floor(cover_w * 3 / 2)
+        -- Eén tegel moet altijd in beeld passen.
+        local max_cover_h = body_h - TITLE_HEIGHT - 3 * gap
+        if cover_h > max_cover_h then
+            cover_h = max_cover_h
+            cover_w = math.floor(cover_h * 2 / 3)
+        end
+    else
+        cover_w = tile_w - 2 * gap
+        cover_h = Screen:scaleBySize(110)
+    end
+    local tile_h = cover_h + gap + TITLE_HEIGHT + 2 * gap
 
     -- Schuifpositie bewaren bij opnieuw opbouwen (omslagen binnen, na sync).
     if self.scroll and self.scroll_url == current.url then
         current.offset = self.scroll:getScrolledOffset()
     end
 
-    local feed = self.library:cached(current.url)
-    local items = feed and feed.items
     local body
     self.page_entries = items or {}
     self.scroll, self.cropping_widget = nil, nil
@@ -269,9 +285,9 @@ function LibraryScreen:render()
     elseif #items == 0 then
         body = self:message(_("Geen boeken."), width, body_h)
     else
-        local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = Size.padding.large } }
+        local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = gap } }
         local rows_info = {}
-        local y = Size.padding.large
+        local y = gap
         local row
         for i, entry in ipairs(items) do
             if (i - 1) % columns == 0 then
