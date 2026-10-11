@@ -33,7 +33,7 @@ end
 
 function TestRelease:test_alleen_pluginbestanden()
     for _, path in ipairs({ "_meta.lua", "main.lua", "config.lua", "app/sync_service.lua",
-                            "domain/release.lua", "koreader/kosync.lua", "ui/homescreen.lua", "icons/sync.svg" }) do
+                            "domain/release.lua", "koreader/kosync.lua", "ui/homescreen.lua", "icons/sync.svg", "LICENSE" }) do
         lu.assertTrue(Release.includes(path), path)
     end
     for _, path in ipairs({ "tests/run.lua", "tools/deploy.sh", "docs/koreader-notes.md", ".gitignore",

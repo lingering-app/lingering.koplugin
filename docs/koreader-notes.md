@@ -21,6 +21,7 @@ Lagen (afhankelijkheden alleen naar beneden; `tools/check.sh` controleert de reg
 |---|---|
 | `_meta.lua`, `main.lua` | plugin (moeten bovenin); `main.lua`: module-lader voor `lingering.<map>.<naam>`, bedraden, menu-item |
 | `config.lua` | vaste adressen |
+| `LICENSE` | AGPL-3.0 (zoals KOReader); gaat mee naar de Kobo. luaunit (alleen tests): BSD, `tests/vendor/LICENSE-luaunit.txt` |
 | `domain/sync_rules.lua` | "verder wint, nooit blind wegschrijven" |
 | `domain/catalog.lua` | OPDS-item → map/boek, beste download-link (EPUB eerst), bestandsnaam |
 | `domain/reading_time.lua` | gelezen/resterende tijd uit statistieken |
@@ -60,7 +61,7 @@ Instellingen → Update: wifi aan → tags van `config.update_repo` via
 `https://api.github.com/repos/<repo>/tags` → hoogste `vX.Y.Z` (`domain/release.lua`) →
 nieuwer dan `version` in `_meta.lua`? → vragen → zip van de tag
 (`https://codeload.github.com/<repo>/zip/refs/tags/<tag>`) naar `<pluginmap>.update.zip` →
-uitpakken naar `<pluginmap>.new` (alleen `_meta.lua`, `main.lua`, `config.lua`, `app/`,
+uitpakken naar `<pluginmap>.new` (alleen `_meta.lua`, `main.lua`, `config.lua`, `LICENSE`, `app/`,
 `domain/`, `koreader/`, `ui/`, `icons/`; libarchive weigert `..`-paden) → alle Lua-bestanden
 `loadfile` → `<pluginmap>` → `<pluginmap>.bak`, `.new` → `<pluginmap>` → zip weg →
 `UIManager:askForRestart`. Bij de eerste start van de nieuwe versie ruimt `main.lua` `.bak`,

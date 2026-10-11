@@ -44,7 +44,7 @@ function Release.isNewer(tag, installed)
     return Release.compare(tag, installed) > 0
 end
 
-local TOP_FILES = { ["_meta.lua"] = true, ["main.lua"] = true, ["config.lua"] = true }
+local TOP_FILES = { ["_meta.lua"] = true, ["main.lua"] = true, ["config.lua"] = true, ["LICENSE"] = true }
 local DIRS = { "app/", "domain/", "koreader/", "ui/", "icons/" }
 
 function Release.includes(path)
