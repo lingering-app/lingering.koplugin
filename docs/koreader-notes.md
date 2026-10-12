@@ -331,8 +331,9 @@ Navigatie tussen de schermen:
 Bewuste keuzes in het leesscherm:
 - Onze tikzones gaan ook vóór `tap_link` en `readerhighlight_tap`: een tik doet altijd wat
   de zone zegt, ook op een link of markering.
-- Tik in de strook bovenaan opent de eigen actiebalk: alleen iconen (huis, inhoudsopgave,
-  sync, lamp, automatisch draaien), compact in het midden van een balk over de volle breedte.
+- Tik in de strook bovenaan opent de eigen actiebalk: dezelfde statusbalk als op het
+  homescreen (`ui/statusbar.lua`), met huis links en inhoudsopgave, sync en automatisch
+  draaien rechts vóór licht, wifi, batterij en tijd. Lijn eronder tegen de tekst van het boek.
   Alle iconen komen uit `icons/` (Material Symbols, één stijl), via `IconWidget{file=…}`; geen iconen
   uit KOReader's eigen set. Daarom ook een eigen titelbalk (`Widgets.header`): KOReader's
   `TitleBar`/`IconButton` kennen alleen iconnamen uit hun eigen mappen. Het sync-icoon draait

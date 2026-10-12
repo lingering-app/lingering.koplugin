@@ -15,17 +15,13 @@ local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan = require("ui/widget/horizontalspan")
 local ImageWidget = require("ui/widget/imagewidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
-local LeftContainer = require("ui/widget/container/leftcontainer")
-local OverlapGroup = require("ui/widget/overlapgroup")
 local ProgressWidget = require("ui/widget/progresswidget")
-local RightContainer = require("ui/widget/container/rightcontainer")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
 local TextWidget = require("ui/widget/textwidget")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
-local datetime = require("datetime")
 local logger = require("logger")
 local _ = require("gettext")
 local T = require("ffi/util").template
@@ -33,7 +29,6 @@ local Screen = Device.screen
 
 local Books = require("lingering.koreader.books")
 local ReadingTime = require("lingering.domain.reading_time")
-local DeviceAdapter = require("lingering.koreader.device")
 local Navigation = require("lingering.koreader.navigation")
 local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
@@ -204,103 +199,17 @@ function HomeScreen:init()
     }
 end
 
---[[--
-Statusregel: "Lingering" links; rechts lamp en wifi (aantikbaar), tijd, batterij-icoon en
-batterij in procenten.
-De iconen blijven bestaan; refreshStatus werkt ze en de teksten ter plekke bij.
-]]
+-- Statusregel bovenaan (ui/statusbar.lua): "Lingering", licht, wifi, tijd, batterij;
+-- werkt zichzelf bij.
 function HomeScreen:buildStatus(width)
-    local padding = Size.padding.large * 2
-    local face = Widgets.topBarFace()
-    local height = Screen:scaleBySize(Widgets.TOP_BAR.height)
-    local inner = Geom:new{ w = width - 2 * padding, h = height }
-    local Item = require("lingering.ui.actionbar").Item
-
-    -- Ruim tikvlak per icoon (de hele hoogte van de statusregel).
-    local function item(action)
-        return Item:new{
-            action = action,
-            width = height,
-            height = height,
-            icon_size = Screen:scaleBySize(Widgets.TOP_BAR.icon_size),
-            show_parent = self,
-        }
-    end
-
-    self.light_item = item{
-        name = "licht",
-        switch = true,
-        icon_on = "light_mode.svg",
-        icon_off = "dark_mode.svg",
-        enabled = Device:hasFrontlight(),
-        state = DeviceAdapter.isFrontlightOn(),
-        on_toggle = function(on)
-            logger.info("Lingering: homescreen, licht", on and "aan" or "uit")
-            DeviceAdapter.toggleFrontlight(function()
-                self.light_item:setState(DeviceAdapter.isFrontlightOn())
-            end)
-        end,
+    self.status_bar = require("lingering.ui.statusbar"):new{
+        width = width,
+        show_parent = self,
+        title = "Lingering",
     }
-    self.wifi_item = item{
-        name = "wifi",
-        switch = true,
-        enabled = Device:hasWifiToggle(),
-        state = Network.isWifiOn(),
-        -- Uit: doorgestreept. Aan zonder verbinding: grijs. Verbonden: zwart.
-        icon_spec = function(on)
-            if not on then
-                return { icon_file = "wifi_off.svg" }
-            end
-            return { icon_file = "wifi.svg", dim = not Network.isConnected() }
-        end,
-        on_toggle = function(on)
-            logger.info("Lingering: homescreen, wifi", on and "aan" or "uit")
-            Network.setWifi(on, function()
-                self.wifi_item:setState(Network.isWifiOn())
-            end)
-        end,
-    }
-
-    self.status_right = HorizontalGroup:new{
-        align = "center",
-        self.light_item,
-        self.wifi_item,
-        HorizontalSpan:new{ width = Size.padding.large },
-        TextWidget:new{ text = "", face = face },      -- tijd, zie updateStatusTexts
-        HorizontalSpan:new{ width = padding },
-        HorizontalSpan:new{ width = 0 },               -- batterij-icoon
-        HorizontalSpan:new{ width = 0 },               -- ruimte tussen icoon en getal
-        TextWidget:new{ text = "", face = face },      -- batterij in procenten
-    }
-    self.status_face = face
-    self:updateStatusTexts()
-
-    return FrameContainer:new{
-        padding = 0,
-        padding_left = padding,
-        padding_right = padding,
-        bordersize = 0,
-        OverlapGroup:new{
-            dimen = inner,
-            LeftContainer:new{ dimen = inner, TextWidget:new{ text = "Lingering", face = face, bold = true } },
-            RightContainer:new{ dimen = inner, self.status_right },
-        },
-    }
+    return self.status_bar
 end
 
-function HomeScreen:updateStatusTexts()
-    local time = datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
-    local battery = DeviceAdapter.batteryPercent()
-    self.status_right[4] = TextWidget:new{ text = time, face = self.status_face }
-    if battery then
-        self.status_right[6] = Widgets.battery(battery, DeviceAdapter.isCharging())
-        self.status_right[7] = HorizontalSpan:new{ width = Size.padding.default }
-    end
-    self.status_right[8] = TextWidget:new{ text = battery and T(_("%1%"), battery) or "", face = self.status_face }
-    self.status_right:resetLayout()
-end
-
--- Rij van hooguit 4 boeken die je aan het lezen bent, in het raster van Mijn boeken.
 function HomeScreen:buildReadingRow(width, height)
     local padding = Size.padding.large * 2
     local gap = Size.padding.default
@@ -587,24 +496,6 @@ function HomeScreen:onHoldReleaseStatus()
     return true
 end
 
--- Statusregel bijwerken bij ontwaken en netwerkwissels; verder geen verversingen.
-function HomeScreen:refreshStatus()
-    self:updateStatusTexts()
-    self.wifi_item:setState(Network.isWifiOn())
-    self.light_item:setState(DeviceAdapter.isFrontlightOn())
-    UIManager:setDirty(self, "ui", self.status_dimen)
-end
--- Licht veranderd (hier, in Instellingen of in KOReaders helderheidsscherm).
-function HomeScreen:onFrontlightStateChanged()
-    if self.light_item then self.light_item:setState(DeviceAdapter.isFrontlightOn()) end
-end
-
-HomeScreen.onResume = HomeScreen.refreshStatus
-HomeScreen.onNetworkConnected = HomeScreen.refreshStatus
-HomeScreen.onNetworkDisconnected = HomeScreen.refreshStatus
--- Lader in of uit (Device:_beforeCharging / _afterNotCharging).
-HomeScreen.onCharging = HomeScreen.refreshStatus
-HomeScreen.onNotCharging = HomeScreen.refreshStatus
 
 -- Een andere route opent een boek (bijv. de OPDS-browser): dan gaan wij ook weg.
 function HomeScreen:onShowingReader()

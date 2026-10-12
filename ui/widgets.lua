@@ -170,7 +170,8 @@ opts: width, title, on_back, right (een ActionBar.Item of nil), show_parent.
 Geeft de balk; balk:setTitle(tekst) zet een andere titel, balk.height is de hoogte.
 ]]
 -- Maten van de bovenbalk, gelijk op alle schermen (homescreen en titelbalken).
-Widgets.TOP_BAR = { height = 60, font_size = 16, icon_size = 30 }
+-- item_width: tikvlak per icoon (smaller dan de hoogte, zodat er in het boek extra knoppen passen).
+Widgets.TOP_BAR = { height = 60, font_size = 16, icon_size = 30, item_width = 48 }
 function Widgets.topBarFace()
     return Font:getFace("cfont", Widgets.TOP_BAR.font_size)
 end

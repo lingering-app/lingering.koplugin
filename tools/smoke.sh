@@ -1,6 +1,7 @@
 #!/bin/sh
 # Rooktest: start KOReader (Flatpak) twee keer met tests/smoke.lua en controleer de log.
 # Gebruik: tools/smoke.sh [boek.epub]   (standaard het eerste boek in ~/Lingering)
+# Ander schermformaat: SMOKE_W=1072 SMOKE_H=1448 SMOKE_DPI=300 tools/smoke.sh (Kobo Clara)
 dir="$(cd "$(dirname "$0")/.." && pwd)"
 book="${1:-$(ls "$HOME"/Lingering/*.epub 2>/dev/null | head -1)}"
 data="$HOME/.var/app/rocks.koreader.KOReader/config/koreader"
@@ -12,7 +13,8 @@ run() {
     name=$1; seconds=$2; shift 2
     # Vast schermformaat (Kobo-achtig portrait), los van hoe groot het venster laatst was.
     timeout "$seconds" flatpak run --env=LINGERING_TEST="$name" --env=LINGERING_SHOTS="$shots" \
-        --env=EMULATE_READER_W=758 --env=EMULATE_READER_H=1024 \
+        --env=EMULATE_READER_W="${SMOKE_W:-758}" --env=EMULATE_READER_H="${SMOKE_H:-1024}" \
+        ${SMOKE_DPI:+--env=EMULATE_READER_DPI="$SMOKE_DPI"} \
         rocks.koreader.KOReader "$@" > "$logs/$name.log" 2>&1
     echo "== $name"
     grep -h "Lingering: SMOKE" "$logs/$name.log"

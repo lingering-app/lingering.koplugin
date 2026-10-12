@@ -1,6 +1,7 @@
 --[[--
-Actiebalk bovenaan het leesscherm: alleen iconen, verdeeld over de breedte.
-Opent met een tik in de strook bovenaan, sluit met een tik erbuiten.
+Actiebalk bovenaan het leesscherm: de statusbalk van het homescreen (ui/statusbar.lua)
+met extra knoppen. Opent met een tik in de strook bovenaan, sluit met een tik erbuiten.
+Item (hieronder) is één icoon in de balk; ook gebruikt in andere balken.
 
 Soorten acties:
 - knop:        { icon | icon_file, callback = fn }                 (balk sluit)
@@ -14,7 +15,6 @@ local Device = require("device")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
-local HorizontalGroup = require("ui/widget/horizontalgroup")
 local IconWidget = require("ui/widget/iconwidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local LineWidget = require("ui/widget/linewidget")
@@ -188,45 +188,51 @@ function Item:onTapItem()
 end
 
 local ActionBar = InputContainer:extend{
-    actions = nil,
+    left = nil,     -- acties links in de statusbalk (bijv. huis)
+    extra = nil,    -- acties rechts vóór licht en wifi (bijv. inhoudsopgave, sync, draaien)
     modal = true,
     stop_events_propagation = true,
 }
 require("lingering.ui.widgets").guardPaint(ActionBar, "actiebalk")
 require("lingering.ui.widgets").guardEvents(ActionBar, "actiebalk")
 
-function ActionBar:init()
-    local screen_w = Screen:getWidth()
-    -- Ruim tikvlak per icoon.
-    local item_size = Screen:scaleBySize(72)
-
-    self.items = {}
-    local row = HorizontalGroup:new{}
-    for _, action in ipairs(self.actions) do
-        local item = Item:new{
-            action = action,
-            width = item_size,
-            height = item_size,
-            show_parent = self,
-            on_tap = function()
+-- Knoppen sluiten eerst de balk; schakelaars en taken laten hem open.
+function ActionBar:wrap(actions)
+    local wrapped = {}
+    for _, action in ipairs(actions or {}) do
+        if action.switch or action.task then
+            table.insert(wrapped, action)
+        else
+            local copy = {}
+            for k, v in pairs(action) do copy[k] = v end
+            copy.callback = function()
                 self:dismiss()
                 safeCall("knop", action.callback)
-            end,
-        }
-        table.insert(self.items, item)
-        table.insert(row, item)
+            end
+            table.insert(wrapped, copy)
+        end
     end
+    return wrapped
+end
 
-    -- Balk over de volle breedte, iconen compact in het midden, lijn eronder.
+function ActionBar:init()
+    local screen_w = Screen:getWidth()
+    -- Dezelfde statusbalk als op het homescreen (ui/statusbar.lua), met extra knoppen.
+    self.status_bar = require("lingering.ui.statusbar"):new{
+        width = screen_w,
+        show_parent = self,
+        left = self:wrap(self.left),
+        extra = self:wrap(self.extra),
+    }
+    self.items = self.status_bar.items
+
+    -- Witte balk over de volle breedte; een lijn eronder scheidt hem van de tekst van het boek.
     self[1] = VerticalGroup:new{
         FrameContainer:new{
             padding = 0,
             bordersize = 0,
             background = Blitbuffer.COLOR_WHITE,
-            CenterContainer:new{
-                dimen = Geom:new{ w = screen_w, h = item_size },
-                row,
-            },
+            self.status_bar,
         },
         LineWidget:new{
             dimen = Geom:new{ w = screen_w, h = Size.line.thick },
@@ -245,15 +251,6 @@ function ActionBar:init()
             },
         },
     }
-end
-
--- Schakelaars met state_func volgen de echte stand (bijv. licht via FrontlightStateChanged).
-function ActionBar:onFrontlightStateChanged()
-    for _, item in ipairs(self.items or {}) do
-        if item.action.state_func then
-            item:setState(item.action.state_func())
-        end
-    end
 end
 
 function ActionBar:onTapOutside(_, ges)

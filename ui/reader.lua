@@ -19,7 +19,7 @@ local Reader = {}
 local function showActionBar(ui)
     local ActionBar = require("lingering.ui.actionbar")
     ActionBar:new{
-        actions = {
+        left = {
             {
                 name = "homescreen",
                 icon_file = "home.svg",
@@ -28,6 +28,9 @@ local function showActionBar(ui)
                     Navigation.closeBook(ui)
                 end,
             },
+        },
+        -- Rechts vóór licht en wifi van de statusbalk.
+        extra = {
             {
                 name = "inhoudsopgave",
                 icon_file = "toc.svg",
@@ -52,19 +55,6 @@ local function showActionBar(ui)
                             timeout = 3,
                         })
                     end
-                end,
-            },
-            {
-                name = "licht",
-                switch = true,
-                icon_on = "light_mode.svg",
-                icon_off = "dark_mode.svg",
-                enabled = Device:hasFrontlight(),
-                state = DeviceAdapter.isFrontlightOn(),
-                state_func = DeviceAdapter.isFrontlightOn,
-                on_toggle = function(on)
-                    logger.info("Lingering: actiebalk, licht", on and "aan" or "uit")
-                    DeviceAdapter.toggleFrontlight()
                 end,
             },
             {
