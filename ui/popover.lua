@@ -60,13 +60,15 @@ function Popover:init()
         background = Style.background,
         group,
     }
-    -- Onder het icoon, horizontaal gecentreerd erop, maar binnen het scherm.
+    -- Onder het icoon met wat ruimte (vrij van de lijn onder de actiebalk in het boek),
+    -- horizontaal gecentreerd erop, maar binnen het scherm.
     local size = self[1]:getSize()
     local margin = Size.padding.default
+    local gap = Size.padding.large + Style.line.size
     local anchor = self.anchor or Geom:new{ x = 0, y = 0, w = 0, h = 0 }
     local x = anchor.x + math.floor((anchor.w - size.w) / 2)
     x = math.max(margin, math.min(x, Screen:getWidth() - size.w - margin))
-    self.dimen = Geom:new{ x = x, y = anchor.y + anchor.h, w = size.w, h = size.h }
+    self.dimen = Geom:new{ x = x, y = anchor.y + anchor.h + gap, w = size.w, h = size.h }
 
     self.ges_events = {
         TapClose = {

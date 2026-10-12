@@ -328,6 +328,16 @@ function Smoke.reader(ui, show_action_bar)
         end },
         { name = "actiebalk getekend", fn = function()
             shot("5-actionbar")
+            -- Batterij-kader in het boek: boven de actiebalk, vrij van de lijn eronder.
+            local bar = UIManager:getTopmostVisibleWidget().status_bar
+            assert(bar, "geen statusbalk in de actiebalk")
+            bar.right[bar.slot + 1]:onTapBattery()
+            state.popover = UIManager:getTopmostVisibleWidget()
+            assert(state.popover and state.popover.lines, "geen batterij-kader boven de actiebalk")
+        end },
+        { name = "batterij-kader in het boek getekend", fn = function()
+            shot("5b-actionbar-battery")
+            state.popover:onTapClose()
             UIManager:close(UIManager:getTopmostVisibleWidget())
         end },
         { name = "inhoudsopgave", fn = function()
