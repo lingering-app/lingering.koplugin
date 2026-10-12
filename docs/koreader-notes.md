@@ -341,7 +341,7 @@ Bewuste keuzes in het leesscherm:
   draaien rechts vóór licht, wifi, batterij en tijd.
 - Tik op het batterij-icoon (homescreen en boek): klein kader eronder met het percentage
   en "Laadt op" (`ui/popover.lua`, rand `Style.line`, modal zodat het boven de actiebalk komt;
-  sluit bij een tik of na 4 s). Lijn eronder tegen de tekst van het boek.
+  sluit bij een tik of na 4 s). Grijze lijn eronder (`Style.line`) tegen de tekst van het boek.
   Alle iconen komen uit `icons/` (Material Symbols, één stijl), via `IconWidget{file=…}`; geen iconen
   uit KOReader's eigen set. Daarom ook een eigen titelbalk (`Widgets.header`): KOReader's
   `TitleBar`/`IconButton` kennen alleen iconnamen uit hun eigen mappen. Het sync-icoon draait

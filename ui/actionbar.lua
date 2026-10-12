@@ -16,7 +16,6 @@ local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
 local IconWidget = require("ui/widget/iconwidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
-local LineWidget = require("ui/widget/linewidget")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local logger = require("logger")
@@ -225,7 +224,7 @@ function ActionBar:init()
     }
     self.items = self.status_bar.items
 
-    -- Witte balk over de volle breedte; een lijn eronder scheidt hem van de tekst van het boek.
+    -- Witte balk over de volle breedte; een lijn (Style.line) scheidt hem van de tekst van het boek.
     self[1] = VerticalGroup:new{
         FrameContainer:new{
             padding = 0,
@@ -233,10 +232,7 @@ function ActionBar:init()
             background = Style.background,
             self.status_bar,
         },
-        LineWidget:new{
-            dimen = Geom:new{ w = screen_w, h = Style.overlay_line.size },
-            background = Style.overlay_line.color,
-        },
+        require("lingering.ui.widgets").line(screen_w),
     }
     local size = self[1]:getSize()
     self.dimen = Geom:new{ x = 0, y = 0, w = size.w, h = size.h }

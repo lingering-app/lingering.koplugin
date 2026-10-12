@@ -13,10 +13,9 @@ local Style = {
     -- Bijzaken: resterende tijd, versie, uitgeschakelde rijen.
     text_secondary = Blitbuffer.COLOR_DARK_GRAY,
 
-    -- Lijnen tussen rijen, boven de navigatiebalk en de rand van kaders (popover).
+    -- Alle lijnen: tussen rijen, boven de navigatiebalk, onder de actiebalk in het boek,
+    -- en de rand van kaders (popover).
     line = { size = Size.line.medium, color = Blitbuffer.COLOR_DARK_GRAY },
-    -- Lijn onder de actiebalk in het boek: sterker, want die ligt over de tekst van het boek.
-    overlay_line = { size = Size.line.thick, color = Blitbuffer.COLOR_BLACK },
     -- Rand om omslagen in een stapel en om een omslag zonder afbeelding.
     cover_border = { size = Size.border.thin, color = Blitbuffer.COLOR_DARK_GRAY },
     radius = Size.radius.window,
