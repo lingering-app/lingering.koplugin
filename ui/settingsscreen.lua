@@ -108,7 +108,8 @@ function SettingsScreen:init()
     }
 
     local nav = Widgets.mainNav(width, self.nav, "settings")
-    local group = VerticalGroup:new{ align = "left", title_bar }
+    -- Lijn boven de eerste rij, zodat elke rij tussen twee lijnen staat.
+    local group = VerticalGroup:new{ align = "left", title_bar, Widgets.line(width) }
     for _, row in ipairs(rows) do
         table.insert(group, row)
         table.insert(group, Widgets.line(width))
