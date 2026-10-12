@@ -28,8 +28,6 @@ local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local datetime = require("datetime")
 local logger = require("logger")
-local _ = require("gettext")
-local T = require("ffi/util").template
 local Screen = Device.screen
 
 local DeviceAdapter = require("lingering.koreader.device")
@@ -114,8 +112,6 @@ function StatusBar:init()
     self.slot = #self.right
     table.insert(self.right, HorizontalSpan:new{ width = Size.padding.large })
     table.insert(self.right, HorizontalSpan:new{ width = 0 })                    -- batterij-icoon
-    table.insert(self.right, HorizontalSpan:new{ width = 0 })                    -- ruimte
-    table.insert(self.right, TextWidget:new{ text = "", face = self.face })     -- procenten
     table.insert(self.right, HorizontalSpan:new{ width = padding })
     table.insert(self.right, TextWidget:new{ text = "", face = self.face })     -- tijd, helemaal rechts
     self:updateTexts()
@@ -139,12 +135,11 @@ function StatusBar:updateTexts()
     local s = self.slot
     local time = datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
     local battery = DeviceAdapter.batteryPercent()
+    -- Alleen het icoon (9 standen, zie Widgets.battery), geen percentage.
     if battery then
         self.right[s + 2] = Widgets.battery(battery, DeviceAdapter.isCharging())
-        self.right[s + 3] = HorizontalSpan:new{ width = Size.padding.default }
     end
-    self.right[s + 4] = TextWidget:new{ text = battery and T(_("%1%"), battery) or "", face = self.face }
-    self.right[s + 6] = TextWidget:new{ text = time, face = self.face }
+    self.right[s + 4] = TextWidget:new{ text = time, face = self.face }
     self.right:resetLayout()
 end
 
