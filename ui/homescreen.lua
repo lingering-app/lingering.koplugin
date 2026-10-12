@@ -50,11 +50,11 @@ local function formatDuration(secs)
     return T(_("%1 min"), minutes)
 end
 
--- Afgerond op hele uren ("7 u"); onder het half uur in minuten ("20 min").
+-- Afgerond op hele uren ("7 uur"); onder het half uur in minuten ("20 min").
 local function formatHours(secs)
     local hours = math.floor((secs or 0) / 3600 + 0.5)
     if hours > 0 then
-        return T(_("%1 u"), hours)
+        return T(_("%1 uur"), hours)
     end
     return formatDuration(secs)
 end
