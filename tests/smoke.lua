@@ -174,6 +174,16 @@ function Smoke.filemanager(plugin)
         { name = "instellingen getekend", wait = 1, fn = function()
             shot("4-settings")
         end },
+        { name = "taal", fn = function()
+            -- Alleen tonen: echt wisselen zou de taal van de emulator blijvend veranderen.
+            state.settings.on_language()
+            state.lang = UIManager:getTopmostVisibleWidget()
+            assert(state.lang and state.lang.rows and #state.lang.rows == 2, "taalscherm niet geopend")
+        end },
+        { name = "taal getekend", fn = function()
+            shot("4f-language")
+            state.lang:close()
+        end },
         { name = "woordenboek", fn = function()
             state.settings.on_dictionary()
             state.dict = UIManager:getTopmostVisibleWidget()
@@ -182,7 +192,7 @@ function Smoke.filemanager(plugin)
         { name = "woordenboek getekend", fn = function()
             shot("4d-dictionary")
             -- Nederlands kiezen; staat het er nog niet op, dan vraagt KOReader bevestiging.
-            state.dict:choose(require("lingering.config").dictionaries[1])
+            state.dict.items[1].choose(state.dict)
         end },
         { name = "woordenboek: bevestigen", wait = 4, fn = function()
             local top = UIManager:getTopmostVisibleWidget()

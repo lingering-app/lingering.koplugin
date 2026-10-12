@@ -1,5 +1,5 @@
 --[[--
-Instellingen: wifi (netwerk kiezen, aan/uit), licht (helderheid, aan/uit), woordenboek, account
+Instellingen: wifi (netwerk kiezen, aan/uit), licht (helderheid, aan/uit), taal, woordenboek, account
 (gebruikersnaam en wachtwoord), "Geavanceerd" (het noodluik naar het volledige
 KOReader-menu) en Over Lingering; onderaan de navigatiebalk.
 ]]
@@ -52,7 +52,7 @@ function SettingsScreen:init()
         text = _("Wifi"),
         icon = { icon_file = "wifi.svg" },
         right = toggleIcon(wifi_on),
-        enabled = Device:hasWifiToggle(),
+        enabled = DeviceAdapter.hasWifiToggle(),
         -- Rij: netwerk kiezen (KOReaders netwerkscherm); schakelaar rechts: wifi aan/uit.
         callback = function()
             logger.info("Lingering: instellingen, wifi-netwerken")
@@ -66,7 +66,7 @@ function SettingsScreen:init()
         text = _("Licht"),
         icon = { icon_file = "light_mode.svg" },
         right = toggleIcon(DeviceAdapter.isFrontlightOn()),
-        enabled = Device:hasFrontlight(),
+        enabled = DeviceAdapter.hasFrontlight(),
         -- Rij: helderheid (KOReaders scherm); schakelaar rechts: licht aan/uit.
         callback = function()
             logger.info("Lingering: instellingen, helderheid")
@@ -81,6 +81,13 @@ function SettingsScreen:init()
     local rows = {
         self.wifi_row,
         self.light_row,
+        Widgets.Row:new{
+            width = width,
+            text = _("Taal"),
+            icon = { icon_file = "language.svg" },
+            right = { icon_file = "chevron_right.svg" },
+            callback = function() self.on_language() end,
+        },
         Widgets.Row:new{
             width = width,
             text = _("Woordenboek"),

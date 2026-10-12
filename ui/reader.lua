@@ -2,7 +2,6 @@
 Leesscherm: tikzones (terug, sluiten, verder), bovenmenu dicht.
 Wordt aangeroepen vanuit main.lua als de plugin in een ReaderUI draait.
 ]]
-local Device = require("device")
 local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
 local logger = require("logger")
@@ -74,7 +73,7 @@ local function showActionBar(ui)
 end
 
 function Reader.install(ui)
-    if not Device:isTouchDevice() then
+    if not DeviceAdapter.isTouchDevice() then
         logger.info("Lingering: geen touchscreen, tikzones overgeslagen")
         return
     end

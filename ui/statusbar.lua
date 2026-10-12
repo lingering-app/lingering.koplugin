@@ -29,7 +29,6 @@ local Size = require("ui/size")
 local TextWidget = require("ui/widget/textwidget")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
-local datetime = require("datetime")
 local logger = require("logger")
 local _ = require("lingering.l10n.gettext")
 local T = require("ffi/util").template
@@ -119,7 +118,7 @@ function StatusBar:init()
         switch = true,
         icon_on = "light_mode.svg",
         icon_off = "dark_mode.svg",
-        enabled = Device:hasFrontlight(),
+        enabled = DeviceAdapter.hasFrontlight(),
         state = DeviceAdapter.isFrontlightOn(),
         -- Tik: licht aan of uit, zoals op de Kobo zelf; gaat het aan, dan meteen het kader
         -- met de schuif voor de helderheid.
@@ -128,7 +127,7 @@ function StatusBar:init()
     self.wifi_item = item{
         name = "wifi",
         switch = true,
-        enabled = Device:hasWifiToggle(),
+        enabled = DeviceAdapter.hasWifiToggle(),
         state = Network.isWifiOn(),
         -- Uit: doorgestreept. Aan zonder verbinding: grijs. Verbonden: zwart.
         icon_spec = function(on)
@@ -205,7 +204,7 @@ end
 
 function StatusBar:updateTexts()
     local s = self.slot
-    local time = datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
+    local time = DeviceAdapter.timeText()
     local battery = DeviceAdapter.batteryPercent()
     -- Alleen het icoon (9 standen, zie Widgets.battery), geen percentage.
     if battery then

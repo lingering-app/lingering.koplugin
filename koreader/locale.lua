@@ -19,4 +19,23 @@ function M.language()
     return ok and lang or "C"
 end
 
+--- De ingestelde taal (G_reader_settings "language"), of nil als er niets is ingesteld.
+function M.setting()
+    local ok, lang = try("languageSetting", function()
+        return G_reader_settings:readSetting("language")
+    end)
+    return ok and lang or nil
+end
+
+--[[--
+Taal van KOReader wijzigen, zoals KOReaders taalmenu (ui/language.lua, Language:changeLanguage):
+bewaart G_reader_settings "language" en vraagt om KOReader te herstarten. Na de herstart
+volgen KOReader en Lingering (l10n/) die taal.
+]]
+function M.change(lang)
+    return try("changeLanguage", function()
+        require("ui/language"):changeLanguage(lang)
+    end)
+end
+
 return M

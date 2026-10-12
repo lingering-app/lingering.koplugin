@@ -1,5 +1,5 @@
 --[[--
-Apparaat: voorlicht, helderheid, batterij.
+Apparaat: voorlicht, helderheid, batterij, mogelijkheden (touch, wifi, g-sensor), klok.
 Onderdeel van de anti-corruption layer (koreader/): het enige dat KOReader-internals kent.
 Elke haak loopt via try(); zie docs/koreader-notes.md.
 ]]
@@ -26,6 +26,32 @@ function M.rotateWithinOrientation(mode)
         UIManager:onRotation()
     end)
     return true
+end
+
+--- Heeft het apparaat voorlicht? (Device:hasFrontlight)
+function M.hasFrontlight()
+    local ok, has = try("hasFrontlight", function() return require("device"):hasFrontlight() end)
+    return ok and has or false
+end
+
+--- Kan KOReader wifi zelf aan- en uitzetten? (Device:hasWifiToggle)
+function M.hasWifiToggle()
+    local ok, has = try("hasWifiToggle", function() return require("device"):hasWifiToggle() end)
+    return ok and has or false
+end
+
+--- Heeft het apparaat een touchscreen? (Device:isTouchDevice)
+function M.isTouchDevice()
+    local ok, is = try("isTouchDevice", function() return require("device"):isTouchDevice() end)
+    return ok and is or false
+end
+
+--- Tijd als tekst, met KOReaders eigen klokinstelling (datetime.secondsToHour, "twelve_hour_clock").
+function M.timeText()
+    local ok, text = try("timeText", function()
+        return require("datetime").secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
+    end)
+    return ok and text or os.date("%H:%M")
 end
 
 --- Heeft het apparaat een g-sensor (automatisch draaien)?

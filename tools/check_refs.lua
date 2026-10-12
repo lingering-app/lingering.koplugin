@@ -1,6 +1,8 @@
 -- Controleert, zonder KOReader te laden:
 -- 1. elke aanroep X.f( / X:f( op een module uit require("lingering.…") bestaat in dat bestand;
--- 2. domain/ laadt niets buiten domain/ (business rules los van KOReader).
+-- 2. domain/ laadt niets buiten domain/ (business rules los van KOReader);
+-- 3. ui/, app/ en main.lua gebruiken geen KOReader-internals (G_reader_settings, NetworkMgr,
+--    Device:has…): dat gaat via koreader/, de anti-corruption layer.
 -- Gebruik: luajit tools/check_refs.lua <pluginmap> <bestand>...
 local root = arg[1]
 local bad = 0
@@ -61,6 +63,19 @@ for i = 2, #arg do
         for req in src:gmatch("require%(\"([^\"]+)\"%)") do
             if not (req:match("^lingering%.") or allowed[req]) then
                 print("FOUT " .. rel .. ": app/ mag geen \"" .. req .. "\" laden (alleen via koreader/)")
+                bad = bad + 1
+            end
+        end
+    end
+    if rel:match("^ui/") or rel:match("^app/") or rel == "main.lua" then
+        -- Schermen en use cases praten niet rechtstreeks met KOReader-internals: alles via
+        -- koreader/ (de anti-corruption layer). Device.screen (schermmaten) mag wel.
+        local code = src:gsub("%-%-%[%[.-%]%]", ""):gsub("%-%-[^\n]*", "")
+        for _, pattern in ipairs({ "G_reader_settings", "G_defaults", "NetworkMgr",
+                                   "getPowerDevice", "Device:has", "Device:is", "Device:get",
+                                   "Device:show", "Device:toggle" }) do
+            if code:find(pattern, 1, true) then
+                print("FOUT " .. rel .. ": " .. pattern .. " rechtstreeks gebruikt (alleen via koreader/)")
                 bad = bad + 1
             end
         end

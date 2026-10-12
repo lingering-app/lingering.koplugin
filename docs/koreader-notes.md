@@ -17,6 +17,10 @@ Lagen (afhankelijkheden alleen naar beneden; `tools/check.sh` controleert de reg
 | `koreader/` | **anti-corruption layer**: het enige dat KOReader-internals kent; geeft gewone data terug | alles van KOReader, `domain/` |
 | `domain/` | business rules, pure Lua | alleen `domain/` |
 
+`tools/check_refs.lua` dwingt dit af: `domain/` laadt alleen `domain/`; `app/` alleen
+algemene bibliotheken; `ui/`, `app/` en `main.lua` gebruiken geen `G_reader_settings`,
+`NetworkMgr`, `getPowerDevice` of `Device:has…/is…/get…` (wel `Device.screen` voor maten).
+
 | Bestand | Inhoud |
 |---|---|
 | `_meta.lua`, `main.lua` | plugin (moeten bovenin); `main.lua`: module-lader voor `lingering.<map>.<naam>`, bedraden, menu-item |
@@ -291,6 +295,8 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/kosync.ensureBinary` | `kosync.settings.checksum_method = 0` (binary) | Digest op bestandsnaam |
 | `koreader/device.isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
 | `koreader/device.toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
+| `koreader/device.hasFrontlight` / `hasWifiToggle` / `isTouchDevice` / `timeText` | `Device:hasFrontlight/hasWifiToggle/isTouchDevice`, `datetime.secondsToHour` met `twelve_hour_clock` | Schakelaars grijs; tijd als `%H:%M` |
+| `koreader/locale.language` / `setting` / `change` | `GetText.current_lang`, `G_reader_settings` "language", `Language:changeLanguage` (bewaart en vraagt om herstart) | Lingering Engels; Taal-scherm doet niets |
 | `koreader/dictionaries.entry` / `isInstalled` / `isEnabled` / `download` / `choose` | KOReaders lijst `ui/data/dictionaries.lua` (op naam uit `config.dictionaries`), `fm.dictionary:downloadDictionary` (in `Trapper:wrap`; bevestiging met grootte, uitpakken in `<data_dir>/<veilige naam>`), aan/uit via `G_reader_settings` `dicts_disabled` (sleutel = .ifo-pad), zoals `ReaderDictionary:showDictionariesMenu` | Scherm Woordenboek toont alles als "downloaden"; kiezen doet niets |
 | `koreader/device.brightnessRange` / `brightness` / `setBrightness` | `BasePowerD.fl_min/fl_max`, `frontlightIntensity`, `setIntensity` / `turnOffFrontlight`, `updateResumeFrontlightState` (zoals `FrontLightWidget:setFrontLightIntensity`); KOReader bewaart de stand zelf | Schuif doet niets |
 | `koreader/books.readingBooks` | `ReadHistory.hist`, `BookList.getDocSettings` (`percent_finished`, `summary.status` zoals `BookList.getBookStatus`), `FileManagerBookInfo:getDocProps/getCoverImage`. Aan het lezen = status `reading` (niet on hold/uit), hooguit 4, hetzelfde boek in meer bestanden één keer (zelfde `partial_md5_checksum` of titel+auteur; recentste wint); niets aan het lezen → het laatst geopende boek. Homescreen: 1 boek = grote kaart, 2–4 = rij in het raster van Mijn boeken | Homescreen zonder boek ("Nog geen boek") |
@@ -331,6 +337,8 @@ Taal:
   Nederlands; anders Engels uit `l10n/en.lua`. De taal komt uit `GetText.current_lang`
   (`koreader/locale.lua`); zonder ingestelde taal is KOReader Engels ("C").
 - `tools/check_l10n.lua` (in `check.sh`) faalt als een `_("…")` geen Engelse vertaling heeft.
+- Instellingen → Taal (Nederlands / English) zet KOReaders taal, zoals KOReaders taalmenu;
+  na de herstart volgen KOReader en Lingering die taal.
 - `_meta.lua` wordt vóór main.lua gelezen (zonder onze loader) en kiest de taal zelf.
 - Mapnamen uit de OPDS-catalogus (`config.collections`) worden niet vertaald: daaraan
   worden de mappen herkend.
