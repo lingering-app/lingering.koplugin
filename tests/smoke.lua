@@ -74,6 +74,19 @@ function Smoke.filemanager(plugin)
             shot("1d-home-reading-grid")
             state.grid_home:close()
         end },
+        { name = "batterij-kader", fn = function()
+            local bar = plugin.home.status_bar
+            local button = bar.right[bar.slot + 1]
+            assert(button and button.onTapBattery, "geen batterijknop")
+            button:onTapBattery()
+            state.popover = UIManager:getTopmostVisibleWidget()
+            assert(state.popover and state.popover.lines, "geen kader")
+        end },
+        { name = "batterij-kader getekend", fn = function()
+            shot("1e-battery-popover")
+            state.popover:onTapClose()
+            assert(UIManager:getTopmostVisibleWidget() == plugin.home, "kader niet gesloten")
+        end },
         { name = "draaien binnen portrait", fn = function()
             local Event = require("ui/event")
             UIManager:sendEvent(Event:new("SetRotationMode", Screen.DEVICE_ROTATED_UPSIDE_DOWN))

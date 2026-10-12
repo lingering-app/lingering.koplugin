@@ -333,7 +333,10 @@ Bewuste keuzes in het leesscherm:
   de zone zegt, ook op een link of markering.
 - Tik in de strook bovenaan opent de eigen actiebalk: dezelfde statusbalk als op het
   homescreen (`ui/statusbar.lua`), met huis en inhoudsopgave links, en sync en automatisch
-  draaien rechts vóór licht, wifi, batterij en tijd. Lijn eronder tegen de tekst van het boek.
+  draaien rechts vóór licht, wifi, batterij en tijd.
+- Tik op het batterij-icoon (homescreen en boek): klein kader eronder met het percentage
+  en "Laadt op" (`ui/popover.lua`, modal zodat het boven de actiebalk komt; sluit bij een
+  tik of na 4 s). Lijn eronder tegen de tekst van het boek.
   Alle iconen komen uit `icons/` (Material Symbols, één stijl), via `IconWidget{file=…}`; geen iconen
   uit KOReader's eigen set. Daarom ook een eigen titelbalk (`Widgets.header`): KOReader's
   `TitleBar`/`IconButton` kennen alleen iconnamen uit hun eigen mappen. Het sync-icoon draait

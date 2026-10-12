@@ -14,11 +14,14 @@ StatusBar:new{
 Acties zoals ActionBar.Item ze kent (knop met callback, schakelaar, taak).
 Werkt zichzelf bij op Resume, netwerk-events, Charging/NotCharging en FrontlightStateChanged.
 ]]
+local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
+local GestureRange = require("ui/gesturerange")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan = require("ui/widget/horizontalspan")
+local InputContainer = require("ui/widget/container/inputcontainer")
 local LeftContainer = require("ui/widget/container/leftcontainer")
 local OverlapGroup = require("ui/widget/overlapgroup")
 local RightContainer = require("ui/widget/container/rightcontainer")
@@ -28,11 +31,47 @@ local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local datetime = require("datetime")
 local logger = require("logger")
+local _ = require("gettext")
+local T = require("ffi/util").template
 local Screen = Device.screen
 
 local DeviceAdapter = require("lingering.koreader.device")
 local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
+
+--[[--
+Batterij-icoon met een eigen tikvlak: een tik toont het percentage (en "Laadt op") in een
+klein kader eronder (ui/popover.lua).
+]]
+local BatteryButton = InputContainer:extend{
+    percent = nil,
+    charging = nil,
+    width = nil,
+    height = nil,
+}
+
+function BatteryButton:init()
+    self[1] = CenterContainer:new{
+        dimen = Geom:new{ w = self.width, h = self.height },
+        Widgets.battery(self.percent, self.charging),
+    }
+    self.ges_events = {
+        TapBattery = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
+    }
+end
+
+function BatteryButton:onTapBattery()
+    -- Actuele stand, niet die van het moment dat de balk getekend werd.
+    local percent = DeviceAdapter.batteryPercent() or self.percent
+    local lines = { { text = T(_("%1%"), percent), bold = true } }
+    if DeviceAdapter.isCharging() then
+        table.insert(lines, { text = _("Laadt op"), gray = true })
+    end
+    Widgets.safeCall("batterij", function()
+        require("lingering.ui.popover"):new{ anchor = self.dimen, lines = lines }:show()
+    end)
+    return true
+end
 
 local StatusBar = WidgetContainer:extend{
     width = nil,
@@ -47,6 +86,7 @@ function StatusBar:init()
     local padding = Size.padding.large * 2
     local height = Screen:scaleBySize(Widgets.TOP_BAR.height)
     local item_w = Screen:scaleBySize(Widgets.TOP_BAR.item_width)
+    self.height, self.item_w = height, item_w
     local icon_size = Screen:scaleBySize(Widgets.TOP_BAR.icon_size)
     self.face = Widgets.topBarFace()
     self.items = {}
@@ -110,9 +150,8 @@ function StatusBar:init()
     table.insert(self.right, self.wifi_item)
     -- Vaste plekken voor tijd en batterij, ingevuld door updateTexts.
     self.slot = #self.right
+    table.insert(self.right, HorizontalSpan:new{ width = 0 })                    -- batterij-knop
     table.insert(self.right, HorizontalSpan:new{ width = Size.padding.large })
-    table.insert(self.right, HorizontalSpan:new{ width = 0 })                    -- batterij-icoon
-    table.insert(self.right, HorizontalSpan:new{ width = padding })
     table.insert(self.right, TextWidget:new{ text = "", face = self.face })     -- tijd, helemaal rechts
     self:updateTexts()
 
@@ -137,9 +176,14 @@ function StatusBar:updateTexts()
     local battery = DeviceAdapter.batteryPercent()
     -- Alleen het icoon (9 standen, zie Widgets.battery), geen percentage.
     if battery then
-        self.right[s + 2] = Widgets.battery(battery, DeviceAdapter.isCharging())
+        self.right[s + 1] = BatteryButton:new{
+            percent = battery,
+            charging = DeviceAdapter.isCharging(),
+            width = self.item_w,
+            height = self.height,
+        }
     end
-    self.right[s + 4] = TextWidget:new{ text = time, face = self.face }
+    self.right[s + 3] = TextWidget:new{ text = time, face = self.face }
     self.right:resetLayout()
 end
 
