@@ -3,7 +3,6 @@ Instellingen: wifi (netwerk kiezen, aan/uit), licht (helderheid, aan/uit), accou
 (gebruikersnaam en wachtwoord), "Geavanceerd" (het noodluik naar het volledige
 KOReader-menu) en Over Lingering; onderaan de navigatiebalk.
 ]]
-local Blitbuffer = require("ffi/blitbuffer")
 local Device = require("device")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
@@ -18,6 +17,7 @@ local Screen = Device.screen
 local DeviceAdapter = require("lingering.koreader.device")
 local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
+local Style = require("lingering.ui.style")
 
 local SettingsScreen = InputContainer:extend{
     on_account = nil,
@@ -128,7 +128,7 @@ function SettingsScreen:init()
         height = height,
         padding = 0,
         bordersize = 0,
-        background = Blitbuffer.COLOR_WHITE,
+        background = Style.background,
         group,
     }
 end

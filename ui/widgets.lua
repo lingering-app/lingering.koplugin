@@ -1,7 +1,6 @@
 --[[--
 Gedeelde bouwstenen voor de schermen van Lingering.
 ]]
-local Blitbuffer = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
 local Font = require("ui/font")
@@ -20,6 +19,7 @@ local Size = require("ui/size")
 local TextWidget = require("ui/widget/textwidget")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local logger = require("logger")
+local Style = require("lingering.ui.style")
 local Screen = Device.screen
 
 local Widgets = {}
@@ -128,7 +128,7 @@ function Widgets.coverStack(covers, stack_w, stack_h)
     local OverlapGroupW = require("ui/widget/overlapgroup")
     local cover_w, cover_h = Widgets.stackCoverSize(stack_w, stack_h)
     local off = math.floor(cover_w * Widgets.STACK_OFFSET)
-    local border = Size.border.thin
+    local border = Style.cover_border.size
     local group = OverlapGroupW:new{ dimen = Geom:new{ w = stack_w, h = stack_h } }
     -- Achterste eerst tekenen; k = 0 is de voorste.
     for i = math.min(#covers, STACK_MAX), 1, -1 do
@@ -139,8 +139,8 @@ function Widgets.coverStack(covers, stack_w, stack_h)
         local framed = FrameContainer:new{
             padding = 0,
             bordersize = border,
-            color = Blitbuffer.COLOR_DARK_GRAY,
-            background = Blitbuffer.COLOR_WHITE,
+            color = Style.cover_border.color,
+            background = Style.background,
             ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 },
         }
         framed.overlap_offset = { k * off, (STACK_MAX - 1 - k) * off + (cover_h - (h + 2 * border)) }
@@ -169,21 +169,15 @@ rechts. Eigen iconen (KOReaders TitleBar kent alleen zijn eigen iconen).
 opts: width, title, on_back, right (een ActionBar.Item of nil), show_parent.
 Geeft de balk; balk:setTitle(tekst) zet een andere titel, balk.height is de hoogte.
 ]]
--- Maten van de bovenbalk, gelijk op alle schermen (homescreen en titelbalken).
--- item_width: tikvlak per icoon (smaller dan de hoogte, zodat er in het boek extra knoppen passen).
-Widgets.TOP_BAR = { height = 60, font_size = 16, icon_size = 30, item_width = 48 }
-function Widgets.topBarFace()
-    return Font:getFace("cfont", Widgets.TOP_BAR.font_size)
-end
 
 function Widgets.header(opts)
     local Item = require("lingering.ui.actionbar").Item
     local width = opts.width
-    local h = Screen:scaleBySize(Widgets.TOP_BAR.height)
+    local h = Screen:scaleBySize(Style.top_bar.height)
     local inner = Geom:new{ w = width, h = h }
     local back = Item:new{
         action = { icon_file = "chevron_left.svg" },
-        width = h, height = h, icon_size = Screen:scaleBySize(Widgets.TOP_BAR.icon_size),
+        width = h, height = h, icon_size = Screen:scaleBySize(Style.top_bar.icon_size),
         show_parent = opts.show_parent,
         on_tap = opts.on_back,
     }
@@ -198,7 +192,7 @@ function Widgets.header(opts)
     function bar.setTitle(_, text)
         title_box[1] = TextWidget:new{
             text = text,
-            face = Widgets.topBarFace(),
+            face = Style.topBarFace(),
             bold = true,
             max_width = width - 2 * h - 2 * Size.padding.large,
         }
@@ -210,8 +204,8 @@ end
 
 function Widgets.line(width)
     return LineWidget:new{
-        dimen = Geom:new{ w = width, h = Size.line.medium },
-        background = Blitbuffer.COLOR_DARK_GRAY,
+        dimen = Geom:new{ w = width, h = Style.line.size },
+        background = Style.line.color,
     }
 end
 
@@ -246,7 +240,7 @@ end
 function Row:build()
     local padding = Size.padding.large * 2
     local icon_size = Screen:scaleBySize(32)
-    local fg = self.enabled and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_DARK_GRAY
+    local fg = self.enabled and Style.text or Style.text_secondary
 
     local left = HorizontalGroup:new{ align = "center" }
     if self.icon then
@@ -276,7 +270,7 @@ function Row:build()
         padding_left = padding,
         padding_right = padding,
         bordersize = 0,
-        background = Blitbuffer.COLOR_WHITE,
+        background = Style.background,
         overlap,
     }
 end
@@ -374,14 +368,11 @@ function Widgets.navBar(width, items)
         })
     end
     return VerticalGroup:new{
-        LineWidget:new{
-            dimen = Geom:new{ w = width, h = Size.line.thin },
-            background = Blitbuffer.COLOR_BLACK,
-        },
+        Widgets.line(width),
         FrameContainer:new{
             padding = 0,
             bordersize = 0,
-            background = Blitbuffer.COLOR_WHITE,
+            background = Style.background,
             row,
         },
     }

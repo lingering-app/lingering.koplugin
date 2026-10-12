@@ -1,7 +1,6 @@
 --[[--
 Over Lingering: versie, korte uitleg, copyright, licentie, repo.
 ]]
-local Blitbuffer = require("ffi/blitbuffer")
 local Button = require("ui/widget/button")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
@@ -22,6 +21,7 @@ local Screen = Device.screen
 local Config = require("lingering.config")
 local UpdateService = require("lingering.app.update_service")
 local Widgets = require("lingering.ui.widgets")
+local Style = require("lingering.ui.style")
 
 local AboutScreen = InputContainer:extend{
     covers_fullscreen = true,
@@ -60,7 +60,7 @@ function AboutScreen:init()
         align = "center",
         TextWidget:new{ text = "Lingering", face = Font:getFace("cfont", 34), bold = true },
         VerticalSpan:new{ width = Size.padding.large },
-        line(version and T(_("Versie %1"), version) or _("Versie onbekend"), 18, false, Blitbuffer.COLOR_DARK_GRAY),
+        line(version and T(_("Versie %1"), version) or _("Versie onbekend"), 18, false, Style.text_secondary),
         VerticalSpan:new{ width = Size.padding.large * 2 },
         Button:new{
             text = _("Zoeken naar update"),
@@ -76,11 +76,11 @@ function AboutScreen:init()
         gap,
         line(_("© 2026 Lingering"), 16),
         VerticalSpan:new{ width = Size.padding.large },
-        line(_("Vrije software onder de GNU Affero General Public License v3.0."), 15, false, Blitbuffer.COLOR_DARK_GRAY),
+        line(_("Vrije software onder de GNU Affero General Public License v3.0."), 15, false, Style.text_secondary),
         VerticalSpan:new{ width = Size.padding.default },
-        line("github.com/" .. Config.update_repo, 15, false, Blitbuffer.COLOR_DARK_GRAY),
+        line("github.com/" .. Config.update_repo, 15, false, Style.text_secondary),
         gap,
-        line(_("Gebouwd op KOReader."), 15, false, Blitbuffer.COLOR_DARK_GRAY),
+        line(_("Gebouwd op KOReader."), 15, false, Style.text_secondary),
     }
 
     -- Navigatiebalk: Instellingen staat vet; een tik erop gaat terug naar Instellingen.
@@ -91,7 +91,7 @@ function AboutScreen:init()
         height = height,
         padding = 0,
         bordersize = 0,
-        background = Blitbuffer.COLOR_WHITE,
+        background = Style.background,
         VerticalGroup:new{
             align = "left",
             title_bar,

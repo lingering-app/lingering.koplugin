@@ -316,6 +316,11 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/books.homeFolder`, `koreader/network.isOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()` | Downloads in `./Lingering`; geen automatische sync |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak: standaard plugin-API |
 
+Stijl:
+- Alle kleuren, lijnen, randen en de maten van de bovenbalk staan in `ui/style.lua`
+  (`Style.line`, `Style.text_secondary`, `Style.top_bar`, …). Schermen en widgets halen hun
+  waarden daar vandaan; geen losse `Blitbuffer.COLOR_*` of `Size.line.*` in de schermen.
+
 Navigatie tussen de schermen:
 - Homescreen, Mijn boeken, Instellingen en Over Lingering hebben dezelfde navigatiebalk
   onderaan (`Widgets.mainNav`: Home, Mijn boeken, Instellingen); het leesscherm niet. Het
@@ -335,8 +340,8 @@ Bewuste keuzes in het leesscherm:
   homescreen (`ui/statusbar.lua`), met huis en inhoudsopgave links, en sync en automatisch
   draaien rechts vóór licht, wifi, batterij en tijd.
 - Tik op het batterij-icoon (homescreen en boek): klein kader eronder met het percentage
-  en "Laadt op" (`ui/popover.lua`, modal zodat het boven de actiebalk komt; sluit bij een
-  tik of na 4 s). Lijn eronder tegen de tekst van het boek.
+  en "Laadt op" (`ui/popover.lua`, rand `Style.line`, modal zodat het boven de actiebalk komt;
+  sluit bij een tik of na 4 s). Lijn eronder tegen de tekst van het boek.
   Alle iconen komen uit `icons/` (Material Symbols, één stijl), via `IconWidget{file=…}`; geen iconen
   uit KOReader's eigen set. Daarom ook een eigen titelbalk (`Widgets.header`): KOReader's
   `TitleBar`/`IconButton` kennen alleen iconnamen uit hun eigen mappen. Het sync-icoon draait

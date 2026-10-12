@@ -38,6 +38,7 @@ local Screen = Device.screen
 local DeviceAdapter = require("lingering.koreader.device")
 local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
+local Style = require("lingering.ui.style")
 
 --[[--
 Batterij-icoon met een eigen tikvlak: een tik toont het percentage (en "Laadt op") in een
@@ -84,11 +85,11 @@ local StatusBar = WidgetContainer:extend{
 function StatusBar:init()
     local Item = require("lingering.ui.actionbar").Item
     local padding = Size.padding.large * 2
-    local height = Screen:scaleBySize(Widgets.TOP_BAR.height)
-    local item_w = Screen:scaleBySize(Widgets.TOP_BAR.item_width)
+    local height = Screen:scaleBySize(Style.top_bar.height)
+    local item_w = Screen:scaleBySize(Style.top_bar.item_width)
     self.height, self.item_w = height, item_w
-    local icon_size = Screen:scaleBySize(Widgets.TOP_BAR.icon_size)
-    self.face = Widgets.topBarFace()
+    local icon_size = Screen:scaleBySize(Style.top_bar.icon_size)
+    self.face = Style.topBarFace()
     self.items = {}
 
     local function item(action)

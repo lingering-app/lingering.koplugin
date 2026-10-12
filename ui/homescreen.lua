@@ -4,7 +4,6 @@ Homescreen: statusregel, huidig boek eronder, navigatiebalk onderaan
 Ligt schermvullend over de bestandsbeheerder; vangt alle gebaren af, zodat het menu
 van de bestandsbeheerder niet open kan.
 ]]
-local Blitbuffer = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
 local Font = require("ui/font")
@@ -32,6 +31,7 @@ local ReadingTime = require("lingering.domain.reading_time")
 local Navigation = require("lingering.koreader.navigation")
 local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
+local Style = require("lingering.ui.style")
 
 -- Zo lang ingedrukt houden op de statusregel opent het noodluik (na de hold-drempel).
 local EMERGENCY_HOLD_SECONDS = 2.5
@@ -144,7 +144,7 @@ function ReadingTile:init()
         table.insert(group, TextWidget:new{
             text = T(_("%1 te gaan"), formatHours(book.stats.left_secs)),
             face = Font:getFace("cfont", 13),
-            fgcolor = Blitbuffer.COLOR_DARK_GRAY,
+            fgcolor = Style.text_secondary,
             max_width = self.width,
         })
     end
@@ -321,10 +321,10 @@ function HomeScreen:buildBook(width, height)
         margin_h = 0,
         margin_v = 0,
         radius = 0,
-        -- Lichtgrijze baan, gelezen deel donkergrijs, geen rand.
+        -- Baan en gelezen deel uit Style.progress, geen rand.
         bordersize = 0,
-        bgcolor = Blitbuffer.COLOR_LIGHT_GRAY,
-        fillcolor = Blitbuffer.COLOR_DARK_GRAY,
+        bgcolor = Style.progress.track,
+        fillcolor = Style.progress.fill,
     })
     table.insert(info, VerticalSpan:new{ width = Size.padding.default })
     -- Met de statistics-plugin aan: resterende en gelezen tijd; anders het percentage.
@@ -390,7 +390,7 @@ function HomeScreen:build()
         height = height,
         padding = 0,
         bordersize = 0,
-        background = Blitbuffer.COLOR_WHITE,
+        background = Style.background,
         self.layout_group,
     }
 end

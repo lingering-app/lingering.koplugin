@@ -6,7 +6,6 @@ Inlogscherm: gebruikersnaam en wachtwoord. Bij "Inloggen":
 Bij een fout blijven de velden ingevuld en staat er kort "Inloggen mislukt."; welke van de twee
 mislukte en waarom staat in de log (op verzoek, i.p.v. op het scherm).
 ]]
-local Blitbuffer = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
 local Font = require("ui/font")
@@ -28,6 +27,7 @@ local AccountService = require("lingering.app.account_service")
 local Dialogs = require("lingering.koreader.dialogs")
 local Network = require("lingering.koreader.network")
 local Widgets = require("lingering.ui.widgets")
+local Style = require("lingering.ui.style")
 
 local Setup = {}
 
@@ -102,7 +102,7 @@ function Background:init()
         height = height,
         padding = 0,
         bordersize = 0,
-        background = Blitbuffer.COLOR_WHITE,
+        background = Style.background,
         CenterContainer:new{
             dimen = Geom:new{ w = width, h = math.floor(height / 3) },
             VerticalGroup:new{

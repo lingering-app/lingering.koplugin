@@ -6,7 +6,6 @@ Mijn boeken: de OPDS-catalogus als raster met omslagen, verticaal te schuiven.
 - Mappen uit de catalogus openen met een terugknop; elke map wordt apart gecachet.
 - Tik op een boek: staat het op het apparaat, dan openen; anders downloaden en openen.
 ]]
-local Blitbuffer = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
 local Font = require("ui/font")
@@ -34,6 +33,7 @@ local BookOpener = require("lingering.ui.book_opener")
 local Widgets = require("lingering.ui.widgets")
 local Layout = require("lingering.domain.layout")
 local Item = require("lingering.ui.actionbar").Item
+local Style = require("lingering.ui.style")
 
 -- Titel onder een tegel: twee regels. Regelhoogte zoals TextBoxWidget die berekent:
 -- (1 + line_height) * face.size, met line_height = 0.3 als standaard.
@@ -90,7 +90,7 @@ function GridTile:init()
             cover = ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 }
         else
             -- Geen omslag: titel (en auteur) in een vak van omslaggrootte.
-            local inner_w = cover_w - 2 * Size.border.thin - 2 * Size.padding.default
+            local inner_w = cover_w - 2 * Style.cover_border.size - 2 * Size.padding.default
             local label = VerticalGroup:new{
                 align = "center",
                 TextBoxWidget:new{
@@ -109,7 +109,7 @@ function GridTile:init()
                 table.insert(label, TextBoxWidget:new{
                     text = entry.author,
                     face = Font:getFace("cfont", 13),
-                    fgcolor = Blitbuffer.COLOR_DARK_GRAY,
+                    fgcolor = Style.text_secondary,
                     width = inner_w,
                     alignment = "center",
                     height = math.floor(cover_h * 0.25),
@@ -120,10 +120,10 @@ function GridTile:init()
             cover = FrameContainer:new{
                 width = cover_w, height = cover_h,
                 padding = 0,
-                bordersize = Size.border.thin,
-                color = Blitbuffer.COLOR_GRAY,
+                bordersize = Style.cover_border.size,
+                color = Style.cover_border.color,
                 CenterContainer:new{
-                    dimen = Geom:new{ w = cover_w - 2 * Size.border.thin, h = cover_h - 2 * Size.border.thin },
+                    dimen = Geom:new{ w = cover_w - 2 * Style.cover_border.size, h = cover_h - 2 * Style.cover_border.size },
                     label,
                 },
             }
@@ -221,7 +221,7 @@ end
 
 -- Titelbalk: terug, titel, sync. Eén keer gebouwd, zodat een draaiend sync-icoon blijft.
 function LibraryScreen:buildHeader()
-    local h = Screen:scaleBySize(Widgets.TOP_BAR.height)
+    local h = Screen:scaleBySize(Style.top_bar.height)
     self.sync_item = Item:new{
         action = {
             name = "mijn boeken synchroniseren",
@@ -230,7 +230,7 @@ function LibraryScreen:buildHeader()
             frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
             run = function(done) self:syncCurrent(done) end,
         },
-        width = h, height = h, icon_size = Screen:scaleBySize(Widgets.TOP_BAR.icon_size),
+        width = h, height = h, icon_size = Screen:scaleBySize(Style.top_bar.icon_size),
         show_parent = self,
     }
     self.header = Widgets.header{
@@ -364,7 +364,7 @@ function LibraryScreen:render(partial)
         height = height,
         padding = 0,
         bordersize = 0,
-        background = Blitbuffer.COLOR_WHITE,
+        background = Style.background,
         VerticalGroup:new{
             align = "left",
             self.header,

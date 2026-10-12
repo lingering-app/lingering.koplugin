@@ -9,7 +9,6 @@ Soorten acties:
 - taak:        { task = true, icon_file, frames = {...}, run = fn(done) }
                Tijdens de taak wisselt het icoon door de frames; done(ok) stopt dat.
 ]]
-local Blitbuffer = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
 local FrameContainer = require("ui/widget/container/framecontainer")
@@ -18,11 +17,11 @@ local GestureRange = require("ui/gesturerange")
 local IconWidget = require("ui/widget/iconwidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local LineWidget = require("ui/widget/linewidget")
-local Size = require("ui/size")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local logger = require("logger")
 local time = require("ui/time")
+local Style = require("lingering.ui.style")
 local Screen = Device.screen
 
 local plugin_dir = require("lingering.plugin").dir
@@ -231,12 +230,12 @@ function ActionBar:init()
         FrameContainer:new{
             padding = 0,
             bordersize = 0,
-            background = Blitbuffer.COLOR_WHITE,
+            background = Style.background,
             self.status_bar,
         },
         LineWidget:new{
-            dimen = Geom:new{ w = screen_w, h = Size.line.thick },
-            background = Blitbuffer.COLOR_BLACK,
+            dimen = Geom:new{ w = screen_w, h = Style.overlay_line.size },
+            background = Style.overlay_line.color,
         },
     }
     local size = self[1]:getSize()

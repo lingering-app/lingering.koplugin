@@ -8,9 +8,7 @@ Popover:new{
 }:show()
 Modal, zodat hij ook boven de (modale) actiebalk in het boek komt.
 ]]
-local Blitbuffer = require("ffi/blitbuffer")
 local Device = require("device")
-local Font = require("ui/font")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
@@ -22,6 +20,7 @@ local VerticalGroup = require("ui/widget/verticalgroup")
 local Screen = Device.screen
 
 local Widgets = require("lingering.ui.widgets")
+local Style = require("lingering.ui.style")
 
 -- Zo lang blijft het kader staan zonder tik.
 local TIMEOUT = 4
@@ -39,18 +38,20 @@ function Popover:init()
     for _, line in ipairs(self.lines or {}) do
         table.insert(group, TextWidget:new{
             text = line.text,
-            face = Widgets.topBarFace(),
+            face = Style.topBarFace(),
             bold = line.bold,
-            fgcolor = line.gray and Blitbuffer.COLOR_DARK_GRAY or nil,
+            fgcolor = line.gray and Style.text_secondary or nil,
         })
     end
+    -- Rand zoals de lijnen tussen de rijen (Style.line).
     self[1] = FrameContainer:new{
-        bordersize = Size.border.window,
-        radius = Size.radius.window,
+        bordersize = Style.line.size,
+        color = Style.line.color,
+        radius = Style.radius,
         padding = Size.padding.large,
         padding_left = Size.padding.large * 2,
         padding_right = Size.padding.large * 2,
-        background = Blitbuffer.COLOR_WHITE,
+        background = Style.background,
         group,
     }
     -- Onder het icoon, horizontaal gecentreerd erop, maar binnen het scherm.
