@@ -332,6 +332,7 @@ function NavButton:init()
             TextWidget:new{
                 text = self.text,
                 face = Font:getFace("cfont", 14),
+                bold = self.active,
                 max_width = self.width - 2 * Size.padding.default,
             },
         },
@@ -364,6 +365,7 @@ function Widgets.navBar(width, items)
             height = height,
             text = item.text,
             icon = item.icon,
+            active = item.active,
             callback = item.callback,
         })
     end
@@ -379,6 +381,34 @@ function Widgets.navBar(width, items)
             row,
         },
     }
+end
+
+--[[--
+De vaste navigatiebalk onderaan homescreen, Mijn boeken, Instellingen en Over Lingering.
+nav = { library = fn, settings = fn } (uit main.lua: wisselt van scherm).
+active = "library" | "settings" | nil: dat tabblad staat vet; een tik erop roept
+on_reselect aan (bijv. terug naar het begin van Mijn boeken) in plaats van te wisselen.
+]]
+function Widgets.mainNav(width, nav, active, on_reselect)
+    local function item(key, text, icon_file)
+        return {
+            text = text,
+            icon = { icon_file = icon_file },
+            active = key == active,
+            callback = function()
+                if key == active then
+                    if on_reselect then on_reselect() end
+                else
+                    nav[key]()
+                end
+            end,
+        }
+    end
+    local _ = require("gettext")
+    return Widgets.navBar(width, {
+        item("library", _("Mijn boeken"), "menu_book.svg"),
+        item("settings", _("Instellingen"), "settings.svg"),
+    })
 end
 
 return Widgets

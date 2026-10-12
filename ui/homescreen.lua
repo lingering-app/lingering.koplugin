@@ -99,8 +99,7 @@ local HomeScreen = InputContainer:extend{
     library = nil,          -- app/library_service (mappen in de catalogus)
     collections = nil,      -- namen van mappen voor de blokken (config.collections)
     on_open_collection = nil, -- function(adres, naam)
-    on_local_books = nil,
-    on_settings = nil,
+    nav = nil,              -- { library = fn, settings = fn }, zie Widgets.mainNav
     on_emergency = nil,
     on_closed = nil,
     covers_fullscreen = true,
@@ -336,18 +335,7 @@ end
 function HomeScreen:build()
     local width, height = self.dimen.w, self.dimen.h
 
-    local nav = Widgets.navBar(width, {
-        {
-            text = _("Mijn boeken"),
-            icon = { icon_file = "menu_book.svg" },
-            callback = function() self.on_local_books() end,
-        },
-        {
-            text = _("Instellingen"),
-            icon = { icon_file = "settings.svg" },
-            callback = function() self.on_settings() end,
-        },
-    })
+    local nav = Widgets.mainNav(width, self.nav)
 
     local status = self:buildStatus(width)
     local status_h = status:getSize().h
@@ -462,7 +450,7 @@ function HomeScreen:onTapBook()
         self:close()
         Navigation.openBook(file)
     else
-        Widgets.safeCall("mijn boeken", self.on_local_books)
+        Widgets.safeCall("mijn boeken", self.nav.library)
     end
     return true
 end

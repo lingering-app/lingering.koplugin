@@ -83,7 +83,9 @@ function AboutScreen:init()
         line(_("Gebouwd op KOReader."), 15, false, Blitbuffer.COLOR_DARK_GRAY),
     }
 
-    local body_h = height - title_bar.height
+    -- Navigatiebalk: Instellingen staat vet; een tik erop gaat terug naar Instellingen.
+    local nav = Widgets.mainNav(width, self.nav, "settings", function() self:close() end)
+    local body_h = height - title_bar.height - nav:getSize().h
     self[1] = FrameContainer:new{
         width = width,
         height = height,
@@ -97,6 +99,7 @@ function AboutScreen:init()
                 dimen = Geom:new{ w = width, h = body_h },
                 content,
             },
+            nav,
         },
     }
 end
@@ -111,6 +114,8 @@ function AboutScreen:show()
 end
 
 function AboutScreen:close()
+    if self.closed then return end
+    self.closed = true
     UIManager:close(self, "full")
 end
 

@@ -1,7 +1,7 @@
 --[[--
 Instellingen: wifi (netwerk kiezen, aan/uit), licht (helderheid, aan/uit), account
-(gebruikersnaam en wachtwoord), en onderaan
-"Geavanceerd" (het noodluik naar het volledige KOReader-menu).
+(gebruikersnaam en wachtwoord), "Geavanceerd" (het noodluik naar het volledige
+KOReader-menu) en Over Lingering; onderaan de navigatiebalk.
 ]]
 local Blitbuffer = require("ffi/blitbuffer")
 local Device = require("device")
@@ -78,7 +78,7 @@ function SettingsScreen:init()
         end,
     }
 
-    local top_rows = {
+    local rows = {
         self.wifi_row,
         self.light_row,
         Widgets.Row:new{
@@ -88,41 +88,39 @@ function SettingsScreen:init()
             right = { icon_file = "chevron_right.svg" },
             callback = function() self.on_account() end,
         },
-    }
-    table.insert(top_rows, Widgets.Row:new{
-        width = width,
-        text = _("Over Lingering"),
-        icon = { icon_file = "info.svg" },
-        right = { icon_file = "chevron_right.svg" },
-        callback = function()
-            require("lingering.ui.aboutscreen"):new{}:show()
-        end,
-    })
-
-    local advanced = Widgets.Row:new{
-        width = width,
-        text = _("Geavanceerd"),
-        right = { icon_file = "chevron_right.svg" },
-        callback = function()
-            self:close()
-            self.on_emergency()
-        end,
+        Widgets.Row:new{
+            width = width,
+            text = _("Geavanceerd"),
+            icon = { icon_file = "tune.svg" },
+            right = { icon_file = "chevron_right.svg" },
+            callback = function()
+                self:close()
+                self.on_emergency()
+            end,
+        },
+        Widgets.Row:new{
+            width = width,
+            text = _("Over Lingering"),
+            icon = { icon_file = "info.svg" },
+            right = { icon_file = "chevron_right.svg" },
+            callback = function() self.on_about() end,
+        },
     }
 
+    local nav = Widgets.mainNav(width, self.nav, "settings")
     local group = VerticalGroup:new{ align = "left", title_bar }
-    for _, row in ipairs(top_rows) do
+    for _, row in ipairs(rows) do
         table.insert(group, row)
         table.insert(group, Widgets.line(width))
     end
-    -- "Geavanceerd" onderaan, los van de rest. (Hoogte berekenen zonder group:getSize():
-    -- VerticalGroup onthoudt zijn maten, en latere elementen zouden dan geen positie krijgen.)
-    local used = advanced:getSize().h + Widgets.line(width):getSize().h
+    -- Navigatiebalk onderaan. (Hoogte berekenen zonder group:getSize(): VerticalGroup
+    -- onthoudt zijn maten, en latere elementen zouden dan geen positie krijgen.)
+    local used = nav:getSize().h
     for _, widget in ipairs(group) do
         used = used + widget:getSize().h
     end
     table.insert(group, VerticalSpan:new{ width = math.max(0, height - used) })
-    table.insert(group, Widgets.line(width))
-    table.insert(group, advanced)
+    table.insert(group, nav)
 
     self[1] = FrameContainer:new{
         width = width,
@@ -166,6 +164,8 @@ function SettingsScreen:show()
 end
 
 function SettingsScreen:close()
+    if self.closed then return end
+    self.closed = true
     UIManager:close(self, "full")
 end
 

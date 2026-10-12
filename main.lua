@@ -85,9 +85,10 @@ function Lingering:showHomeScreen()
             fm = self.ui,
             library = require("lingering.app.library_service"),
             collections = require("lingering.config").collections,
-            on_open_collection = function(url, title) self:showLibrary{ url = url, title = title } end,
-            on_local_books = function() self:showLibrary() end,
-            on_settings = function() self:showSettings() end,
+            on_open_collection = function(url, title)
+                self:switchTo(function() self:showLibrary{ url = url, title = title } end)
+            end,
+            nav = self:nav(),
             on_emergency = function() self:openEmergencyMenu() end,
             on_closed = function() self.home = nil end,
         }
@@ -105,16 +106,43 @@ function Lingering:showHomeScreen()
     end
 end
 
+--[[--
+Navigatiebalk (Widgets.mainNav): wisselen tussen Mijn boeken en Instellingen. Het vorige
+scherm (met Over Lingering) gaat eerst dicht, zodat terug altijd naar het homescreen gaat.
+]]
+function Lingering:nav()
+    return {
+        library = function() self:switchTo(function() self:showLibrary() end) end,
+        settings = function() self:switchTo(function() self:showSettings() end) end,
+    }
+end
+
+function Lingering:switchTo(show)
+    for _, screen in ipairs(self.screens or {}) do
+        pcall(screen.close, screen)
+    end
+    self.screens = {}
+    show()
+end
+
+--- Houdt een scherm bij dat bij een wissel via de navigatiebalk dicht moet.
+function Lingering:track(screen)
+    self.screens = self.screens or {}
+    table.insert(self.screens, screen)
+    return screen
+end
+
 --- Mijn boeken: de OPDS-catalogus, gecachet; tik op een boek opent of downloadt het.
 function Lingering:showLibrary(start)
     local LibraryScreen = require("lingering.ui.libraryscreen")
-    LibraryScreen:new{
+    self:track(LibraryScreen:new{
         start = start,
         library = require("lingering.app.library_service"),
+        nav = self:nav(),
         on_open_book = function(path)
             require("lingering.koreader.navigation").openBook(path)
         end,
-    }:show()
+    }):show()
     logger.info("Lingering: mijn boeken getoond")
 end
 
@@ -137,10 +165,14 @@ end
 
 function Lingering:showSettings()
     local SettingsScreen = require("lingering.ui.settingsscreen")
-    SettingsScreen:new{
+    self:track(SettingsScreen:new{
+        nav = self:nav(),
         on_account = function() self:showSetup(false) end,
+        on_about = function()
+            self:track(require("lingering.ui.aboutscreen"):new{ nav = self:nav() }):show()
+        end,
         on_emergency = function() self:openEmergencyMenu() end,
-    }:show()
+    }):show()
 end
 
 --- Noodluik: homescreen dicht, gewone bestandsbeheerder met het volledige menu.

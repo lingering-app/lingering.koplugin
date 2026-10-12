@@ -70,9 +70,9 @@ function Smoke.filemanager(plugin)
             top:close()
         end },
         { name = "mijn boeken", fn = function()
-            local LibraryScreen = require("lingering.ui.libraryscreen")
-            lib = LibraryScreen:new{ library = require("lingering.app.library_service"), on_open_book = function() end }
-            lib:show()
+            plugin:nav().library()
+            lib = plugin.screens[1]
+            assert(lib and lib.stack, "Mijn boeken niet geopend")
         end },
         { name = "mijn boeken getekend", wait = 2, fn = function()
             assert(lib.page_entries and #lib.page_entries > 0, "geen items in Mijn boeken")
@@ -106,20 +106,33 @@ function Smoke.filemanager(plugin)
         end },
         { name = "eerste map getekend", wait = 2, fn = function()
             shot("3-folder")
-            lib:close()
+            assert(lib.nav_bar, "geen navigatiebalk in Mijn boeken")
         end },
-        { name = "instellingen", fn = function()
-            plugin:showSettings()
+        { name = "navigatie: Mijn boeken opnieuw → begin", fn = function()
+            lib:goToRoot()
+            assert(#lib.stack == 1, "niet terug naar het begin")
+        end },
+        { name = "navigatie: naar instellingen", fn = function()
+            plugin:nav().settings()
+            assert(lib.closed, "Mijn boeken niet gesloten bij wissel")
+            state.settings = plugin.screens[1]
+            assert(state.settings and UIManager:getTopmostVisibleWidget() == state.settings, "Instellingen niet bovenaan")
         end },
         { name = "instellingen getekend", wait = 1, fn = function()
             shot("4-settings")
         end },
         { name = "over lingering", fn = function()
-            require("lingering.ui.aboutscreen"):new{}:show()
+            state.settings.on_about()
         end },
         { name = "over lingering getekend", fn = function()
             shot("4c-about")
-            UIManager:close(UIManager:getTopmostVisibleWidget())
+        end },
+        { name = "navigatie: vanuit over naar mijn boeken", fn = function()
+            plugin:nav().library()
+            assert(state.settings.closed, "Instellingen niet gesloten")
+            assert(#plugin.screens == 1 and plugin.screens[1].stack, "Mijn boeken niet geopend")
+            assert(UIManager:getTopmostVisibleWidget() == plugin.screens[1], "Over Lingering niet gesloten")
+            plugin.screens[1]:close()
         end },
         { name = "inlogscherm (account)", fn = function()
             plugin:showSetup(false)

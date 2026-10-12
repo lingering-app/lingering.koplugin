@@ -315,6 +315,17 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/books.homeFolder`, `koreader/network.isOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()` | Downloads in `./Lingering`; geen automatische sync |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak: standaard plugin-API |
 
+Navigatie tussen de schermen:
+- Homescreen, Mijn boeken, Instellingen en Over Lingering hebben dezelfde navigatiebalk
+  onderaan (`Widgets.mainNav`); het leesscherm niet. Het actieve tabblad staat vet.
+- Een wissel gaat via `Lingering:switchTo` (main.lua): eerst gaan de bijgehouden schermen
+  (`Lingering:track`) dicht, dan opent het nieuwe. Zo ligt er altijd hooguit één tabblad
+  (met eventueel Over Lingering) op het homescreen, en gaat terug altijd naar het homescreen.
+- Tik op het actieve tabblad: Mijn boeken gaat terug naar het begin, Over Lingering sluit
+  (terug naar Instellingen).
+- `tools/smoke.sh` start de emulator met een vast formaat (758×1024): KOReader onthoudt de
+  venstergrootte (`sdl_window`), en op een ander formaat valt de indeling anders uit.
+
 Bewuste keuzes in het leesscherm:
 - Onze tikzones gaan ook vóór `tap_link` en `readerhighlight_tap`: een tik doet altijd wat
   de zone zegt, ook op een link of markering.

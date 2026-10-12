@@ -21,6 +21,7 @@ local OverlapGroup = require("ui/widget/overlapgroup")
 local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
+local TopContainer = require("ui/widget/container/topcontainer")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
@@ -211,6 +212,15 @@ function LibraryScreen:init()
     self.cover_failed = {}
 
     self:buildHeader()
+    -- Navigatiebalk: Mijn boeken staat vet; een tik erop gaat terug naar het begin.
+    self.nav_bar = Widgets.mainNav(width, self.nav, "library", function() self:goToRoot() end)
+    self.nav_h = self.nav_bar:getSize().h
+    self:render()
+end
+
+function LibraryScreen:goToRoot()
+    if #self.stack == 1 and self.stack[1].url == self.library:rootUrl() then return end
+    self.stack = { { url = self.library:rootUrl(), title = _("Mijn boeken") } }
     self:render()
 end
 
@@ -264,7 +274,7 @@ function LibraryScreen:render(partial)
     local current = self:current()
     self:setTitle(current.title)
 
-    local body_h = height - self.header_h
+    local body_h = height - self.header_h - self.nav_h
     -- Raster: minstens 3 kolommen; de omslag krimpt als het scherm laag is (2 rijen zichtbaar).
     -- Breedte zonder de verticale schuifbalk, anders ontstaat een horizontale schuifbalk.
     local grid_w = width - ScrollableContainer:getScrollbarWidth()
@@ -367,7 +377,8 @@ function LibraryScreen:render(partial)
         VerticalGroup:new{
             align = "left",
             self.header,
-            body,
+            TopContainer:new{ dimen = Geom:new{ w = width, h = body_h }, body },
+            self.nav_bar,
         },
     }
     if self.scroll and current.offset then

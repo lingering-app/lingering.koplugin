@@ -10,7 +10,9 @@ logs="$(mktemp -d)"
 fail=0
 run() {
     name=$1; seconds=$2; shift 2
+    # Vast schermformaat (Kobo-achtig portrait), los van hoe groot het venster laatst was.
     timeout "$seconds" flatpak run --env=LINGERING_TEST="$name" --env=LINGERING_SHOTS="$shots" \
+        --env=EMULATE_READER_W=758 --env=EMULATE_READER_H=1024 \
         rocks.koreader.KOReader "$@" > "$logs/$name.log" 2>&1
     echo "== $name"
     grep -h "Lingering: SMOKE" "$logs/$name.log"
