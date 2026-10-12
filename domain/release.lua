@@ -6,7 +6,8 @@ compare(a, b)   → -1, 0, 1 (versie-tekst of tag)
 latest(tags)    → de hoogste geldige tag uit een lijst namen, of nil
 isNewer(tag, installed) → true als tag hoger is dan de geïnstalleerde versie
 includes(pad)   → hoort dit pad (relatief in de zip, zonder bovenste map) bij de plugin?
-                  Alleen de plugin zelf: geen tests/, tools/, docs/ of verborgen bestanden.
+                  Alle mappen behalve tests/, tools/ en docs/; geen verborgen bestanden;
+                  bovenaan alleen _meta.lua, main.lua, config.lua en LICENSE.
 ]]
 local Release = {}
 
@@ -45,7 +46,10 @@ function Release.isNewer(tag, installed)
 end
 
 local TOP_FILES = { ["_meta.lua"] = true, ["main.lua"] = true, ["config.lua"] = true, ["LICENSE"] = true }
-local DIRS = { "app/", "domain/", "koreader/", "ui/", "icons/", "l10n/" }
+-- Mappen die niet bij de plugin horen. Bewust een lijst van wat er NIET in gaat: een update
+-- wordt geïnstalleerd door de oude versie, en een lijst van toegestane mappen zou nieuwe
+-- mappen (zoals l10n/ in 0.0.8) weglaten.
+local EXCLUDED_DIRS = { ["tests"] = true, ["tools"] = true, ["docs"] = true }
 
 function Release.includes(path)
     if type(path) ~= "string" or path == "" then return false end
@@ -53,11 +57,9 @@ function Release.includes(path)
     for part in path:gmatch("[^/]+") do
         if part:sub(1, 1) == "." then return false end
     end
-    if TOP_FILES[path] then return true end
-    for _, dir in ipairs(DIRS) do
-        if path:sub(1, #dir) == dir then return true end
-    end
-    return false
+    local top = path:match("^([^/]+)/")
+    if not top then return TOP_FILES[path] == true end
+    return not EXCLUDED_DIRS[top]
 end
 
 return Release

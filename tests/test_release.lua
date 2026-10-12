@@ -36,6 +36,8 @@ function TestRelease:test_alleen_pluginbestanden()
                             "domain/release.lua", "koreader/kosync.lua", "ui/homescreen.lua", "icons/sync.svg", "l10n/en.lua", "LICENSE" }) do
         lu.assertTrue(Release.includes(path), path)
     end
+    -- Een nieuwe map komt ook mee (het updateprogramma van de oude versie moet hem overnemen).
+    lu.assertTrue(Release.includes("nieuw/module.lua"))
     for _, path in ipairs({ "tests/run.lua", "tools/deploy.sh", "docs/koreader-notes.md", ".gitignore",
                             "app/.hidden.lua", "../main.lua", "/etc/passwd", "README.md", "" }) do
         lu.assertFalse(Release.includes(path), path)

@@ -22,6 +22,11 @@ if not package.loaded["lingering.loader"] then
         if not relative then return nil end
         local path = plugin_dir .. "/" .. relative:gsub("%.", "/") .. ".lua"
         local chunk, err = loadfile(path)
+        if not chunk and name == "lingering.l10n.gettext" then
+            -- Vangnet: het updateprogramma van 0.0.7 en ouder neemt l10n/ niet over. Dan
+            -- Nederlands (de bronteksten) in plaats van een plugin die niet start.
+            return function() return function(text) return text end end
+        end
         if not chunk then
             return "\n\tLingering: " .. tostring(err)
         end
