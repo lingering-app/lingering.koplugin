@@ -45,6 +45,35 @@ function Smoke.filemanager(plugin)
             assert(plugin.home.shelf_dimen and plugin.home.shelf_dimen.h > 0, "geen mapblokken getoond")
             shot("1b-home-collections")
         end },
+        { name = "raster aan het lezen (3 boeken)", fn = function()
+            -- Tijdelijk drie boeken (elk met een eigen omslag) in plaats van de echte lijst.
+            local Books = require("lingering.koreader.books")
+            local original = Books.readingBooks
+            Books.readingBooks = function(fm, limit)
+                local books = {}
+                for i = 1, 3 do
+                    local book = original(fm, limit)[1]
+                    if book then
+                        book.percent = i * 0.25
+                        table.insert(books, book)
+                    end
+                end
+                return books
+            end
+            local ok, err = pcall(function()
+                state.grid_home = require("lingering.ui.homescreen"):new{
+                    fm = plugin.ui, nav = plugin:nav(),
+                }
+            end)
+            Books.readingBooks = original
+            assert(ok, err)
+            assert(#state.grid_home.books == 3, "geen drie boeken")
+            UIManager:show(state.grid_home)
+        end },
+        { name = "raster aan het lezen getekend", fn = function()
+            shot("1d-home-reading-grid")
+            state.grid_home:close()
+        end },
         { name = "draaien binnen portrait", fn = function()
             local Event = require("ui/event")
             UIManager:sendEvent(Event:new("SetRotationMode", Screen.DEVICE_ROTATED_UPSIDE_DOWN))

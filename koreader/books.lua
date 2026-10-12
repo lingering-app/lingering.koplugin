@@ -1,5 +1,5 @@
 --[[--
-Boekgegevens: huidig boek, omslag, leesstatistieken, thuismap.
+Boekgegevens: boeken die je aan het lezen bent, omslag, leesstatistieken, thuismap.
 Onderdeel van de anti-corruption layer (koreader/): het enige dat KOReader-internals kent.
 Elke haak loopt via try(); zie docs/koreader-notes.md.
 ]]
@@ -7,50 +7,76 @@ local try = require("lingering.koreader.try")
 
 local M = {}
 
---[[--
-Het boek dat het laatst gelezen is, voor het homescreen. nil als er geen is.
-Gebruikt ReadHistory.hist (frontend/readhistory.lua), BookList.getDocSettings
-(frontend/ui/widget/booklist.lua) en FileManagerBookInfo:getDocProps/getCoverImage.
-Geeft { file, title, authors, percent, cover } terug; cover is een BlitBuffer of nil.
-]]
-function M.currentBook(fm)
-    local ok, book = try("currentBook", function()
-        local lfs = require("libs/libkoreader-lfs")
-        local ReadHistory = require("readhistory")
-        local BookList = require("ui/widget/booklist")
-        local DataStorage = require("datastorage")
-        -- Recentste bestaande boek. De quickstart-handleiding telt niet (zoals in
-        -- ReaderUI:getLastDirFile); herkend aan <datadir>/help/quickstart-*.html, omdat
-        -- QuickStart.quickstart_filename pas na QuickStart:getQuickStart() bestaat.
-        local help_dir = DataStorage:getDataDir() .. "/help/"
-        local function isQuickStart(path)
-            return path:sub(1, #help_dir) == help_dir and path:match("/quickstart%-[^/]*%.html$") ~= nil
+-- Bestaande boeken uit ReadHistory.hist (frontend/readhistory.lua), recentste eerst. De
+-- quickstart-handleiding telt niet (zoals in ReaderUI:getLastDirFile); herkend aan
+-- <datadir>/help/quickstart-*.html, omdat QuickStart.quickstart_filename pas na
+-- QuickStart:getQuickStart() bestaat.
+local function historyFiles()
+    local lfs = require("libs/libkoreader-lfs")
+    local ReadHistory = require("readhistory")
+    local DataStorage = require("datastorage")
+    local help_dir = DataStorage:getDataDir() .. "/help/"
+    local function isQuickStart(path)
+        return path:sub(1, #help_dir) == help_dir and path:match("/quickstart%-[^/]*%.html$") ~= nil
+    end
+    local files = {}
+    for _, entry in ipairs(ReadHistory.hist or {}) do
+        if entry.file and not isQuickStart(entry.file)
+                and lfs.attributes(entry.file, "mode") == "file" then
+            table.insert(files, entry.file)
         end
-        local file
-        for _, entry in ipairs(ReadHistory.hist or {}) do
-            if entry.file and not isQuickStart(entry.file)
-                    and lfs.attributes(entry.file, "mode") == "file" then
-                file = entry.file
-                break
-            end
-        end
-        if not file then
-            return nil
-        end
-        local props = fm.bookinfo:getDocProps(file, nil, true) or {}
-        local percent = BookList.getDocSettings(file):readSetting("percent_finished")
-        return {
-            file = file,
-            title = props.display_title or props.title or file:match("([^/]+)$"),
-            authors = props.authors,
-            percent = percent,
-        }
-    end)
-    if not ok or not book then return nil end
-    -- De omslag apart: faalt alleen die, dan toont het homescreen het boek zonder omslag.
+    end
+    return files
+end
+
+-- Gegevens van één boek: FileManagerBookInfo:getDocProps en de doc-settings
+-- (BookList.getDocSettings: percent_finished, summary.status zoals BookList.getBookStatus).
+local function bookInfo(fm, file)
+    local BookList = require("ui/widget/booklist")
+    local props = fm.bookinfo:getDocProps(file, nil, true) or {}
+    local doc_settings = BookList.getDocSettings(file)
+    local summary = doc_settings:readSetting("summary") or {}
+    return {
+        file = file,
+        title = props.display_title or props.title or file:match("([^/]+)$"),
+        authors = props.authors,
+        percent = doc_settings:readSetting("percent_finished"),
+        status = summary.status or "reading",
+    }
+end
+
+-- Omslag apart (FileManagerBookInfo:getCoverImage): faalt alleen die, dan zonder omslag.
+local function withCover(fm, book)
     local cover_ok, cover = try("getCoverImage", fm.bookinfo.getCoverImage, fm.bookinfo, nil, book.file)
     book.cover = cover_ok and cover or nil
     return book
+end
+
+--[[--
+Boeken voor het homescreen: wat je aan het lezen bent (status "reading" in KOReader,
+dus niet "abandoned"/on hold of "complete"), recentste eerst, hooguit limit. Is er niets
+aan het lezen, dan alleen het laatst geopende boek. Lege lijst als er geen boek is.
+Elk boek: { file, title, authors, percent, status, cover }; cover is een BlitBuffer of nil.
+]]
+function M.readingBooks(fm, limit)
+    local ok, books = try("readingBooks", function()
+        local files = historyFiles()
+        local books = {}
+        for _, file in ipairs(files) do
+            local info = bookInfo(fm, file)
+            if info.status == "reading" then
+                table.insert(books, info)
+                if #books >= limit then break end
+            end
+        end
+        if #books == 0 and files[1] then
+            books[1] = bookInfo(fm, files[1])
+        end
+        return books
+    end)
+    if not ok or not books then return {} end
+    for _, book in ipairs(books) do withCover(fm, book) end
+    return books
 end
 
 --[[--

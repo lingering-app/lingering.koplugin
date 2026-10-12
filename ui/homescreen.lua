@@ -94,6 +94,67 @@ function CollectionTile:onTapTile()
     return true
 end
 
+--[[--
+Tegel in het raster "aan het lezen" (twee of meer boeken): omslag, "X% gelezen" en
+lichter de resterende tijd (als de statistics-plugin aan staat). Een tik roept callback() aan.
+]]
+local ReadingTile = InputContainer:extend{
+    book = nil,         -- { file, title, percent, cover, stats }
+    width = nil,
+    cover_w = nil,
+    cover_h = nil,
+    callback = nil,
+}
+
+function ReadingTile:init()
+    local book = self.book
+    local cover
+    if book.cover then
+        -- Schalen met behoud van de eigen verhouding, onderaan uitgelijnd in het omslagvak.
+        local bb = book.cover
+        local scale = math.min(self.cover_w / bb:getWidth(), self.cover_h / bb:getHeight())
+        cover = ImageWidget:new{
+            image = bb,
+            -- Zelf vrijgeven in HomeScreen:onCloseWidget: de omslag mag een herbouw overleven.
+            image_disposable = false,
+            width = math.floor(bb:getWidth() * scale),
+            height = math.floor(bb:getHeight() * scale),
+            scale_factor = 0,
+        }
+    else
+        cover = Widgets.icon({ icon_file = "menu_book.svg" }, math.floor(self.cover_w / 2))
+    end
+    local BottomContainer = require("ui/widget/container/bottomcontainer")
+    local group = VerticalGroup:new{
+        align = "center",
+        BottomContainer:new{ dimen = Geom:new{ w = self.width, h = self.cover_h }, cover },
+        VerticalSpan:new{ width = Size.padding.default },
+        TextWidget:new{
+            text = T(_("%1% gelezen"), math.floor((book.percent or 0) * 100 + 0.5)),
+            face = Font:getFace("cfont", 15),
+            bold = true,
+            max_width = self.width,
+        },
+    }
+    if book.stats then
+        table.insert(group, TextWidget:new{
+            text = T(_("± %1 te gaan"), formatDuration(book.stats.left_secs)),
+            face = Font:getFace("cfont", 13),
+            fgcolor = Blitbuffer.COLOR_DARK_GRAY,
+            max_width = self.width,
+        })
+    end
+    self[1] = group
+    self.ges_events = {
+        TapTile = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
+    }
+end
+
+function ReadingTile:onTapTile()
+    if self.callback then Widgets.safeCall("boek " .. tostring(self.book.title), self.callback) end
+    return true
+end
+
 local HomeScreen = InputContainer:extend{
     fm = nil,               -- FileManager-instantie
     library = nil,          -- app/library_service (mappen in de catalogus)
@@ -113,10 +174,12 @@ Widgets.followRotation(HomeScreen)
 
 function HomeScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }
-    self.book = Books.currentBook(self.fm)
-    if self.book then
-        self.book.stats = ReadingTime.estimate(Books.stats(self.fm, self.book.file), self.book.percent)
+    -- Eén boek aan het lezen: de grote kaart (self.book); meer: een rij van hooguit 4.
+    self.books = Books.readingBooks(self.fm, 4)
+    for _, book in ipairs(self.books) do
+        book.stats = ReadingTime.estimate(Books.stats(self.fm, book.file), book.percent)
     end
+    self.book = #self.books == 1 and self.books[1] or nil
     self:build()
 
     self.ges_events = {
@@ -228,9 +291,49 @@ function HomeScreen:updateStatusTexts()
     self.status_right:resetLayout()
 end
 
+-- Rij van hooguit 4 boeken die je aan het lezen bent, in het raster van Mijn boeken.
+function HomeScreen:buildReadingRow(width, height)
+    local padding = Size.padding.large * 2
+    local gap = Size.padding.default
+    local columns = 4
+    local tile_w = math.floor((width - 2 * padding) / columns)
+    local cover_w = tile_w - 2 * gap
+    local cover_h = math.floor(cover_w * 3 / 2)
+    -- Ruimte voor de twee regels onder de omslag; de omslag krimpt als het niet past.
+    local text_h = Screen:scaleBySize(15 + 13) + 3 * Size.padding.default
+    local max_cover_h = height - 2 * padding - text_h
+    if cover_h > max_cover_h then
+        cover_h = math.max(0, max_cover_h)
+        cover_w = math.floor(cover_h * 2 / 3)
+    end
+    local row = HorizontalGroup:new{ align = "top" }
+    for _, book in ipairs(self.books) do
+        table.insert(row, ReadingTile:new{
+            book = book,
+            width = tile_w,
+            cover_w = cover_w,
+            cover_h = cover_h,
+            callback = function()
+                logger.info("Lingering: homescreen, boek openen")
+                self:close()
+                Navigation.openBook(book.file)
+            end,
+        })
+    end
+    return FrameContainer:new{
+        padding = padding,
+        bordersize = 0,
+        row,
+    }
+end
+
 function HomeScreen:buildBook(width, height)
     local padding = Size.padding.large * 2
     local inner_w = width - 2 * padding
+
+    if #self.books > 1 then
+        return self:buildReadingRow(width, height)
+    end
 
     if not self.book then
         return CenterContainer:new{
@@ -444,6 +547,8 @@ function HomeScreen:refreshCollections()
 end
 
 function HomeScreen:onTapBook()
+    -- Raster: de tegels handelen hun eigen tik af; daartussen gebeurt niets.
+    if #self.books > 1 then return true end
     if self.book then
         logger.info("Lingering: homescreen, boek openen")
         local file = self.book.file
@@ -503,9 +608,11 @@ function HomeScreen:onCloseWidget()
         UIManager:unschedule(self.emergency_task)
         self.emergency_task = nil
     end
-    if self.book and self.book.cover then
-        self.book.cover:free()
-        self.book.cover = nil
+    for _, book in ipairs(self.books or {}) do
+        if book.cover then
+            book.cover:free()
+            book.cover = nil
+        end
     end
     if self.on_closed then
         Widgets.safeCall("homescreen gesloten", self.on_closed)
