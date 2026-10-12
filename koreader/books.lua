@@ -42,7 +42,20 @@ local function bookInfo(fm, file)
         authors = props.authors,
         percent = doc_settings:readSetting("percent_finished"),
         status = summary.status or "reading",
+        md5 = doc_settings:readSetting("partial_md5_checksum"),
     }
+end
+
+-- Sleutels waaraan hetzelfde boek in een ander bestand te herkennen is: dezelfde inhoud
+-- (partial_md5_checksum, ook de sleutel van kosync) of dezelfde titel en auteur (andere uitgave).
+local function bookKeys(info)
+    local keys = {}
+    if info.md5 then table.insert(keys, "md5:" .. info.md5) end
+    local title = (info.title or ""):lower():gsub("%s+", " ")
+    if title ~= "" then
+        table.insert(keys, "titel:" .. title .. "|" .. (info.authors or ""):lower():gsub("%s+", " "))
+    end
+    return keys
 end
 
 -- Omslag apart (FileManagerBookInfo:getCoverImage): faalt alleen die, dan zonder omslag.
@@ -54,7 +67,8 @@ end
 
 --[[--
 Boeken voor het homescreen: wat je aan het lezen bent (status "reading" in KOReader,
-dus niet "abandoned"/on hold of "complete"), recentste eerst, hooguit limit. Is er niets
+dus niet "abandoned"/on hold of "complete"), recentste eerst, hooguit limit; hetzelfde
+boek in meer bestanden één keer. Is er niets
 aan het lezen, dan alleen het laatst geopende boek. Lege lijst als er geen boek is.
 Elk boek: { file, title, authors, percent, status, cover }; cover is een BlitBuffer of nil.
 ]]
@@ -62,9 +76,18 @@ function M.readingBooks(fm, limit)
     local ok, books = try("readingBooks", function()
         local files = historyFiles()
         local books = {}
+        -- Hetzelfde boek in meer bestanden (bijv. eerder ergens anders gedownload) telt één
+        -- keer: de recentst gelezen versie, want de geschiedenis staat op volgorde.
+        local seen = {}
         for _, file in ipairs(files) do
             local info = bookInfo(fm, file)
-            if info.status == "reading" then
+            local keys = bookKeys(info)
+            local duplicate = false
+            for _, key in ipairs(keys) do
+                if seen[key] then duplicate = true end
+                seen[key] = true
+            end
+            if info.status == "reading" and not duplicate then
                 table.insert(books, info)
                 if #books >= limit then break end
             end
