@@ -284,7 +284,19 @@ function Smoke.reader(ui, show_action_bar)
             shot("6-toc")
             UIManager:close(UIManager:getTopmostVisibleWidget())
         end },
-        { name = "sync-knop", fn = function()
+        -- Elke run schrijft 5 pagina's verder weg; is het testboek bijna uit, dan eerst naar
+        -- 30% en die stand rechtstreeks naar de server (anders kan "verder bladeren" niet meer;
+        -- niet naar pagina 1, want dan kan "terugbladeren" niet).
+        { name = "testboek terugzetten (bijna uit)", fn = function()
+            if (ui.kosync:getLastPercent() or 0) < 0.8 then return end
+            local page = math.max(10, math.floor(ui.document:getPageCount() * 0.3))
+            ui:handleEvent(require("ui/event"):new("GotoPage", page))
+            local session = assert(require("lingering.koreader.kosync").session(ui.kosync), "geen sessie")
+            session:store(session:snapshot(), function(ok)
+                logger.info("Lingering: SMOKE testboek teruggezet:", ok)
+            end)
+        end },
+        { name = "sync-knop", wait = 3, fn = function()
             SyncService.syncNow(ui, function(ok)
                 logger.info("Lingering: SMOKE sync-knop resultaat", ok)
             end)

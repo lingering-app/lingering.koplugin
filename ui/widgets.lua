@@ -165,42 +165,45 @@ end
 
 --[[--
 Titelbalk van onze schermen: terug-knop links, titel in het midden, optioneel een knop
-rechts, lijn eronder. Eigen iconen (KOReaders TitleBar kent alleen zijn eigen iconen).
+rechts. Eigen iconen (KOReaders TitleBar kent alleen zijn eigen iconen).
 opts: width, title, on_back, right (een ActionBar.Item of nil), show_parent.
 Geeft de balk; balk:setTitle(tekst) zet een andere titel, balk.height is de hoogte.
 ]]
-Widgets.HEADER_SIZE = 56
+-- Maten van de bovenbalk, gelijk op alle schermen (homescreen en titelbalken).
+Widgets.TOP_BAR = { height = 60, font_size = 16, icon_size = 30 }
+function Widgets.topBarFace()
+    return Font:getFace("cfont", Widgets.TOP_BAR.font_size)
+end
+
 function Widgets.header(opts)
     local Item = require("lingering.ui.actionbar").Item
     local width = opts.width
-    local h = Screen:scaleBySize(Widgets.HEADER_SIZE)
+    local h = Screen:scaleBySize(Widgets.TOP_BAR.height)
     local inner = Geom:new{ w = width, h = h }
     local back = Item:new{
         action = { icon_file = "chevron_left.svg" },
-        width = h, height = h, icon_size = Screen:scaleBySize(28),
+        width = h, height = h, icon_size = Screen:scaleBySize(Widgets.TOP_BAR.icon_size),
         show_parent = opts.show_parent,
         on_tap = opts.on_back,
     }
     local title_box = CenterContainer:new{ dimen = inner, TextWidget:new{ text = "" } }
-    local bar = VerticalGroup:new{
-        OverlapGroup:new{
-            dimen = inner,
-            title_box,
-            LeftContainer:new{ dimen = inner, back },
-            opts.right and RightContainer:new{ dimen = inner, opts.right } or nil,
-        },
-        Widgets.line(width),
+    -- Zonder lijn eronder, net als de statusregel van het homescreen.
+    local bar = OverlapGroup:new{
+        dimen = inner,
+        title_box,
+        LeftContainer:new{ dimen = inner, back },
+        opts.right and RightContainer:new{ dimen = inner, opts.right } or nil,
     }
     function bar.setTitle(_, text)
         title_box[1] = TextWidget:new{
             text = text,
-            face = Font:getFace("cfont", 22),
+            face = Widgets.topBarFace(),
             bold = true,
             max_width = width - 2 * h - 2 * Size.padding.large,
         }
     end
     bar:setTitle(opts.title or "")
-    bar.height = h + Widgets.line(width):getSize().h
+    bar.height = h
     return bar
 end
 

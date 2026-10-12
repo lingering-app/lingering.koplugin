@@ -230,7 +230,7 @@ end
 
 -- Titelbalk: terug, titel, sync. Eén keer gebouwd, zodat een draaiend sync-icoon blijft.
 function LibraryScreen:buildHeader()
-    local h = Screen:scaleBySize(Widgets.HEADER_SIZE)
+    local h = Screen:scaleBySize(Widgets.TOP_BAR.height)
     self.sync_item = Item:new{
         action = {
             name = "mijn boeken synchroniseren",
@@ -239,7 +239,7 @@ function LibraryScreen:buildHeader()
             frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
             run = function(done) self:syncCurrent(done) end,
         },
-        width = h, height = h, icon_size = Screen:scaleBySize(28),
+        width = h, height = h, icon_size = Screen:scaleBySize(Widgets.TOP_BAR.icon_size),
         show_parent = self,
     }
     self.header = Widgets.header{
