@@ -28,9 +28,6 @@ local function showActionBar(ui)
                     Navigation.closeBook(ui)
                 end,
             },
-        },
-        -- Rechts vóór licht en wifi van de statusbalk.
-        extra = {
             {
                 name = "inhoudsopgave",
                 icon_file = "toc.svg",
@@ -39,6 +36,9 @@ local function showActionBar(ui)
                     ReaderControl.showToc(ui)
                 end,
             },
+        },
+        -- Rechts vóór licht en wifi van de statusbalk.
+        extra = {
             {
                 name = "synchroniseren",
                 task = true,
