@@ -16,7 +16,6 @@ local Device = require("device")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
-local IconWidget = require("ui/widget/iconwidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
@@ -88,13 +87,14 @@ function Item:build()
     local icon_size = self.icon_size or Screen:scaleBySize(40)
     self[1] = CenterContainer:new{
         dimen = Geom:new{ w = self.width, h = self.height },
-        IconWidget:new{
+        -- Grijs met de tint uit de stijl: Widgets.QuietIcon, Style.icon_dim.
+        require("lingering.ui.widgets").QuietIcon:new{
             icon = spec.icon,
             file = spec.icon_file and (plugin_dir .. "/icons/" .. spec.icon_file) or nil,
             width = icon_size,
             height = icon_size,
             alpha = true,
-            dim = spec.dim or not self.enabled,
+            quiet = (spec.dim or not self.enabled) and true or false,
         },
     }
 end

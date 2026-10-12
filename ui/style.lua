@@ -20,6 +20,9 @@ local Style = {
     cover_border = { size = Size.border.thin, color = Blitbuffer.COLOR_DARK_GRAY },
     radius = Size.radius.window,
 
+    -- Grijze (gedimde) iconen: zoveel wit erover (0..1). KOReaders eigen dim is 0.5.
+    icon_dim = 0.35,
+
     -- Voortgangsbalk: lichtgrijze baan, gelezen deel donkergrijs.
     progress = { track = Blitbuffer.COLOR_LIGHT_GRAY, fill = Blitbuffer.COLOR_DARK_GRAY },
 

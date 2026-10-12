@@ -152,14 +152,29 @@ function Widgets.coverStack(covers, stack_w, stack_h)
 end
 
 --- Icoon uit KOReader (icon = naam) of uit de plugin (icon_file = bestandsnaam in icons/).
+--[[--
+Icoon dat gedimd minder licht wordt dan KOReaders eigen dim (lightenRect met 0.5):
+Style.icon_dim wit erover. Zelfde opties als IconWidget, plus quiet = true voor grijs.
+]]
+local QuietIcon = IconWidget:extend{ quiet = false }
+
+function QuietIcon:paintTo(bb, x, y)
+    IconWidget.paintTo(self, bb, x, y)
+    if self.quiet then
+        local size = self:getSize()
+        bb:lightenRect(x, y, size.w, size.h, Style.icon_dim)
+    end
+end
+Widgets.QuietIcon = QuietIcon
+
 function Widgets.icon(spec, size, dim)
-    return IconWidget:new{
+    return QuietIcon:new{
         icon = spec.icon,
         file = spec.icon_file and (Widgets.plugin_dir .. "/icons/" .. spec.icon_file) or nil,
         width = size,
         height = size,
         alpha = true,
-        dim = dim,
+        quiet = dim and true or false,
     }
 end
 
