@@ -50,6 +50,15 @@ local function formatDuration(secs)
     return T(_("%1 min"), minutes)
 end
 
+-- Afgerond op hele uren ("7 u"); onder het half uur in minuten ("20 min").
+local function formatHours(secs)
+    local hours = math.floor((secs or 0) / 3600 + 0.5)
+    if hours > 0 then
+        return T(_("%1 u"), hours)
+    end
+    return formatDuration(secs)
+end
+
 --[[--
 Blok voor een map op het homescreen: stapel omslagen (Widgets.coverStack) met de naam
 eronder; zonder omslagen een klein mapicoon. Een tik roept callback() aan.
@@ -138,7 +147,7 @@ function ReadingTile:init()
     }
     if book.stats then
         table.insert(group, TextWidget:new{
-            text = T(_("± %1 te gaan"), formatDuration(book.stats.left_secs)),
+            text = T(_("%1 te gaan"), formatHours(book.stats.left_secs)),
             face = Font:getFace("cfont", 13),
             fgcolor = Blitbuffer.COLOR_DARK_GRAY,
             max_width = self.width,
