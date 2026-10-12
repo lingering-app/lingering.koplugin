@@ -147,15 +147,6 @@ function GridTile:init()
     }
     placed.overlap_offset = { math.floor((cover_w - cover_size.w) / 2), cover_h - cover_size.h }
     table.insert(cover_area, placed)
-    if entry.kind == "book" and self.library:isDownloaded(entry) then
-        local badge_size = Screen:scaleBySize(24)
-        local badge = Widgets.icon({ icon_file = "check_circle.svg" }, badge_size)
-        badge.overlap_offset = {
-            math.floor((cover_w + cover_size.w) / 2) - badge_size - Size.padding.small,
-            cover_h - badge_size - Size.padding.small,
-        }
-        table.insert(cover_area, badge)
-    end
 
     -- Boeken: alleen de omslag (de titel staat er meestal op). Mappen: icoon met naam.
     local content = VerticalGroup:new{ align = "center", cover_area }
