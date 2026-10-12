@@ -31,7 +31,7 @@ local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local datetime = require("datetime")
 local logger = require("logger")
-local _ = require("gettext")
+local _ = require("lingering.l10n.gettext")
 local T = require("ffi/util").template
 local Screen = Device.screen
 

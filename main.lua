@@ -5,7 +5,6 @@ Laadt de onderdelen, kiest per context (bestandsbeheerder of lezer) wat er gebeu
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local logger = require("logger")
-local _ = require("gettext")
 
 -- Onze modules heten "lingering.<map>.<naam>" en worden uit de eigen pluginmap geladen.
 -- Unieke namen zijn nodig: de require-cache is gedeeld met KOReader en andere plugins, en
@@ -34,6 +33,8 @@ end
 local Smoke = os.getenv("LINGERING_TEST") and dofile(plugin_dir .. "/tests/smoke.lua") or nil
 
 local Settings = require("lingering.app.session")
+-- Pas na de loader hierboven: l10n/ is een eigen module.
+local _ = require("lingering.l10n.gettext")
 
 local Lingering = WidgetContainer:extend{
     name = "lingering",

@@ -6,7 +6,7 @@ local Device = require("device")
 local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
 local logger = require("logger")
-local _ = require("gettext")
+local _ = require("lingering.l10n.gettext")
 
 local DeviceAdapter = require("lingering.koreader.device")
 local SyncService = require("lingering.app.sync_service")

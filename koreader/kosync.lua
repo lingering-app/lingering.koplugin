@@ -157,7 +157,7 @@ function M.check(sync_url, username, password)
     local ok, success, reason = try("checkKosync", function()
         local KOSyncClient = require("KOSyncClient")
         local md5 = require("ffi/sha2").md5
-        local _ = require("gettext")
+        local _ = require("lingering.l10n.gettext")
         local client = KOSyncClient:new{
             custom_url = sync_url,
             service_spec = kosyncServiceSpec(),

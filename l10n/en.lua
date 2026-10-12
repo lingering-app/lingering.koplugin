@@ -1,0 +1,78 @@
+-- Engelse vertalingen van Lingering: Nederlandse brontekst → Engels.
+-- Elke _("…") in de code moet hier staan; tools/check_l10n.lua controleert dat.
+-- Plaatshouders (%1, %2) en regeleinden (\n) blijven gelijk.
+return {
+    -- Algemeen en navigatie
+    ["Home"] = "Home",
+    ["Mijn boeken"] = "My books",
+    ["Instellingen"] = "Settings",
+    ["Annuleren"] = "Cancel",
+
+    -- Homescreen
+    ["%1% gelezen"] = "%1% read",
+    ["%1 te gaan"] = "%1 to go",
+    ["1 uur"] = "1 hour",
+    ["%1 uur"] = "%1 hours",
+    ["%1 min"] = "%1 min",
+    ["%1 u %2 min"] = "%1 h %2 min",
+    ["Nog ± %1 · %2 gelezen"] = "About %1 left · %2 read",
+    ["Nog geen boek.\nTik hier om er een te kiezen uit Mijn boeken."] = "No book yet.\nTap here to choose one from My books.",
+
+    -- Statusbalk en lezen
+    ["%1%"] = "%1%",
+    ["Laadt op"] = "Charging",
+    ["Synchroniseren mislukt."] = "Sync failed.",
+
+    -- Mijn boeken
+    ["Bezig met synchroniseren…"] = "Syncing…",
+    ["Nog niets gesynchroniseerd.\nZet wifi aan en tik op het sync-icoon."] = "Nothing synced yet.\nTurn on Wi-Fi and tap the sync icon.",
+    ["Geen boeken."] = "No books.",
+    ["Downloaden…\n%1"] = "Downloading…\n%1",
+    ["Geen wifi-verbinding."] = "No Wi-Fi connection.",
+
+    -- Instellingen
+    ["Wifi"] = "Wi-Fi",
+    ["Licht"] = "Light",
+    ["Account"] = "Account",
+    ["Geavanceerd"] = "Advanced",
+    ["Over Lingering"] = "About Lingering",
+
+    -- Inloggen
+    ["Inloggen"] = "Log in",
+    ["Gebruikersnaam"] = "Username",
+    ["Wachtwoord"] = "Password",
+    ["Log in met je account."] = "Log in with your account.",
+    ["Wijzig je gebruikersnaam en wachtwoord."] = "Change your username and password.",
+    ["Vul je gebruikersnaam en wachtwoord in."] = "Enter your username and password.",
+    ["Bezig met inloggen…"] = "Logging in…",
+    ["Inloggen mislukt."] = "Login failed.",
+    ["Inloggen gelukt, maar de gegevens konden niet worden opgeslagen."] = "Logged in, but the details could not be saved.",
+    ["Geen wifi-verbinding. Probeer het opnieuw."] = "No Wi-Fi connection. Please try again.",
+    ["gebruikersnaam of wachtwoord onjuist"] = "incorrect username or password",
+    ["server niet bereikbaar"] = "server unreachable",
+    ["server antwoordt met code"] = "server responded with code",
+    ["fout bij verbinden"] = "connection error",
+    ["geen geldige catalogus"] = "not a valid catalog",
+
+    -- Over Lingering en bijwerken
+    ["Versie %1"] = "Version %1",
+    ["Versie onbekend"] = "Version unknown",
+    ["Zoeken naar update"] = "Check for update",
+    ["Een rustige leesomgeving bovenop KOReader: je boeken, je voortgang op al je apparaten, en verder niets."] = "A calm reading environment on top of KOReader: your books, your progress on all your devices, and nothing else.",
+    ["© 2026 Lingering"] = "© 2026 Lingering",
+    ["Vrije software onder de GNU Affero General Public License v3.0."] = "Free software under the GNU Affero General Public License v3.0.",
+    ["Gebouwd op KOReader."] = "Built on KOReader.",
+    ["Zoeken naar een nieuwe versie…"] = "Checking for a new version…",
+    ["Zoeken naar een nieuwe versie is mislukt."] = "Checking for a new version failed.",
+    ["Je hebt de nieuwste versie (v%1)."] = "You have the latest version (v%1).",
+    ["Dit is een ontwikkelversie; bijwerken overgeslagen."] = "This is a development version; update skipped.",
+    ["Bijwerken naar %1?"] = "Update to %1?",
+    ["Bijwerken"] = "Update",
+    ["Bijwerken…"] = "Updating…",
+    ["Bijwerken mislukt. De huidige versie blijft staan."] = "Update failed. The current version stays installed.",
+    ["Lingering is bijgewerkt. KOReader moet herstarten."] = "Lingering has been updated. KOReader needs to restart.",
+
+    -- KOReader-menu (noodluik)
+    ["Lingering UI uitschakelen"] = "Disable Lingering UI",
+    ["Zet de versimpelde schil uit tot de volgende herstart, of tot je dit weer uitvinkt."] = "Turns off the simplified shell until the next restart, or until you uncheck this.",
+}

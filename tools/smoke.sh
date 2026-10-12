@@ -19,7 +19,7 @@ run() {
     echo "== $name"
     grep -h "Lingering: SMOKE" "$logs/$name.log"
     # Verwacht: de test met het foute wachtwoord, en waarschuwingen van crengine zelf.
-    expected="CRE WARNING|inloggen mislukt bij OPDS gebruikersnaam of wachtwoord onjuist"
+    expected="CRE WARNING|inloggen mislukt bij OPDS (gebruikersnaam of wachtwoord onjuist|incorrect username or password)"
     if grep -E "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log" | grep -qvE "$expected"; then
         grep -nE "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log" | grep -vE "$expected"
         fail=1

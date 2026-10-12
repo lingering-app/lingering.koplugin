@@ -317,6 +317,16 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/books.homeFolder`, `koreader/network.isOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()` | Downloads in `./Lingering`; geen automatische sync |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak: standaard plugin-API |
 
+Taal:
+- Bronteksten zijn Nederlands, in `_()` uit `lingering.l10n.gettext` (niet KOReaders
+  gettext: die kent onze teksten niet). Staat KOReader op Nederlands (`nl*`), dan
+  Nederlands; anders Engels uit `l10n/en.lua`. De taal komt uit `GetText.current_lang`
+  (`koreader/locale.lua`); zonder ingestelde taal is KOReader Engels ("C").
+- `tools/check_l10n.lua` (in `check.sh`) faalt als een `_("…")` geen Engelse vertaling heeft.
+- `_meta.lua` wordt vóór main.lua gelezen (zonder onze loader) en kiest de taal zelf.
+- Mapnamen uit de OPDS-catalogus (`config.collections`) worden niet vertaald: daaraan
+  worden de mappen herkend.
+
 Stijl:
 - Alle kleuren, lijnen, randen en de maten van de bovenbalk staan in `ui/style.lua`
   (`Style.line`, `Style.text_secondary`, `Style.top_bar`, …). Schermen en widgets halen hun

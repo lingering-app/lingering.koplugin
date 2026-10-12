@@ -45,7 +45,7 @@ function Release.isNewer(tag, installed)
 end
 
 local TOP_FILES = { ["_meta.lua"] = true, ["main.lua"] = true, ["config.lua"] = true, ["LICENSE"] = true }
-local DIRS = { "app/", "domain/", "koreader/", "ui/", "icons/" }
+local DIRS = { "app/", "domain/", "koreader/", "ui/", "icons/", "l10n/" }
 
 function Release.includes(path)
     if type(path) ~= "string" or path == "" then return false end

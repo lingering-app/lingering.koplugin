@@ -3,6 +3,7 @@ Unit tests (luaunit), zonder KOReader. Gebruik: tools/test.sh
 of: luajit tests/run.lua <pluginmap> [luaunit-opties]
 ]]
 local root = arg[1] or "."
+arg0_root = root -- luacheck: ignore (voor tests die bestanden uit de plugin lezen)
 -- luaunit leest de globale arg al bij het laden; daar hoort de pluginmap niet in.
 local args = {}
 for i = 2, #arg do args[#args + 1] = arg[i] end
@@ -24,6 +25,7 @@ require("fakes").install()
 for _, test in ipairs({
     "test_sync_rules", "test_catalog", "test_reading_time", "test_layout",
     "test_sync_service", "test_try", "test_release", "test_catalog_shelf", "test_library_service",
+    "test_l10n",
 }) do
     require(test)
 end

@@ -415,7 +415,7 @@ function Widgets.mainNav(width, nav, active, on_reselect)
             end,
         }
     end
-    local _ = require("gettext")
+    local _ = require("lingering.l10n.gettext")
     return Widgets.navBar(width, {
         item("home", _("Home"), "home.svg"),
         item("library", _("Mijn boeken"), "menu_book.svg"),

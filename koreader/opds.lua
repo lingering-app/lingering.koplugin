@@ -90,7 +90,7 @@ function M.check(opds_url, username, password)
         local ltn12 = require("ltn12")
         local socket = require("socket")
         local socketutil = require("socketutil")
-        local _ = require("gettext")
+        local _ = require("lingering.l10n.gettext")
         local sink = {}
         socketutil:set_timeout(socketutil.LARGE_BLOCK_TIMEOUT, socketutil.LARGE_TOTAL_TIMEOUT)
         local code = socket.skip(1, http.request{

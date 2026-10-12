@@ -22,7 +22,7 @@ local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local logger = require("logger")
-local _ = require("gettext")
+local _ = require("lingering.l10n.gettext")
 local T = require("ffi/util").template
 local Screen = Device.screen
 
@@ -48,7 +48,10 @@ end
 -- Afgerond op hele uren ("7 uur"); onder het half uur in minuten ("20 min").
 local function formatHours(secs)
     local hours = math.floor((secs or 0) / 3600 + 0.5)
-    if hours > 0 then
+    if hours == 1 then
+        -- Apart, omdat het Engels een meervoud heeft (1 hour, 7 hours).
+        return _("1 uur")
+    elseif hours > 1 then
         return T(_("%1 uur"), hours)
     end
     return formatDuration(secs)

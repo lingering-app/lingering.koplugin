@@ -11,7 +11,7 @@ local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local logger = require("logger")
-local _ = require("gettext")
+local _ = require("lingering.l10n.gettext")
 local Screen = Device.screen
 
 local DeviceAdapter = require("lingering.koreader.device")
