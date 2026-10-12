@@ -6,6 +6,9 @@ Popover:new{
     anchor = Geom (schermpositie van het icoon, bijv. item.dimen),
     lines = { { text = "62%", bold = true }, { text = "Laadt op", gray = true } },
 }:show()
+Of met eigen inhoud: content = function(popover) return widget end. Een tik binnen het
+kader sluit het dan niet (de inhoud handelt hem af); popover:keepAlive() schuift het
+automatisch sluiten op zolang je ermee bezig bent.
 Modal, zodat hij ook boven de (modale) actiebalk in het boek komt.
 ]]
 local Device = require("device")
@@ -22,12 +25,14 @@ local Screen = Device.screen
 local Widgets = require("lingering.ui.widgets")
 local Style = require("lingering.ui.style")
 
--- Zo lang blijft het kader staan zonder tik.
+-- Zo lang blijft het kader staan zonder tik; met bedienbare inhoud (schuif) wat langer.
 local TIMEOUT = 4
+local CONTENT_TIMEOUT = 8
 
 local Popover = InputContainer:extend{
     anchor = nil,
     lines = nil,
+    content = nil,
     modal = true,
 }
 Widgets.guardPaint(Popover, "popover")
@@ -35,6 +40,7 @@ Widgets.guardEvents(Popover, "popover")
 
 function Popover:init()
     local group = VerticalGroup:new{ align = "center" }
+    if self.content then table.insert(group, self.content(self)) end
     for _, line in ipairs(self.lines or {}) do
         table.insert(group, TextWidget:new{
             text = line.text,
@@ -72,9 +78,20 @@ function Popover:init()
     }
 end
 
-function Popover:onTapClose()
+function Popover:onTapClose(_, ges)
+    -- Met eigen inhoud blijft het kader open bij een tik erin (naast een knop bijv.).
+    if self.content and ges and ges.pos and ges.pos:intersectWith(self.dimen) then
+        return true
+    end
     self:dismiss()
     return true
+end
+
+--- Automatisch sluiten opnieuw laten beginnen (na een tik op de inhoud).
+function Popover:keepAlive()
+    if self.closed or not self.timeout then return end
+    UIManager:unschedule(self.timeout)
+    UIManager:scheduleIn(self.content and CONTENT_TIMEOUT or TIMEOUT, self.timeout)
 end
 
 function Popover:onClose()
@@ -85,7 +102,7 @@ end
 function Popover:show()
     UIManager:show(self, "ui", self.dimen, self.dimen.x, self.dimen.y)
     self.timeout = function() self:dismiss() end
-    UIManager:scheduleIn(TIMEOUT, self.timeout)
+    UIManager:scheduleIn(self.content and CONTENT_TIMEOUT or TIMEOUT, self.timeout)
 end
 
 function Popover:dismiss()

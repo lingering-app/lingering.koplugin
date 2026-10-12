@@ -6,6 +6,7 @@ Item (hieronder) is één icoon in de balk; ook gebruikt in andere balken.
 Soorten acties:
 - knop:        { icon | icon_file, callback = fn }                 (balk sluit)
 - schakelaar:  { switch = true, icon_on, icon_off, state, on_toggle = fn(state) }
+               Met tap = fn(item) doet een tik dat in plaats van schakelen (icoon volgt de stand).
 - taak:        { task = true, icon_file, frames = {...}, run = fn(done) }
                Tijdens de taak wisselt het icoon door de frames; done(ok) stopt dat.
 ]]
@@ -171,6 +172,11 @@ end
 function Item:onTapItem()
     if not self.enabled then return true end
     local action = self.action
+    -- Eigen tikactie (bijv. een kader openen) gaat vóór schakelen; de stand blijft zoals hij is.
+    if action.tap then
+        safeCall("tik", action.tap, self)
+        return true
+    end
     if action.switch then
         self.state = not self.state
         self:redraw()

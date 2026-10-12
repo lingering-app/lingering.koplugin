@@ -121,12 +121,8 @@ function StatusBar:init()
         icon_off = "dark_mode.svg",
         enabled = Device:hasFrontlight(),
         state = DeviceAdapter.isFrontlightOn(),
-        on_toggle = function(on)
-            logger.info("Lingering: statusbalk, licht", on and "aan" or "uit")
-            DeviceAdapter.toggleFrontlight(function()
-                self.light_item:setState(DeviceAdapter.isFrontlightOn())
-            end)
-        end,
+        -- Tik: kader met een schuif voor de helderheid (helemaal links = uit).
+        tap = function(light_item) self:showBrightness(light_item) end,
     }
     self.wifi_item = item{
         name = "wifi",
@@ -169,6 +165,29 @@ function StatusBar:init()
             RightContainer:new{ dimen = inner, self.right },
         },
     }
+end
+
+--- Kader onder het licht-icoon met een schuif voor de helderheid (ui/slider.lua).
+function StatusBar:showBrightness(light_item)
+    local min, max = DeviceAdapter.brightnessRange()
+    if max <= min then return end
+    logger.info("Lingering: statusbalk, helderheid")
+    require("lingering.ui.popover"):new{
+        anchor = light_item.dimen,
+        content = function(popover)
+            return require("lingering.ui.slider"):new{
+                width = Screen:scaleBySize(280),
+                min = min,
+                max = max,
+                value = DeviceAdapter.brightness(),
+                show_parent = popover,
+                on_change = function(level)
+                    popover:keepAlive()
+                    DeviceAdapter.setBrightness(level)
+                end,
+            }
+        end,
+    }:show()
 end
 
 function StatusBar:updateTexts()

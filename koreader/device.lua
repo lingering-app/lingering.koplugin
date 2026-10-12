@@ -54,6 +54,42 @@ function M.setAutoRotate(on)
 end
 
 --[[--
+Helderheid van het voorlicht, zoals KOReaders FrontLightWidget (ui/widget/frontlightwidget):
+- brightnessRange() → min, max (BasePowerD.fl_min/fl_max; op Kobo 0..100);
+- brightness() → huidige stand (BasePowerD:frontlightIntensity; 0 als het licht uit is);
+- setBrightness(stand): min = uit (turnOffFrontlight), anders setIntensity (zet het ook aan);
+  daarna updateResumeFrontlightState, zoals setFrontLightIntensity. KOReader onthoudt de stand
+  zelf (Kobo: frontlight_intensity) en meldt FrontlightStateChanged.
+]]
+function M.brightnessRange()
+    local ok, min, max = try("brightnessRange", function()
+        local powerd = require("device"):getPowerDevice()
+        return powerd.fl_min, powerd.fl_max
+    end)
+    if not ok then return 0, 0 end
+    return min or 0, max or 0
+end
+
+function M.brightness()
+    local ok, level = try("brightness", function()
+        return require("device"):getPowerDevice():frontlightIntensity()
+    end)
+    return ok and level or 0
+end
+
+function M.setBrightness(level)
+    return try("setBrightness", function()
+        local powerd = require("device"):getPowerDevice()
+        if level <= powerd.fl_min then
+            powerd:turnOffFrontlight()
+        else
+            powerd:setIntensity(level)
+        end
+        powerd:updateResumeFrontlightState()
+    end)
+end
+
+--[[--
 KOReaders helderheidsscherm (Device:showLightDialog → ui/widget/frontlightwidget).
 KOReader onthoudt de helderheid zelf (Kobo: frontlight_intensity in settings.reader.lua);
 aan/uit gaat terug naar de laatste helderheid. Wijzigingen worden gemeld met het event

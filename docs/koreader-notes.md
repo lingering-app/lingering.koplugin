@@ -291,6 +291,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/kosync.ensureBinary` | `kosync.settings.checksum_method = 0` (binary) | Digest op bestandsnaam |
 | `koreader/device.isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
 | `koreader/device.toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
+| `koreader/device.brightnessRange` / `brightness` / `setBrightness` | `BasePowerD.fl_min/fl_max`, `frontlightIntensity`, `setIntensity` / `turnOffFrontlight`, `updateResumeFrontlightState` (zoals `FrontLightWidget:setFrontLightIntensity`); KOReader bewaart de stand zelf | Schuif doet niets |
 | `koreader/books.readingBooks` | `ReadHistory.hist`, `BookList.getDocSettings` (`percent_finished`, `summary.status` zoals `BookList.getBookStatus`), `FileManagerBookInfo:getDocProps/getCoverImage`. Aan het lezen = status `reading` (niet on hold/uit), hooguit 4, hetzelfde boek in meer bestanden één keer (zelfde `partial_md5_checksum` of titel+auteur; recentste wint); niets aan het lezen → het laatst geopende boek. Homescreen: 1 boek = grote kaart, 2–4 = rij in het raster van Mijn boeken | Homescreen zonder boek ("Nog geen boek") |
 | `koreader/device.rotateWithinOrientation` | `Screen:setRotationMode` + `UIManager:onRotation` (zoals `Input:handleGyroEv` met vergrendelde g-sensor); `fm_rotation_mode` voor `FileManager:setRotationMode`. Aangeroepen vanuit `onSetRotationMode` van onze schermen (`Widgets.followRotation`): `SetRotationMode` gaat alleen naar het bovenste venster. Alleen binnen dezelfde stand | Scherm draait niet mee |
 | `koreader/device.setAutoRotate` / `isAutoRotateOn` | `input_ignore_gsensor` + `Device:toggleGSensor` (zoals `DeviceListener:onToggleGSensor`, zonder melding) | Schakelaar doet niets |
@@ -341,7 +342,11 @@ Bewuste keuzes in het leesscherm:
   draaien rechts vóór licht, wifi, batterij en tijd.
 - Tik op het batterij-icoon (homescreen en boek): klein kader eronder met het percentage
   en "Laadt op" (`ui/popover.lua`, rand `Style.line`, modal zodat het boven de actiebalk komt;
-  sluit bij een tik of na 4 s). Grijze lijn eronder (`Style.line`) tegen de tekst van het boek.
+  sluit bij een tik of na 4 s).
+- Tik op het licht-icoon: kader met een schuif (`ui/slider.lua`: − [balk] +; tik op de balk
+  springt naar die stand, geen slepen). Helemaal links = uit. Via `koreader/device.setBrightness`
+  zoals KOReaders `FrontLightWidget:setFrontLightIntensity`. Het kader blijft 8 s open na de
+  laatste tik. Grijze lijn eronder (`Style.line`) tegen de tekst van het boek.
   Alle iconen komen uit `icons/` (Material Symbols, één stijl), via `IconWidget{file=…}`; geen iconen
   uit KOReader's eigen set. Daarom ook een eigen titelbalk (`Widgets.header`): KOReader's
   `TitleBar`/`IconButton` kennen alleen iconnamen uit hun eigen mappen. Het sync-icoon draait

@@ -87,6 +87,17 @@ function Smoke.filemanager(plugin)
             state.popover:onTapClose()
             assert(UIManager:getTopmostVisibleWidget() == plugin.home, "kader niet gesloten")
         end },
+        { name = "helderheid-kader", fn = function()
+            -- Alleen tonen: de emulator heeft geen voorlicht om in te stellen.
+            local bar = plugin.home.status_bar
+            bar:showBrightness(bar.light_item)
+            state.brightness = UIManager:getTopmostVisibleWidget()
+            assert(state.brightness and state.brightness.content, "geen helderheid-kader")
+        end },
+        { name = "helderheid-kader getekend", fn = function()
+            shot("1f-brightness-popover")
+            state.brightness:dismiss()
+        end },
         { name = "draaien binnen portrait", fn = function()
             local Event = require("ui/event")
             UIManager:sendEvent(Event:new("SetRotationMode", Screen.DEVICE_ROTATED_UPSIDE_DOWN))
