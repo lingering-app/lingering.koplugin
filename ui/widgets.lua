@@ -294,6 +294,7 @@ function Row:onTapRow(_, ges)
 end
 
 --- Batterij-icoon (Material Symbols): laden, vol vanaf 95%, anders 0..6 streepjes.
+--- Grijs (gedimd), zodat het niet opvalt naast de bedienbare iconen.
 function Widgets.battery(percent, charging, size)
     local icon_file
     if charging then
@@ -303,7 +304,7 @@ function Widgets.battery(percent, charging, size)
     else
         icon_file = "battery_" .. math.floor(math.max(0, percent) * 7 / 95) .. "_bar.svg"
     end
-    return Widgets.icon({ icon_file = icon_file }, size or Screen:scaleBySize(24))
+    return Widgets.icon({ icon_file = icon_file }, size or Screen:scaleBySize(24), true)
 end
 
 --[[--

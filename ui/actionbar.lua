@@ -8,7 +8,8 @@ Soorten acties:
 - schakelaar:  { switch = true, icon_on, icon_off, state, on_toggle = fn(state) }
                Met tap = fn(item) doet een tik dat in plaats van schakelen (icoon volgt de stand).
 - taak:        { task = true, icon_file, frames = {...}, run = fn(done) }
-               Tijdens de taak wisselt het icoon door de frames; done(ok) stopt dat.
+               Grijs als hij niets doet; tijdens de taak wisselt het icoon (zwart) door de
+               frames; done(ok) stopt dat.
 ]]
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device = require("device")
@@ -78,7 +79,8 @@ function Item:currentIcon()
     if action.task and self.frame > 0 then
         return { icon_file = action.frames[self.frame] }
     end
-    return { icon = action.icon, icon_file = action.icon_file }
+    -- Een taak staat grijs tot hij iets doet (dan draait het icoon zwart).
+    return { icon = action.icon, icon_file = action.icon_file, dim = action.task or nil }
 end
 
 function Item:build()
