@@ -353,8 +353,9 @@ Bewuste keuzes in het leesscherm:
 - Tik op het batterij-icoon (homescreen en boek): klein kader eronder met het percentage
   en "Laadt op" (`ui/popover.lua`, rand `Style.line`, modal zodat het boven de actiebalk komt;
   sluit bij een tik of na 4 s).
-- Tik op het licht-icoon: kader met een schuif (`ui/slider.lua`: − [balk] +; tik op de balk
-  springt naar die stand, geen slepen). Helemaal links = uit. Via `koreader/device.setBrightness`
+- Tik op het licht-icoon: licht aan of uit, zoals op de Kobo zelf. Gaat het aan, dan meteen
+  een kader met een schuif (`ui/slider.lua`: − [balk] +; tik op de balk springt naar die
+  stand, geen slepen). Helemaal links = uit. Via `koreader/device.setBrightness`
   zoals KOReaders `FrontLightWidget:setFrontLightIntensity`. Het kader blijft 8 s open na de
   laatste tik. Grijze lijn eronder (`Style.line`) tegen de tekst van het boek.
   Alle iconen komen uit `icons/` (Material Symbols, één stijl), via `IconWidget{file=…}`; geen iconen

@@ -121,8 +121,9 @@ function StatusBar:init()
         icon_off = "dark_mode.svg",
         enabled = Device:hasFrontlight(),
         state = DeviceAdapter.isFrontlightOn(),
-        -- Tik: kader met een schuif voor de helderheid (helemaal links = uit).
-        tap = function(light_item) self:showBrightness(light_item) end,
+        -- Tik: licht aan of uit, zoals op de Kobo zelf; gaat het aan, dan meteen het kader
+        -- met de schuif voor de helderheid.
+        tap = function(light_item) self:toggleLight(light_item) end,
     }
     self.wifi_item = item{
         name = "wifi",
@@ -165,6 +166,18 @@ function StatusBar:init()
             RightContainer:new{ dimen = inner, self.right },
         },
     }
+end
+
+--- Licht aan/uit; aan → kader met de schuif. De stand van het icoon volgt FrontlightStateChanged.
+function StatusBar:toggleLight(light_item)
+    local turning_on = not DeviceAdapter.isFrontlightOn()
+    logger.info("Lingering: statusbalk, licht", turning_on and "aan" or "uit")
+    DeviceAdapter.toggleFrontlight(function()
+        light_item:setState(DeviceAdapter.isFrontlightOn())
+        if turning_on and DeviceAdapter.isFrontlightOn() then
+            self:showBrightness(light_item)
+        end
+    end)
 end
 
 --- Kader onder het licht-icoon met een schuif voor de helderheid (ui/slider.lua).
