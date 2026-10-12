@@ -317,7 +317,8 @@ markeringen gaan standaard dus vóór bladeren.
 
 Navigatie tussen de schermen:
 - Homescreen, Mijn boeken, Instellingen en Over Lingering hebben dezelfde navigatiebalk
-  onderaan (`Widgets.mainNav`); het leesscherm niet. Het actieve tabblad staat vet.
+  onderaan (`Widgets.mainNav`: Home, Mijn boeken, Instellingen); het leesscherm niet. Het
+  actieve tabblad staat vet. Home sluit de bijgehouden schermen; het homescreen ligt eronder.
 - Een wissel gaat via `Lingering:switchTo` (main.lua): eerst gaan de bijgehouden schermen
   (`Lingering:track`) dicht, dan opent het nieuwe. Zo ligt er altijd hooguit één tabblad
   (met eventueel Over Lingering) op het homescreen, en gaat terug altijd naar het homescreen.

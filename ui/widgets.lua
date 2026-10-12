@@ -385,8 +385,8 @@ end
 
 --[[--
 De vaste navigatiebalk onderaan homescreen, Mijn boeken, Instellingen en Over Lingering.
-nav = { library = fn, settings = fn } (uit main.lua: wisselt van scherm).
-active = "library" | "settings" | nil: dat tabblad staat vet; een tik erop roept
+nav = { home = fn, library = fn, settings = fn } (uit main.lua: wisselt van scherm).
+active = "home" | "library" | "settings": dat tabblad staat vet; een tik erop roept
 on_reselect aan (bijv. terug naar het begin van Mijn boeken) in plaats van te wisselen.
 ]]
 function Widgets.mainNav(width, nav, active, on_reselect)
@@ -406,6 +406,7 @@ function Widgets.mainNav(width, nav, active, on_reselect)
     end
     local _ = require("gettext")
     return Widgets.navBar(width, {
+        item("home", _("Home"), "home.svg"),
         item("library", _("Mijn boeken"), "menu_book.svg"),
         item("settings", _("Instellingen"), "settings.svg"),
     })

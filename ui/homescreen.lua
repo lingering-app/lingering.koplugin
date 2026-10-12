@@ -99,7 +99,7 @@ local HomeScreen = InputContainer:extend{
     library = nil,          -- app/library_service (mappen in de catalogus)
     collections = nil,      -- namen van mappen voor de blokken (config.collections)
     on_open_collection = nil, -- function(adres, naam)
-    nav = nil,              -- { library = fn, settings = fn }, zie Widgets.mainNav
+    nav = nil,              -- { home = fn, library = fn, settings = fn }, zie Widgets.mainNav
     on_emergency = nil,
     on_closed = nil,
     covers_fullscreen = true,
@@ -335,7 +335,7 @@ end
 function HomeScreen:build()
     local width, height = self.dimen.w, self.dimen.h
 
-    local nav = Widgets.mainNav(width, self.nav)
+    local nav = Widgets.mainNav(width, self.nav, "home")
 
     local status = self:buildStatus(width)
     local status_h = status:getSize().h

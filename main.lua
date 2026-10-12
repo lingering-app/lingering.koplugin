@@ -107,11 +107,13 @@ function Lingering:showHomeScreen()
 end
 
 --[[--
-Navigatiebalk (Widgets.mainNav): wisselen tussen Mijn boeken en Instellingen. Het vorige
-scherm (met Over Lingering) gaat eerst dicht, zodat terug altijd naar het homescreen gaat.
+Navigatiebalk (Widgets.mainNav): wisselen tussen Home, Mijn boeken en Instellingen. Het
+vorige scherm (met Over Lingering) gaat eerst dicht, zodat terug altijd naar het homescreen
+gaat; Home sluit alleen (het homescreen ligt eronder).
 ]]
 function Lingering:nav()
     return {
+        home = function() self:switchTo(function() end) end,
         library = function() self:switchTo(function() self:showLibrary() end) end,
         settings = function() self:switchTo(function() self:showSettings() end) end,
     }

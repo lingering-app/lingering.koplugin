@@ -132,7 +132,12 @@ function Smoke.filemanager(plugin)
             assert(state.settings.closed, "Instellingen niet gesloten")
             assert(#plugin.screens == 1 and plugin.screens[1].stack, "Mijn boeken niet geopend")
             assert(UIManager:getTopmostVisibleWidget() == plugin.screens[1], "Over Lingering niet gesloten")
-            plugin.screens[1]:close()
+        end },
+        { name = "navigatie: home", fn = function()
+            local library = plugin.screens[1]
+            plugin:nav().home()
+            assert(library.closed and #plugin.screens == 0, "Mijn boeken niet gesloten")
+            assert(UIManager:getTopmostVisibleWidget() == plugin.home, "homescreen niet bovenaan")
         end },
         { name = "inlogscherm (account)", fn = function()
             plugin:showSetup(false)
