@@ -286,13 +286,15 @@ function LibraryScreen:render(partial)
         -- Alleen omslagen, zonder titel eronder.
         cover_w = tile_w - 2 * gap
         cover_h = math.floor(cover_w * 3 / 2)
+        -- Ruimte onder elke rij, zodat de rijen omslagen loskomen van elkaar.
+        local row_gap = Size.padding.large * 3
         -- Eén tegel moet altijd in beeld passen.
-        local max_cover_h = body_h - 3 * gap
+        local max_cover_h = body_h - 3 * gap - row_gap
         if cover_h > max_cover_h then
             cover_h = max_cover_h
             cover_w = math.floor(cover_h * 2 / 3)
         end
-        tile_h = cover_h + 2 * gap
+        tile_h = cover_h + 2 * gap + row_gap
     else
         -- Mapstapel: omslag hooguit de halve tegelbreedte, en niet hoger dan 40% van het scherm.
         local single_w = math.min(math.floor(Widgets.stackCoverSize(tile_w - 2 * gap, math.huge)), math.floor(tile_w * 0.5))

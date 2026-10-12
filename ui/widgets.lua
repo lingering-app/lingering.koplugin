@@ -108,7 +108,7 @@ Widgets.coverStack(covers, stack_w, stack_h)
     covers: lijst BlitBuffers (voorste eerst; de stapel geeft ze vrij bij het sluiten).
     Geeft een widget van stack_w × stack_h, of nil bij een lege lijst.
 ]]
-Widgets.STACK_OFFSET = 0.12
+Widgets.STACK_OFFSET = 0.18
 local STACK_MAX = 3
 
 function Widgets.stackSize(cover_w, cover_h)
