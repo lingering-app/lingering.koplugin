@@ -1,5 +1,5 @@
 --[[--
-Instellingen: wifi (netwerk kiezen, aan/uit), licht (helderheid, aan/uit), account
+Instellingen: wifi (netwerk kiezen, aan/uit), licht (helderheid, aan/uit), woordenboek, account
 (gebruikersnaam en wachtwoord), "Geavanceerd" (het noodluik naar het volledige
 KOReader-menu) en Over Lingering; onderaan de navigatiebalk.
 ]]
@@ -81,6 +81,13 @@ function SettingsScreen:init()
     local rows = {
         self.wifi_row,
         self.light_row,
+        Widgets.Row:new{
+            width = width,
+            text = _("Woordenboek"),
+            icon = { icon_file = "dictionary.svg" },
+            right = { icon_file = "chevron_right.svg" },
+            callback = function() self.on_dictionary() end,
+        },
         Widgets.Row:new{
             width = width,
             text = _("Account"),

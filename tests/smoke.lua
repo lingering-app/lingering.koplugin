@@ -174,6 +174,38 @@ function Smoke.filemanager(plugin)
         { name = "instellingen getekend", wait = 1, fn = function()
             shot("4-settings")
         end },
+        { name = "woordenboek", fn = function()
+            state.settings.on_dictionary()
+            state.dict = UIManager:getTopmostVisibleWidget()
+            assert(state.dict and state.dict.rows, "woordenboekscherm niet geopend")
+        end },
+        { name = "woordenboek getekend", fn = function()
+            shot("4d-dictionary")
+            -- Nederlands kiezen; staat het er nog niet op, dan vraagt KOReader bevestiging.
+            state.dict:choose(require("lingering.config").dictionaries[1])
+        end },
+        { name = "woordenboek: bevestigen", wait = 4, fn = function()
+            local top = UIManager:getTopmostVisibleWidget()
+            if top and top.ok_callback then
+                logger.info("Lingering: SMOKE woordenboek, download bevestigd")
+                top.ok_callback()
+                UIManager:close(top)
+            end
+        end },
+        { name = "woordenboek gekozen", wait = 25, fn = function()
+            local Dictionaries = require("lingering.koreader.dictionaries")
+            local name = require("lingering.config").dictionaries[1].name
+            assert(Dictionaries.isInstalled(plugin.ui, name), "woordenboek niet geïnstalleerd")
+            assert(Dictionaries.isEnabled(plugin.ui, name), "woordenboek niet gekozen")
+            -- Meldingen van KOReader ("Dictionary downloaded") sluiten.
+            for _ = 1, 5 do
+                local top = UIManager:getTopmostVisibleWidget()
+                if top == state.dict then break end
+                UIManager:close(top)
+            end
+            shot("4e-dictionary-chosen")
+            state.dict:close()
+        end },
         { name = "over lingering", fn = function()
             state.settings.on_about()
         end },

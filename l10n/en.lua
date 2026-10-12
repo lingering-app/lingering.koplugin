@@ -35,6 +35,8 @@ return {
     ["Licht"] = "Light",
     ["Account"] = "Account",
     ["Geavanceerd"] = "Advanced",
+    ["Woordenboek"] = "Dictionary",
+    ["Dit woordenboek is niet beschikbaar."] = "This dictionary is not available.",
     ["Over Lingering"] = "About Lingering",
 
     -- Inloggen

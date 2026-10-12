@@ -174,6 +174,9 @@ function Lingering:showSettings()
         on_about = function()
             self:track(require("lingering.ui.aboutscreen"):new{ nav = self:nav() }):show()
         end,
+        on_dictionary = function()
+            self:track(require("lingering.ui.dictionaryscreen"):new{ fm = self.ui, nav = self:nav() }):show()
+        end,
         on_emergency = function() self:openEmergencyMenu() end,
     }):show()
 end

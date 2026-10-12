@@ -25,7 +25,7 @@ run() {
         fail=1
     fi
 }
-run fm 40
+run fm 90
 if [ -n "$book" ]; then run reader 32 "$book"; else echo "== reader overgeslagen (geen boek)"; fi
 echo "Schermafdrukken: $shots"
 echo "Logs: $logs"

@@ -291,6 +291,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/kosync.ensureBinary` | `kosync.settings.checksum_method = 0` (binary) | Digest op bestandsnaam |
 | `koreader/device.isFrontlightOn` | `Device:getPowerDevice():isFrontlightOn()` (`BasePowerD`) | Schakelaar toont "uit" |
 | `koreader/device.toggleFrontlight` | event `ToggleFrontlight` (`frontend/device/devicelistener.lua`, `DeviceListener:onToggleFrontlight`) | Knop doet niets |
+| `koreader/dictionaries.entry` / `isInstalled` / `isEnabled` / `download` / `choose` | KOReaders lijst `ui/data/dictionaries.lua` (op naam uit `config.dictionaries`), `fm.dictionary:downloadDictionary` (in `Trapper:wrap`; bevestiging met grootte, uitpakken in `<data_dir>/<veilige naam>`), aan/uit via `G_reader_settings` `dicts_disabled` (sleutel = .ifo-pad), zoals `ReaderDictionary:showDictionariesMenu` | Scherm Woordenboek toont alles als "downloaden"; kiezen doet niets |
 | `koreader/device.brightnessRange` / `brightness` / `setBrightness` | `BasePowerD.fl_min/fl_max`, `frontlightIntensity`, `setIntensity` / `turnOffFrontlight`, `updateResumeFrontlightState` (zoals `FrontLightWidget:setFrontLightIntensity`); KOReader bewaart de stand zelf | Schuif doet niets |
 | `koreader/books.readingBooks` | `ReadHistory.hist`, `BookList.getDocSettings` (`percent_finished`, `summary.status` zoals `BookList.getBookStatus`), `FileManagerBookInfo:getDocProps/getCoverImage`. Aan het lezen = status `reading` (niet on hold/uit), hooguit 4, hetzelfde boek in meer bestanden één keer (zelfde `partial_md5_checksum` of titel+auteur; recentste wint); niets aan het lezen → het laatst geopende boek. Homescreen: 1 boek = grote kaart, 2–4 = rij in het raster van Mijn boeken | Homescreen zonder boek ("Nog geen boek") |
 | `koreader/device.rotateWithinOrientation` | `Screen:setRotationMode` + `UIManager:onRotation` (zoals `Input:handleGyroEv` met vergrendelde g-sensor); `fm_rotation_mode` voor `FileManager:setRotationMode`. Aangeroepen vanuit `onSetRotationMode` van onze schermen (`Widgets.followRotation`): `SetRotationMode` gaat alleen naar het bovenste venster. Alleen binnen dezelfde stand | Scherm draait niet mee |
@@ -316,6 +317,13 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/opds.credentials`, `koreader/opds.client`, `koreader/opds.fetchPage`, `koreader/opds.filetype`, `koreader/opds.download` | `opds.lua`-servers; kaal object met metatable `OPDSBrowser` (`sync = true`); `genItemTableFromURL`, `OPDSBrowser.getFiletype`, `downloadFile` | Mijn boeken toont alleen de cache / downloaden mislukt |
 | `koreader/books.homeFolder`, `koreader/network.isOnline` | `filemanagerutil.getHomeFolder()`, `NetworkMgr:isOnline()` | Downloads in `./Lingering`; geen automatische sync |
 | Menu-item `lingering_disable` | `FileManagerMenu:registerToMainMenu` + `addToMainMenu`, `sorting_hint = "main"` | Geen haak: standaard plugin-API |
+
+Woordenboek:
+- Instellingen → Woordenboek: Nederlands of Engels (`config.dictionaries`, op naam uit
+  KOReaders lijst, zodat KOReader de links bijhoudt). Tik: staat het er niet op, dan wifi aan,
+  KOReaders eigen download (met bevestiging), daarna kiezen. Kiezen zet het gekozen
+  woordenboek aan en het andere van de twee uit; zelf geplaatste woordenboeken blijven zoals
+  ze zijn.
 
 Taal:
 - Bronteksten zijn Nederlands, in `_()` uit `lingering.l10n.gettext` (niet KOReaders
