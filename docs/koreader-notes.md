@@ -304,6 +304,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/device.brightnessRange` / `brightness` / `setBrightness` | `BasePowerD.fl_min/fl_max`, `frontlightIntensity`, `setIntensity` / `turnOffFrontlight`, `updateResumeFrontlightState` (zoals `FrontLightWidget:setFrontLightIntensity`); KOReader bewaart de stand zelf | Schuif doet niets |
 | `koreader/books.readingBooks` | `ReadHistory.hist`, `BookList.getDocSettings` (`percent_finished`, `summary.status` zoals `BookList.getBookStatus`), `FileManagerBookInfo:getDocProps/getCoverImage`. Aan het lezen = status `reading` (niet on hold/uit), hooguit 4, hetzelfde boek in meer bestanden één keer (zelfde `partial_md5_checksum` of titel+auteur; recentste wint); niets aan het lezen → het laatst geopende boek. Homescreen: 1 boek = grote kaart, 2–4 = rij in het raster van Mijn boeken | Homescreen zonder boek ("Nog geen boek") |
 | `koreader/books.markFinished` / `syncPosition`, `koreader/kosync.storeFinished` | `summary.status = "complete"` + `filemanagerutil.saveSummary` + `BookList.setBookInfoCacheProperty` (zoals KOReaders statusknoppen); `partial_md5_checksum` en `last_xpointer`/`last_page`; `KOSyncClient:update_progress` met percentage 1 | "Gelezen" doet niets of alleen lokaal |
+| `koreader/opds.fetchCoversInBackground` | `ffi/util` `runInSubProcess` / `isSubProcessDone` / `terminateSubProcess` (zoals CoverBrowser en ReaderThumbnail) | Omslagen alsnog één voor één, scherm wacht |
 | `koreader/device.rotateWithinOrientation` | `Screen:setRotationMode` + `UIManager:onRotation` (zoals `Input:handleGyroEv` met vergrendelde g-sensor); `fm_rotation_mode` voor `FileManager:setRotationMode`. Aangeroepen vanuit `onSetRotationMode` van onze schermen (`Widgets.followRotation`): `SetRotationMode` gaat alleen naar het bovenste venster. Alleen binnen dezelfde stand | Scherm draait niet mee |
 | `koreader/device.setAutoRotate` / `isAutoRotateOn` | `input_ignore_gsensor` + `Device:toggleGSensor` (zoals `DeviceListener:onToggleGSensor`, zonder melding) | Schakelaar doet niets |
 | Actiebalk (`actionbar.lua`) | geen haak: eigen `InputContainer` met `Button`s, getoond met `UIManager:show` | — |
@@ -369,6 +370,11 @@ Sync en gelezen boeken:
 Snelheid van Mijn boeken:
 - `Widgets.loadCover` houdt uitgepakte omslagen (per bestand en maat, hooguit 40) in het
   geheugen en geeft een kopie terug; opnieuw opbouwen pakt ze dus niet opnieuw uit.
+- Omslagen worden in de achtergrond gedownload: `koreader/opds.fetchCoversInBackground`
+  (subproces via `ffi/util` `runInSubProcess`, zoals CoverBrowser; het hoofdproces kijkt elke
+  0,5 s met `isSubProcessDone`, stopt na 120 s). `Library:fetchCoversAsync` gebruikt dat voor
+  Mijn boeken (zichtbare omslagen en mappen vooraf) en de mapblokken op het homescreen;
+  lukt starten niet, dan één voor één.
 - Openen haalt een map pas opnieuw op als de cache ouder is dan een uur (`AUTO_SYNC_AFTER`);
   de sync-knop haalt altijd op. KOReaders OPDS-functies blokkeren het scherm tijdens het
   ophalen, dus minder ophalen = minder "bevroren" momenten.

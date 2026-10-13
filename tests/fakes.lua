@@ -80,6 +80,16 @@ Fakes.lfs = { attributes = function(path, what) if Fakes.state.files[path] then 
 Fakes.util = { makePath = noop, getSafeFilename = function(name) return name end }
 Fakes.sha2 = { md5 = function(text) return "md5:" .. tostring(text) end }
 Fakes.opds = { filetype = function() return "epub" end, credentials = function() return "lezer", "geheim" end }
+-- Omslagen "in de achtergrond": maakt de bestanden direct aan en roept done aan.
+function Fakes.opds.fetchCoversInBackground(jobs, _, _, done)
+    Fakes.calls.background = jobs
+    Fakes.state.files = Fakes.state.files or {}
+    if not Fakes.state.covers_fail then
+        for _, job in ipairs(jobs) do Fakes.state.files[job.path] = true end
+    end
+    done()
+    return true
+end
 
 Fakes.books = {}
 function Fakes.books.homeFolder() return "/boeken" end

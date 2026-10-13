@@ -180,22 +180,27 @@ end
 function Library:refreshCollections(titles, done)
     local changed = false
     local index = 0
+    local wanted = {}
+    -- Eerste omslagen van een map om op te halen (in de achtergrond, aan het eind).
     local function covers(title)
         local count = 0
         for _, entry in ipairs(self:collectionBooks(title)) do
             if entry.thumbnail then
-                if not self:hasCover(entry.thumbnail) and self:fetchCover(entry.thumbnail) then
-                    changed = true
-                end
+                table.insert(wanted, entry.thumbnail)
                 count = count + 1
                 if count == COVERS_PER_COLLECTION then break end
             end
         end
     end
+    local function finish()
+        self:fetchCoversAsync(wanted, function(fetched)
+            done(changed or fetched > 0)
+        end)
+    end
     local function step()
         index = index + 1
         local title = titles[index]
-        if not title then return done(changed) end
+        if not title then return finish() end
         local url = self:collectionUrl(title)
         local feed = url and self:cached(url)
         if not url or (feed and feed.fetched and os.time() - feed.fetched < COLLECTION_REFRESH_SECONDS) then
@@ -257,6 +262,38 @@ function Library:hasCover(thumbnail_url)
 end
 
 --- Haalt één omslag op naar de cache (stil, kort; via koreader/opds.lua).
+--[[--
+Omslagen ophalen zonder het scherm te laten wachten: in een subproces
+(Opds.fetchCoversInBackground). Lukt starten niet, dan alsnog één voor één. Omslagen die er
+al zijn worden overgeslagen. done(aantal_nieuw, opgevraagd) volgt als alles klaar is.
+]]
+function Library:fetchCoversAsync(urls, done)
+    local username, password = self:credentials()
+    local jobs, seen = {}, {}
+    for _, url in ipairs(urls or {}) do
+        if url and not seen[url] and not self:hasCover(url) then
+            seen[url] = true
+            table.insert(jobs, { url = url, path = self:coverPath(url) })
+        end
+    end
+    if #jobs == 0 or not username then return done(0, {}) end
+    self:open() -- zorgt dat de omslagenmap bestaat
+    local function count()
+        local fetched = 0
+        for _, job in ipairs(jobs) do
+            if lfs.attributes(job.path, "mode") == "file" then fetched = fetched + 1 end
+        end
+        return fetched
+    end
+    local started = Opds.fetchCoversInBackground(jobs, username, password, function()
+        done(count(), jobs)
+    end)
+    if not started then
+        for _, job in ipairs(jobs) do Opds.fetchCover(job.url, job.path, username, password) end
+        done(count(), jobs)
+    end
+end
+
 function Library:fetchCover(thumbnail_url)
     local username, password = self:credentials()
     return Opds.fetchCover(thumbnail_url, self:coverPath(thumbnail_url), username, password)

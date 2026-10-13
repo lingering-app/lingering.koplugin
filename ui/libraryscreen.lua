@@ -393,18 +393,20 @@ function LibraryScreen:prefetchFolders()
     self.prefetching = true
     local changed = false
     local index = 0
+    local wanted = {}
     local function finish()
-        self.prefetching = false
-        if changed and not self.closed then self:render(true) end
+        -- Omslagen van de mappen in de achtergrond; daarna één keer verversen.
+        self.library:fetchCoversAsync(wanted, function(fetched)
+            self.prefetching = false
+            if (changed or fetched > 0) and not self.closed then self:render(true) end
+        end)
     end
     local function covers_of(url)
         local feed = self.library:cached(url)
         local count = 0
         for _, item in ipairs(feed and feed.items or {}) do
             if item.kind == "book" and item.thumbnail then
-                if not self.library:hasCover(item.thumbnail) and not self.cover_failed[item.thumbnail] then
-                    if pcall(self.library.fetchCover, self.library, item.thumbnail) then changed = true end
-                end
+                if not self.cover_failed[item.thumbnail] then table.insert(wanted, item.thumbnail) end
                 count = count + 1
                 if count == Widgets.COVER_MAX then break end
             end
@@ -490,8 +492,10 @@ function LibraryScreen:autoSync()
 end
 
 -- Ontbrekende omslagen ophalen, één per tik; per zes (en aan het eind) één verversing.
+-- Ontbrekende omslagen van deze pagina in de achtergrond ophalen (subproces, zie
+-- Library:fetchCoversAsync); als ze binnen zijn één keer het raster verversen.
 function LibraryScreen:queueCovers()
-    if self.closed or not Network.isOnline() then return end
+    if self.closed or self.covers_loading or not Network.isOnline() then return end
     local missing = {}
     for _, entry in ipairs(self.page_entries or {}) do
         local url = entry.thumbnail
@@ -500,35 +504,15 @@ function LibraryScreen:queueCovers()
         end
     end
     if #missing == 0 then return end
-
-    local token = {}
-    self.cover_token = token
-    local index, fetched = 0, 0
-    local function step()
-        if self.closed or self.cover_token ~= token then return end
-        index = index + 1
-        local url = missing[index]
-        if url then
-            local ok = pcall(function()
-                if self.library:fetchCover(url) then
-                    fetched = fetched + 1
-                else
-                    self.cover_failed[url] = true
-                end
-            end)
-            if not ok then self.cover_failed[url] = true end
-            -- Per zes omslagen één verversing, zodat ze geleidelijk verschijnen.
-            if fetched >= 6 then
-                fetched = 0
-                self:render(true)
-                return -- render() start een nieuwe ronde voor de rest
-            end
-            UIManager:scheduleIn(0.05, step)
-        elseif fetched > 0 then
-            self:render(true)
+    self.covers_loading = true
+    self.library:fetchCoversAsync(missing, function(fetched)
+        self.covers_loading = false
+        -- Wat er dan nog niet is, niet opnieuw proberen in deze sessie van het scherm.
+        for _, url in ipairs(missing) do
+            if not self.library:hasCover(url) then self.cover_failed[url] = true end
         end
-    end
-    UIManager:scheduleIn(0.1, step)
+        if fetched > 0 and not self.closed then self:render(true) end
+    end)
 end
 
 function LibraryScreen:onShowingReader()

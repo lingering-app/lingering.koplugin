@@ -46,6 +46,7 @@ end
 
 function TestLibraryService:test_verse_cache_wordt_niet_opnieuw_opgehaald()
     catalog()
+    Fakes.state.covers_fail = true
     local changed
     Library:refreshCollections({ "Aan het lezen", "Al mijn boeken" }, function(c) changed = c end)
     Fakes.runScheduled()
@@ -96,4 +97,17 @@ function TestLibraryService:test_geen_map_gelezen_doet_niets()
     local changed
     Library:syncFinished(function(c) changed = c end)
     lu.assertFalse(changed)
+end
+
+function TestLibraryService:test_omslagen_in_de_achtergrond()
+    Library.credentials = function() return "u", "p" end
+    local bestaand = Library:coverPath("t/oud")
+    Fakes.state.files = { [bestaand] = true }
+    local fetched, jobs
+    Library:fetchCoversAsync({ "t/oud", "t/nieuw", "t/nieuw" }, function(n, j) fetched, jobs = n, j end)
+    -- Alleen de ontbrekende, en dubbele maar één keer.
+    lu.assertEquals(#Fakes.calls.background, 1)
+    lu.assertEquals(Fakes.calls.background[1].url, "t/nieuw")
+    lu.assertEquals(fetched, 1)
+    lu.assertEquals(#jobs, 1)
 end

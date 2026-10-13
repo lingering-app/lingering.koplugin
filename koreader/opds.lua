@@ -187,4 +187,44 @@ function M.fetchCover(url, path, username, password)
     return ok and success or false
 end
 
+--[[--
+Omslagen downloaden in een subproces (ffi/util runInSubProcess, zoals CoverBrowser en
+ReaderThumbnail in KOReader), zodat het scherm blijft reageren. jobs = { { url, path }, ... }.
+Het hoofdproces kijkt elke halve seconde of het subproces klaar is (isSubProcessDone) en roept
+dan done() aan; na BACKGROUND_TIMEOUT seconden wordt het gestopt. Geeft false als het niet kon
+starten (dan is done niet aangeroepen).
+]]
+local BACKGROUND_TIMEOUT = 120
+
+function M.fetchCoversInBackground(jobs, username, password, done)
+    local ok, started = try("opds.fetchCoversInBackground", function()
+        local ffiutil = require("ffi/util")
+        local UIManager = require("ui/uimanager")
+        local pid = ffiutil.runInSubProcess(function()
+            -- In het subproces: alleen downloaden en wegschrijven, geen scherm.
+            for _, job in ipairs(jobs) do
+                pcall(M.fetchCover, job.url, job.path, username, password)
+            end
+        end)
+        if not pid then return false end
+        local waited = 0
+        local function check()
+            if ffiutil.isSubProcessDone(pid) then
+                return done()
+            end
+            waited = waited + 0.5
+            if waited >= BACKGROUND_TIMEOUT then
+                logger.warn("Lingering: omslagen downloaden duurde te lang, gestopt")
+                ffiutil.terminateSubProcess(pid)
+                ffiutil.isSubProcessDone(pid, true)
+                return done()
+            end
+            UIManager:scheduleIn(0.5, check)
+        end
+        UIManager:scheduleIn(0.5, check)
+        return true
+    end)
+    return ok and started or false
+end
+
 return M
