@@ -34,6 +34,7 @@ local Popover = InputContainer:extend{
     lines = nil,
     content = nil,
     gap = nil,          -- ruimte onder het anker; standaard vrij van de lijn onder de actiebalk
+    compact = false,    -- kleinere binnenmarge (menu's: de rijen hebben zelf ruimte)
     modal = true,
 }
 Widgets.guardPaint(Popover, "popover")
@@ -55,9 +56,9 @@ function Popover:init()
         bordersize = Style.line.size,
         color = Style.line.color,
         radius = Style.radius,
-        padding = Size.padding.large,
-        padding_left = Size.padding.large * 2,
-        padding_right = Size.padding.large * 2,
+        padding = self.compact and Size.padding.small or Size.padding.large,
+        padding_left = self.compact and Size.padding.small or Size.padding.large * 2,
+        padding_right = self.compact and Size.padding.small or Size.padding.large * 2,
         background = Style.background,
         group,
     }

@@ -30,9 +30,14 @@ local MenuItem = InputContainer:extend{
 }
 
 function MenuItem:init()
+    local HorizontalGroup = require("ui/widget/horizontalgroup")
+    local HorizontalSpan = require("ui/widget/horizontalspan")
     self[1] = LeftContainer:new{
         dimen = Geom:new{ w = self.width, h = self.height },
-        TextWidget:new{ text = self.text, face = Style.topBarFace() },
+        HorizontalGroup:new{
+            HorizontalSpan:new{ width = Size.padding.large },
+            TextWidget:new{ text = self.text, face = Style.topBarFace() },
+        },
     }
     self.ges_events = {
         TapMenuItem = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
@@ -49,17 +54,19 @@ local PopoverMenu = {}
 function PopoverMenu.show(opts)
     local Popover = require("lingering.ui.popover")
     local face = Style.topBarFace()
-    local height = Screen:scaleBySize(Style.top_bar.item_width)
-    -- Zo breed als de langste tekst, minstens een paar keer de rijhoogte.
-    local width = height * 3
+    -- Compact: rijen van 40 hoog, zo breed als de langste tekst met marge links en rechts.
+    local height = Screen:scaleBySize(40)
+    local margin = Size.padding.large
+    local width = 0
     for _, item in ipairs(opts.items) do
-        width = math.max(width, TextWidget:new{ text = item.text, face = face }:getSize().w + Size.padding.large)
+        width = math.max(width, TextWidget:new{ text = item.text, face = face }:getSize().w + 2 * margin)
     end
     local popover
     popover = Popover:new{
         anchor = opts.anchor,
         -- Direct onder de knop: de knop heeft zelf al wat ruimte rond het icoon.
         gap = 0,
+        compact = true,
         content = function()
             local group = VerticalGroup:new{ align = "left" }
             for _, item in ipairs(opts.items) do
