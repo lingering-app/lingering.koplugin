@@ -151,3 +151,23 @@ function TestSyncService:test_gelezen_zonder_stand_alleen_lokaal()
     lu.assertEquals(Fakes.calls.finished, "/boeken/a.epub")
     lu.assertNil(Fakes.calls.store_finished)
 end
+
+function TestSyncService:test_gelezen_boek_alleen_openen_schrijft_niets()
+    Fakes.state.online, Fakes.state.wifi_on = true, true
+    Fakes.state.record = { percent = 1, progress = "midden" }
+    Fakes.state.local_percent, Fakes.state.open_percent = 0.73, 0.73
+    local result
+    SyncService.reconcile(handle, { jump = true }, function(ok) result = ok end)
+    lu.assertTrue(result)
+    lu.assertNil(Fakes.calls.store)
+    lu.assertNil(Fakes.calls.jump)
+end
+
+function TestSyncService:test_gelezen_boek_opnieuw_lezen_schrijft_weg()
+    Fakes.state.online, Fakes.state.wifi_on = true, true
+    Fakes.state.record = { percent = 1, progress = "midden" }
+    Fakes.state.local_percent, Fakes.state.open_percent = 0.75, 0.73
+    SyncService.reconcile(handle, { jump = false }, function() end)
+    lu.assertNotNil(Fakes.calls.store)
+    lu.assertNil(Fakes.calls.jump)
+end

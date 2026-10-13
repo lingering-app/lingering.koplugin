@@ -39,8 +39,12 @@ function SyncService.reconcile(kosync, opts, done)
     local ok, err = pcall(function()
         -- Momentopname nu: bij sluiten is het document weg als het antwoord binnenkomt.
         local snap = session:snapshot()
+        -- Sinds het openen verder gelezen? (voor een boek dat op de server gelezen is)
+        local open_percent = Kosync.openPercent(kosync)
+        local read_since_open = open_percent ~= nil and snap.percent > open_percent + SyncRules.EPSILON
         session:fetch(snap, function(fetched_ok, record)
-            local action = SyncRules.decide(snap.percent, { ok = fetched_ok, record = record }, opts.jump)
+            local action = SyncRules.decide(snap.percent, { ok = fetched_ok, record = record }, opts.jump,
+                read_since_open)
             logger.info("Lingering: voortgang", action, "(server", tostring(record and record.percent), "hier", snap.percent .. ")")
             if action == "jump" then
                 local jumped = pcall(session.jump, session, record.progress)

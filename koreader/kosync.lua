@@ -79,6 +79,20 @@ function M.session(kosync)
     return ok and session or nil
 end
 
+--[[--
+Stand bij het openen van het boek (KOSync:getLastPercent), om later te weten of je sinds het
+openen verder gelezen hebt (domain/sync_rules.lua: opnieuw lezen van een gelezen boek).
+]]
+function M.rememberOpen(kosync)
+    return try("rememberOpen", function()
+        kosync._lingering_open_percent = tonumber(kosync:getLastPercent()) or 0
+    end)
+end
+
+function M.openPercent(kosync)
+    return kosync and kosync._lingering_open_percent
+end
+
 --- Tijdstempel van de laatste sync-poging op deze instantie (tegen dubbele pogingen).
 function M.markActivity(kosync)
     kosync._lingering_last_sync = UIManager:getElapsedTimeSinceBoot()
@@ -140,7 +154,7 @@ function M.installRules(ui, policy)
         kosync.drainQueue = function()
             logger.info("Lingering: kosync-wachtrij overgeslagen (nooit blind wegschrijven)")
         end
-    end)
+    end) and M.rememberOpen(ui.kosync)
 end
 
 --- Pad naar api.json van de kosync-plugin (naast KOSyncClient.lua).

@@ -41,3 +41,19 @@ end
 function TestSyncRules:test_onleesbaar_percentage_is_mislukt()
     lu.assertEquals(decide(0.5, { ok = true, record = { percent = "abc" } }, true), "fail")
 end
+
+function TestSyncRules:test_gelezen_op_server_springt_niet()
+    local fetched = { ok = true, record = { percent = 1 } }
+    lu.assertEquals(SyncRules.decide(0.73, fetched, true), "none")
+    lu.assertEquals(SyncRules.decide(0.73, fetched, false), "none")
+end
+
+function TestSyncRules:test_gelezen_op_server_en_opnieuw_gelezen_schrijft_weg()
+    local fetched = { ok = true, record = { percent = 1 } }
+    lu.assertEquals(SyncRules.decide(0.75, fetched, true, true), "push")
+    lu.assertEquals(SyncRules.decide(0.75, fetched, false, true), "push")
+end
+
+function TestSyncRules:test_ook_gelezen_als_beide_uit_zijn()
+    lu.assertEquals(SyncRules.decide(1, { ok = true, record = { percent = 1 } }, true, true), "none")
+end

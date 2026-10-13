@@ -353,6 +353,13 @@ Raster:
 - Mappen zijn overal `ui/folder_tile.lua`: waaier van tot 4 omslagen over de kolombreedte
   (achterste steeds 88%), naam en grijs het aantal boeken, links uitgelijnd.
 
+Sync en gelezen boeken:
+- Staat een boek op de server op gelezen (≥ 99,5%) en de Kobo eronder, dan springt de Kobo
+  niet (de positie bij "gelezen" is vaak niet het einde). Alleen openen schrijft niets weg;
+  heb je sinds het openen verder gelezen, dan gaat je stand naar de server (opnieuw lezen;
+  de server accepteert na "gelezen" weer een gewone stand). Stand bij openen:
+  `koreader/kosync.rememberOpen` (in `installRules`).
+
 Boekmenu:
 - Op het homescreen heeft elk boek (rij en grote kaart) rechts een grijze "⋮"-knop (Material more_vert) met een
   menu (`ui/popover_menu.lua`, herbruikbaar). Nu één item: Gelezen → `SyncService.markFinished`:

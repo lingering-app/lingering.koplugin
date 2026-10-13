@@ -59,6 +59,7 @@ function Fakes.kosync.session(handle)
     return session
 end
 function Fakes.kosync.markActivity() Fakes.state.last_activity = Fakes.now end
+function Fakes.kosync.openPercent() return Fakes.state.open_percent end
 function Fakes.kosync.secondsSinceActivity()
     if not Fakes.state.last_activity then return math.huge end
     return Fakes.now - Fakes.state.last_activity
