@@ -198,27 +198,35 @@ local function pluginClass(name)
     end
 end
 
+-- Account en client uit kosync.lua (gebruiker, userkey, server), zoals KOSync ze gebruikt,
+-- voor boeken die niet open zijn. nil als kosync niet ingelogd is.
+local function accountClient()
+    local DataStorage = require("datastorage")
+    local KOSyncClient = require("KOSyncClient")
+    local LuaSettings = require("luasettings")
+    local class = pluginClass("kosync")
+    local store = (class and class.settings_obj)
+        or LuaSettings:open(DataStorage:getSettingsDir() .. "/kosync.lua")
+    local settings = store:readSetting("settings") or {}
+    if not (settings.username and settings.userkey) then return nil end
+    local client = KOSyncClient:new{
+        custom_url = settings.custom_server,
+        service_spec = kosyncServiceSpec(),
+    }
+    return settings, client
+end
+
 --[[--
 Een boek als uit (100%) wegschrijven zonder het te openen: KOSyncClient:update_progress
-met percentage 1, zoals KOSync:updateProgress, met de gegevens uit kosync.lua (gebruiker,
-userkey, server) en G_reader_settings "device_id". position = Books.syncPosition(file).
-done(ok) volgt als de server antwoordt; false als kosync niet ingelogd is.
+met percentage 1, zoals KOSync:updateProgress, met G_reader_settings "device_id".
+position = Books.syncPosition(file). done(ok) volgt als de server antwoordt; false als kosync
+niet ingelogd is.
 ]]
 function M.storeFinished(position, done)
     local ok, started = try("storeFinished", function()
-        local DataStorage = require("datastorage")
         local Device = require("device")
-        local KOSyncClient = require("KOSyncClient")
-        local LuaSettings = require("luasettings")
-        local class = pluginClass("kosync")
-        local store = (class and class.settings_obj)
-            or LuaSettings:open(DataStorage:getSettingsDir() .. "/kosync.lua")
-        local settings = store:readSetting("settings") or {}
-        if not (settings.username and settings.userkey) then return false end
-        local client = KOSyncClient:new{
-            custom_url = settings.custom_server,
-            service_spec = kosyncServiceSpec(),
-        }
+        local settings, client = accountClient()
+        if not settings then return false end
         client:update_progress(
             settings.username, settings.userkey, position.digest, nil, position.progress, 1,
             settings.kosync_hostname or Device.model, G_reader_settings:readSetting("device_id"),
@@ -230,7 +238,6 @@ function M.storeFinished(position, done)
     end)
     if not (ok and started) and done then done(false) end
 end
-
 
 --[[--
 Schrijft de kosync-instellingen in <settings>/kosync.lua (sleutel "settings"):

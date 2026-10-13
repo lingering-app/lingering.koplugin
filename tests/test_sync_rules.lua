@@ -46,6 +46,9 @@ function TestSyncRules:test_gelezen_op_server_springt_niet()
     local fetched = { ok = true, record = { percent = 1 } }
     lu.assertEquals(SyncRules.decide(0.73, fetched, true), "none")
     lu.assertEquals(SyncRules.decide(0.73, fetched, false), "none")
+    lu.assertTrue(SyncRules.isFinished(0.996))
+    lu.assertFalse(SyncRules.isFinished(0.9))
+    lu.assertFalse(SyncRules.isFinished(nil))
 end
 
 function TestSyncRules:test_gelezen_op_server_en_opnieuw_gelezen_schrijft_weg()

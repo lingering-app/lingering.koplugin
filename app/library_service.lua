@@ -15,6 +15,7 @@ local md5 = require("ffi/sha2").md5
 local util = require("util")
 
 local Books = require("lingering.koreader.books")
+local Network = require("lingering.koreader.network")
 local Opds = require("lingering.koreader.opds")
 local Config = require("lingering.config")
 local Catalog = require("lingering.domain.catalog")
@@ -124,6 +125,41 @@ refreshCollections(titles, done)→ met verbinding: hoofdpagina (zo nodig) en ma
 ]]
 local COLLECTION_REFRESH_SECONDS = 600
 local COVERS_PER_COLLECTION = 3
+
+-- Hoe lang de map "Gelezen" vers genoeg is om niet opnieuw op te halen (seconden).
+local FINISHED_FRESH = 600
+
+--[[--
+Gelezen op de website → gelezen op de e-reader: de OPDS-map config.finished_collection ophalen
+(hooguit eens per FINISHED_FRESH, en alleen met verbinding; anders uit de cache) en elk
+gedownload boek daaruit dat in KOReader nog "aan het lezen" is op gelezen zetten.
+done(changed): changed = true als er een boek op gelezen is gezet.
+]]
+function Library:syncFinished(done)
+    local url = self:collectionUrl(Config.finished_collection)
+    if not url then return done(false) end
+    local function apply()
+        local changed = false
+        local feed = self:cached(url)
+        for _, entry in ipairs(feed and feed.items or {}) do
+            if entry.kind == "book" and self:isDownloaded(entry) then
+                local path = self:bookPath(entry)
+                if Books.status(path) == "reading" then
+                    logger.info("Lingering: gelezen op de website:", entry.title)
+                    Books.markFinished(path)
+                    changed = true
+                end
+            end
+        end
+        done(changed)
+    end
+    local cached = self:cached(url)
+    if (cached and os.time() - (cached.fetched or 0) < FINISHED_FRESH) or not Network.isOnline() then
+        apply()
+        return
+    end
+    self:sync(url, function() apply() end)
+end
 
 function Library:collectionUrl(title)
     local root = self:cached(self:rootUrl())

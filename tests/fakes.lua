@@ -84,6 +84,7 @@ Fakes.opds = { filetype = function() return "epub" end, credentials = function()
 Fakes.books = {}
 function Fakes.books.homeFolder() return "/boeken" end
 function Fakes.books.markFinished(file) Fakes.calls.finished = file end
+function Fakes.books.status(file) return (Fakes.state.statuses or {})[file] or "new" end
 function Fakes.books.syncPosition(file)
     if Fakes.state.no_position then return nil end
     return { digest = "md5-" .. file, progress = "/body/end" }

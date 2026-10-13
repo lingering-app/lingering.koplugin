@@ -68,3 +68,32 @@ function TestLibraryService:test_verouderde_mappen_worden_ververst()
     lu.assertEquals(self.synced, { ROOT, "lezen", "alles" })
     lu.assertTrue(changed)
 end
+
+function TestLibraryService:test_gelezen_op_website_wordt_hier_gelezen()
+    Library:saveFeed(ROOT, { { kind = "folder", title = "Gelezen", url = "gelezen" } })
+    Library:saveFeed("gelezen", { book("Een"), book("Twee") })
+    local een, twee = Library:bookPath(book("Een")), Library:bookPath(book("Twee"))
+    Fakes.state.files = { [een] = true, [twee] = true }
+    Fakes.state.statuses = { [een] = "reading", [twee] = "complete" }
+    local changed
+    Library:syncFinished(function(c) changed = c end)
+    lu.assertTrue(changed)
+    lu.assertEquals(Fakes.calls.finished, een)
+end
+
+function TestLibraryService:test_gelezen_niet_gedownload_doet_niets()
+    Library:saveFeed(ROOT, { { kind = "folder", title = "Gelezen", url = "gelezen" } })
+    Library:saveFeed("gelezen", { book("Een") })
+    Fakes.state.files = {}
+    local changed
+    Library:syncFinished(function(c) changed = c end)
+    lu.assertFalse(changed)
+    lu.assertNil(Fakes.calls.finished)
+end
+
+function TestLibraryService:test_geen_map_gelezen_doet_niets()
+    catalog()
+    local changed
+    Library:syncFinished(function(c) changed = c end)
+    lu.assertFalse(changed)
+end

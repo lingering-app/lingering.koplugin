@@ -571,6 +571,13 @@ function HomeScreen:show()
     UIManager:show(self, "full")
     UIManager:scheduleIn(1, function()
         Widgets.safeCall("mappen verversen", function() self:refreshCollections() end)
+        -- Gelezen op de website → hier ook gelezen (verdwijnt uit de rij).
+        Widgets.safeCall("gelezen bijwerken", function()
+            if not (self.library and self.library.syncFinished) then return end
+            self.library:syncFinished(function(changed)
+                if changed then self:reloadBooks() end
+            end)
+        end)
     end)
 end
 

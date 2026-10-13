@@ -7,6 +7,9 @@ return {
     -- Mappen uit de OPDS-catalogus die als blok (stapel omslagen) op het homescreen staan;
     -- een tik opent die map in Mijn boeken. Op naam (hoofdletters maken niet uit).
     collections = { "Wil ik lezen", "Al mijn boeken" },
+    -- Map met boeken die op de website gelezen zijn: wat daarin staat en gedownload is, gaat
+    -- ook op de e-reader op gelezen (app/library_service.lua syncFinished).
+    finished_collection = "Gelezen",
     -- Woordenboeken in Instellingen → Woordenboek. name = naam in KOReaders lijst
     -- (frontend/ui/data/dictionaries.lua): de downloadlink komt daar vandaan. label staat
     -- in de eigen taal, niet vertaald.

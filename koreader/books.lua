@@ -119,6 +119,20 @@ function M.markFinished(file)
 end
 
 --[[--
+KOReader-status van een bestand: "new" (nooit geopend), "reading", "abandoned" of "complete";
+zoals BookList.getBookStatus, maar uit de doc-settings zelf (de cache kan oud zijn).
+]]
+function M.status(file)
+    local ok, status = try("bookStatus", function()
+        local BookList = require("ui/widget/booklist")
+        if not BookList.hasBookBeenOpened(file) then return "new" end
+        local summary = BookList.getDocSettings(file):readSetting("summary") or {}
+        return summary.status or "reading"
+    end)
+    return ok and status or "new"
+end
+
+--[[--
 Wat kosync nodig heeft om de stand van een (niet geopend) boek weg te schrijven:
 { digest = partial_md5_checksum, progress = last_xpointer (epub) of last_page (pdf) }, of nil.
 Zoals KOSync:getDocumentDigest (binary) en KOSync:getLastProgress.
