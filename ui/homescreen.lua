@@ -179,7 +179,7 @@ local HalfCard = InputContainer:extend{
 function HalfCard:init()
     local book = self.book
     local gap = Size.padding.large
-    local cover_w = math.floor(self.width * 0.42)
+    local cover_w = math.floor(self.width * 0.48)
     local cover_h = math.floor(cover_w * 3 / 2)
     if cover_h > self.height then
         cover_h = math.max(0, self.height)
