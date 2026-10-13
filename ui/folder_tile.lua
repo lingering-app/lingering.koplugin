@@ -1,7 +1,7 @@
 --[[--
 Tegel voor een map uit de catalogus, gelijk op het homescreen en in Mijn boeken: tot vier
 omslagen uitgewaaierd over de breedte van de tegel (Widgets.coverStack; zonder omslagen een
-mapicoon), daaronder de naam en grijs het aantal boeken. Tekst links, gelijk met de linkerrand
+lege waaier, Widgets.emptyStack), daaronder de naam en grijs het aantal boeken. Tekst links, gelijk met de linkerrand
 van de waaier. Omslagen en aantal komen uit de cache van de map (library:cached);
 staat de map er nog niet in, dan geen aantal. Een tik roept callback() aan.
 
@@ -9,7 +9,6 @@ FolderTile:new{ library, url, title, width, stack_w, stack_h, callback }
 FolderTile.height(stack_h) → hoogte van de inhoud (voor rijen van gelijke hoogte)
 Maat van de stapel: Widgets.folderStackSize.
 ]]
-local CenterContainer = require("ui/widget/container/centercontainer")
 local Font = require("ui/font")
 local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
@@ -66,10 +65,7 @@ end
 function FolderTile:init()
     local covers, count = self:loadFolder()
     local stack = Widgets.coverStack(covers, self.stack_w, self.stack_h)
-        or CenterContainer:new{
-            dimen = Geom:new{ w = self.stack_w, h = self.stack_h },
-            Widgets.icon({ icon_file = "folder.svg" }, math.floor(math.min(self.stack_w, self.stack_h) * 0.4)),
-        }
+        or Widgets.emptyStack(self.stack_w, self.stack_h)
     local left = math.floor((self.width - self.stack_w) / 2)
     local text_w = self.width - left - Size.padding.default
     local group = VerticalGroup:new{

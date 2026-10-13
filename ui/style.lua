@@ -19,6 +19,10 @@ local Style = {
     -- Rand om omslagen in een stapel en om een omslag zonder afbeelding.
     cover_border = { size = Size.border.thin, color = Blitbuffer.COLOR_DARK_GRAY },
     radius = Size.radius.window,
+    -- Lijn boven het actieve tabblad van de navigatiebalk: dikker en zwart.
+    nav_active_line = { size = Size.line.thick * 2, color = Blitbuffer.COLOR_BLACK },
+    -- Lege omslagvakken (een map zonder boeken).
+    placeholder = Blitbuffer.COLOR_GRAY_E,
 
     -- Grijze (gedimde) iconen: zoveel wit erover (0..1). KOReaders eigen dim is 0.5.
     icon_dim = 0.35,

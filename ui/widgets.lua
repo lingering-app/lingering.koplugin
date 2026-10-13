@@ -136,18 +136,35 @@ end
 -- Titel onder een mapstapel (homescreen en Mijn boeken).
 Widgets.FOLDER_TITLE_FACE = Font:getFace("cfont", 15)
 
+-- Omslagen (FrameContainers, voorste eerst) uitwaaieren over stack_w: de voorste op x = 0,
+-- de laatste tegen de rechterrand, allemaal onderaan uitgelijnd.
+local function fan(framed, stack_w, stack_h)
+    local OverlapGroupW = require("ui/widget/overlapgroup")
+    local n = #framed
+    local last_w = framed[n]:getSize().w
+    local span = math.max(0, stack_w - last_w)
+    local group = OverlapGroupW:new{ dimen = Geom:new{ w = stack_w, h = stack_h } }
+    -- Achterste eerst tekenen.
+    for k = n, 1, -1 do
+        local size = framed[k]:getSize()
+        local x = n > 1 and math.floor(span * (k - 1) / (n - 1)) or 0
+        framed[k].overlap_offset = { x, stack_h - size.h }
+        table.insert(group, framed[k])
+    end
+    return group
+end
+
 function Widgets.coverStack(covers, stack_w, stack_h)
     if not covers or #covers == 0 then return nil end
     local ImageWidget = require("ui/widget/imagewidget")
-    local OverlapGroupW = require("ui/widget/overlapgroup")
     local front_w, front_h = Widgets.stackCoverSize(stack_w, stack_h)
     local border = Style.cover_border.size
     local n = math.min(#covers, Widgets.COVER_MAX)
     -- Per omslag de maat (kleiner naar achteren), met behoud van de eigen verhouding.
     local framed = {}
-    for k = 0, n - 1 do
-        local bb = covers[k + 1]
-        local factor = Widgets.COVER_SHRINK ^ k
+    for k = 1, n do
+        local bb = covers[k]
+        local factor = Widgets.COVER_SHRINK ^ (k - 1)
         local box_w, box_h = front_w * factor - 2 * border, front_h * factor - 2 * border
         local scale = math.min(box_w / bb:getWidth(), box_h / bb:getHeight())
         local w, h = math.floor(bb:getWidth() * scale), math.floor(bb:getHeight() * scale)
@@ -159,20 +176,37 @@ function Widgets.coverStack(covers, stack_w, stack_h)
             ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 },
         }
     end
-    -- Verdelen over de breedte: de voorste op x = 0, de laatste tegen de rechterrand.
-    local last_w = framed[n - 1]:getSize().w
-    local span = math.max(0, stack_w - last_w)
-    local group = OverlapGroupW:new{ dimen = Geom:new{ w = stack_w, h = stack_h } }
-    -- Achterste eerst tekenen; k = 0 is de voorste.
-    for k = n - 1, 0, -1 do
-        local size = framed[k]:getSize()
-        local x = n > 1 and math.floor(span * k / (n - 1)) or 0
-        framed[k].overlap_offset = { x, stack_h - size.h }
-        table.insert(group, framed[k])
-    end
     -- Omslagen boven het maximum worden niet getekend: meteen vrijgeven.
     for i = n + 1, #covers do covers[i]:free() end
-    return group
+    return fan(framed, stack_w, stack_h)
+end
+
+--[[--
+Lege waaier voor een map zonder (geladen) omslagen: drie lichtgrijze omslagvakken in dezelfde
+vorm als Widgets.coverStack, met een klein boekicoon op het voorste.
+]]
+function Widgets.emptyStack(stack_w, stack_h)
+    local CenterContainerW = require("ui/widget/container/centercontainer")
+    local front_w, front_h = Widgets.stackCoverSize(stack_w, stack_h)
+    local border = Style.cover_border.size
+    local framed = {}
+    for k = 1, 3 do
+        local factor = Widgets.COVER_SHRINK ^ (k - 1)
+        local w, h = math.floor(front_w * factor), math.floor(front_h * factor)
+        local inner = Geom:new{ w = w - 2 * border, h = h - 2 * border }
+        framed[k] = FrameContainer:new{
+            padding = 0,
+            bordersize = border,
+            color = Style.cover_border.color,
+            background = Style.placeholder,
+            CenterContainerW:new{
+                dimen = inner,
+                k == 1 and Widgets.icon({ icon_file = "menu_book.svg" }, math.floor(w * 0.3), true)
+                    or require("ui/widget/horizontalspan"):new{ width = 0 },
+            },
+        }
+    end
+    return fan(framed, stack_w, stack_h)
 end
 
 --- Icoon uit KOReader (icon = naam) of uit de plugin (icon_file = bestandsnaam in icons/).
@@ -407,8 +441,20 @@ function Widgets.navBar(width, items)
             callback = item.callback,
         })
     end
+    -- Lijn bovenaan per tabblad: boven het actieve dik en zwart (Style.nav_active_line),
+    -- boven de andere de gewone lijn (Style.line). Bovenaan uitgelijnd.
+    local lines = HorizontalGroup:new{ align = "top" }
+    for i, item in ipairs(items) do
+        local style = item.active and Style.nav_active_line or Style.line
+        local w = i < #items and cell_w or width - cell_w * (#items - 1)
+        table.insert(lines, LineWidget:new{
+            dimen = Geom:new{ w = w, h = style.size },
+            background = style.color,
+        })
+    end
     return VerticalGroup:new{
-        Widgets.line(width),
+        align = "left",
+        lines,
         FrameContainer:new{
             padding = 0,
             bordersize = 0,
