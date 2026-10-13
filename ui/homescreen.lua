@@ -59,50 +59,6 @@ local function formatHours(secs)
     return formatDuration(secs)
 end
 
---[[--
-Blok voor een map op het homescreen: stapel omslagen (Widgets.coverStack) met de naam
-eronder; zonder omslagen een klein mapicoon. Een tik roept callback() aan.
-]]
-local CollectionTile = InputContainer:extend{
-    title = nil,
-    covers = nil,       -- BlitBuffers (voorste eerst), of leeg
-    width = nil,
-    stack_w = nil,
-    stack_h = nil,
-    callback = nil,
-}
-
-function CollectionTile:init()
-    local stack = Widgets.coverStack(self.covers, self.stack_w, self.stack_h)
-        or CenterContainer:new{
-            dimen = Geom:new{ w = self.stack_w, h = self.stack_h },
-            Widgets.icon({ icon_file = "folder.svg" }, math.floor(math.min(self.stack_w, self.stack_h) * 0.4)),
-        }
-    -- Titel zoals onder de mappen in Mijn boeken.
-    self[1] = CenterContainer:new{
-        dimen = Geom:new{ w = self.width, h = self.stack_h + Size.padding.small + Screen:scaleBySize(24) },
-        ignore = "height",
-        VerticalGroup:new{
-            align = "center",
-            stack,
-            VerticalSpan:new{ width = Size.padding.small },
-            TextWidget:new{
-                text = self.title,
-                face = Widgets.FOLDER_TITLE_FACE,
-                bold = true,
-                max_width = self.width - 2 * Size.padding.default,
-            },
-        },
-    }
-    self.ges_events = {
-        TapTile = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
-    }
-end
-
-function CollectionTile:onTapTile()
-    if self.callback then Widgets.safeCall("map " .. tostring(self.title), self.callback) end
-    return true
-end
 
 -- "⋮"-knop voor het menu van een boek; on_tap(anchor) krijgt de positie van de knop.
 -- ink_right: afstand van de linkerkant van de knop tot de rechterkant van de puntjes (het
@@ -513,24 +469,19 @@ function HomeScreen:buildCollections(width, area_h)
     -- schuifbalk, stapel volgens Widgets.folderStackSize met dezelfde beschikbare hoogte.
     local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
     local tile_w = math.floor((width - ScrollableContainer:getScrollbarWidth()) / 2)
-    local cover_w, cover_h, stack_w, stack_h = Widgets.folderStackSize(tile_w, area_h)
+    local _, _, stack_w, stack_h = Widgets.folderStackSize(tile_w, area_h)
 
+    -- Zelfde tegel als in Mijn boeken (ui/folder_tile.lua).
+    local FolderTile = require("lingering.ui.folder_tile")
     local row = HorizontalGroup:new{ align = "top" }
     for _, collection in ipairs(found) do
-        local covers = {}
-        local ok, books = pcall(self.library.collectionBooks, self.library, collection.title)
-        for _, entry in ipairs(ok and books or {}) do
-            local bb = entry.thumbnail and Widgets.loadCover(self.library, entry.thumbnail, cover_w, cover_h)
-            if bb then table.insert(covers, bb) end
-            if #covers == 3 then break end
-        end
-        table.insert(row, CollectionTile:new{
+        table.insert(row, FolderTile:new{
+            library = self.library,
+            url = collection.url,
             title = collection.title,
-            covers = covers,
             width = tile_w,
             stack_w = stack_w,
             stack_h = stack_h,
-            show_parent = self,
             callback = function()
                 logger.info("Lingering: homescreen, map", collection.title)
                 if self.on_open_collection then self.on_open_collection(collection.url, collection.title) end

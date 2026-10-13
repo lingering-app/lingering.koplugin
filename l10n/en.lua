@@ -16,6 +16,8 @@ return {
     ["%1 min"] = "%1 min",
     ["%1 u %2 min"] = "%1 h %2 min",
     ["Gelezen"] = "Finished",
+    ["1 boek"] = "1 book",
+    ["%1 boeken"] = "%1 books",
     ["Nog ± %1 · %2 gelezen"] = "About %1 left · %2 read",
     ["Nog geen boek.\nTik hier om er een te kiezen uit Mijn boeken."] = "No book yet.\nTap here to choose one from My books.",
 

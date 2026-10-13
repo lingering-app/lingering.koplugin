@@ -31,40 +31,18 @@ local Screen = Device.screen
 local Network = require("lingering.koreader.network")
 local BookOpener = require("lingering.ui.book_opener")
 local Widgets = require("lingering.ui.widgets")
+local FolderTile = require("lingering.ui.folder_tile")
 local Layout = require("lingering.domain.layout")
 local Item = require("lingering.ui.actionbar").Item
 local Style = require("lingering.ui.style")
-
--- Titel onder een tegel: twee regels. Regelhoogte zoals TextBoxWidget die berekent:
--- (1 + line_height) * face.size, met line_height = 0.3 als standaard.
-local TITLE_FACE = Widgets.FOLDER_TITLE_FACE
-local TITLE_HEIGHT = 2 * math.floor((1 + 0.3) * TITLE_FACE.size + 0.5)
 
 local function loadCover(library, url, w, h)
     return Widgets.loadCover(library, url, w, h)
 end
 
 --[[--
-Stapel van tot drie omslagen uit een map (uit de cache) via Widgets.coverStack, of nil als
-er geen omslagen zijn.
-]]
-local function folderStack(library, folder_url, stack_w, stack_h)
-    local feed = library:cached(folder_url)
-    local single_w, single_h = Widgets.stackCoverSize(stack_w, stack_h)
-    local covers = {}
-    for _, item in ipairs(feed and feed.items or {}) do
-        if item.kind == "book" and item.thumbnail then
-            local bb = loadCover(library, item.thumbnail, single_w, single_h)
-            if bb then table.insert(covers, bb) end
-            if #covers == 3 then break end
-        end
-    end
-    return Widgets.coverStack(covers, stack_w, stack_h)
-end
-
---[[--
-Eén tegel in het raster: omslag (of mapicoon) met de titel klein eronder.
-Een boek dat al op het apparaat staat krijgt een vinkje rechtsonder op de omslag.
+Eén boek in het raster: de omslag, of zonder omslag de titel (en auteur) in een vak van
+omslaggrootte. Mappen zijn een FolderTile (ui/folder_tile.lua).
 ]]
 local GridTile = InputContainer:extend{
     entry = nil,
@@ -81,7 +59,7 @@ function GridTile:init()
     local cover_w, cover_h = self.cover_w, self.cover_h
 
     local cover
-    if entry.kind == "book" then
+    do
         local bb = entry.thumbnail and loadCover(self.library, entry.thumbnail, cover_w, cover_h)
         if bb then
             -- Schalen met behoud van verhouding, onderaan uitgelijnd zoals op een plank.
@@ -128,13 +106,6 @@ function GridTile:init()
                 },
             }
         end
-    else
-        -- Map: stapel omslagen van de boeken erin; anders een klein mapicoon.
-        cover = folderStack(self.library, entry.url, cover_w, cover_h)
-            or CenterContainer:new{
-                dimen = Geom:new{ w = cover_w, h = cover_h },
-                Widgets.icon({ icon_file = "folder.svg" }, math.floor(math.min(cover_w, cover_h) * 0.4)),
-            }
     end
 
     local cover_size = cover:getSize()
@@ -148,21 +119,8 @@ function GridTile:init()
     placed.overlap_offset = { math.floor((cover_w - cover_size.w) / 2), cover_h - cover_size.h }
     table.insert(cover_area, placed)
 
-    -- Boeken: alleen de omslag (de titel staat er meestal op). Mappen: icoon met naam.
+    -- Alleen de omslag (de titel staat er meestal op).
     local content = VerticalGroup:new{ align = "center", cover_area }
-    if entry.kind == "folder" then
-        table.insert(content, VerticalSpan:new{ width = Size.padding.small })
-        table.insert(content, TextBoxWidget:new{
-            text = entry.title,
-            face = TITLE_FACE,
-            bold = true,
-            width = self.width - 2 * Size.padding.default,
-            alignment = "center",
-            height = TITLE_HEIGHT,
-            height_adjust = true,
-            height_overflow_show_ellipsis = true,
-        })
-    end
     -- Alleen horizontaal centreren: alles staat bovenaan op één lijn.
     self[1] = CenterContainer:new{
         dimen = Geom:new{ w = self.width, h = self.height },
@@ -299,7 +257,7 @@ function LibraryScreen:render(partial)
         -- Mapstapel: zelfde maat als op het homescreen (Widgets.folderStackSize).
         local _, _, stack_w, stack_h = Widgets.folderStackSize(tile_w, body_h)
         cover_w, cover_h = stack_w, stack_h
-        tile_h = cover_h + gap + TITLE_HEIGHT + 2 * gap
+        tile_h = FolderTile.height(cover_h) + 3 * gap
     end
 
     -- Schuifpositie bewaren bij opnieuw opbouwen (omslagen binnen, na sync).
@@ -325,16 +283,33 @@ function LibraryScreen:render(partial)
                 row = HorizontalGroup:new{ align = "top" }
                 table.insert(grid, row)
             end
-            table.insert(row, GridTile:new{
-                entry = entry,
-                library = self.library,
-                width = tile_w,
-                height = tile_h,
-                cover_w = cover_w,
-                cover_h = cover_h,
-                show_parent = self,
-                callback = function(e) self:openEntry(e) end,
-            })
+            if entry.kind == "folder" then
+                -- Zelfde tegel als de mapblokken op het homescreen, bovenaan in de rasterrij.
+                local tile = FolderTile:new{
+                    library = self.library,
+                    url = entry.url,
+                    title = entry.title,
+                    width = tile_w,
+                    stack_w = cover_w,
+                    stack_h = cover_h,
+                    callback = function() self:openEntry(entry) end,
+                }
+                table.insert(row, TopContainer:new{
+                    dimen = Geom:new{ w = tile_w, h = tile_h },
+                    VerticalGroup:new{ VerticalSpan:new{ width = gap }, tile },
+                })
+            else
+                table.insert(row, GridTile:new{
+                    entry = entry,
+                    library = self.library,
+                    width = tile_w,
+                    height = tile_h,
+                    cover_w = cover_w,
+                    cover_h = cover_h,
+                    show_parent = self,
+                    callback = function(e) self:openEntry(e) end,
+                })
+            end
         end
         if grid:getSize().h <= body_h then
             -- Past alles al: geen schuifcontainer nodig.
