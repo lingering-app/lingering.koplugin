@@ -70,7 +70,10 @@ function Smoke.filemanager(plugin)
             return books
         end
         local ok, home = pcall(function()
-            return require("lingering.ui.homescreen"):new{ fm = plugin.ui, nav = plugin:nav() }
+            return require("lingering.ui.homescreen"):new{
+                fm = plugin.ui, nav = plugin:nav(),
+                library = plugin.home.library, collections = plugin.home.collections,
+            }
         end)
         Books.readingBooks = original
         assert(ok, home)
