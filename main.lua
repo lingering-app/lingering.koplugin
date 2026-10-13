@@ -60,6 +60,11 @@ function Lingering:init()
         if self.ui.menu then
             self.ui.menu:registerToMainMenu(self)
         end
+        -- Rooktest, fase setup: inloggen op de testserver en afsluiten (tests/smoke.lua).
+        if Smoke and os.getenv("LINGERING_TEST") == "setup" then
+            Smoke.setup(self)
+            return
+        end
         if Settings:isActive() then
             -- Na de opbouw van de bestandsbeheerder, zodat het homescreen erbovenop komt.
             UIManager:nextTick(function() self:showHomeScreen() end)

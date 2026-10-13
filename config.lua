@@ -1,7 +1,9 @@
--- Vaste adressen. Er is geen scherm om ze te wijzigen.
+-- Vaste adressen. Er is geen scherm om ze te wijzigen. Bij het starten van KOReader kunnen
+-- LINGERING_OPDS_URL en LINGERING_SYNC_URL ze vervangen (bijv. een lokale testserver, zie
+-- tools/mock_server.py); op een Kobo zijn die niet gezet.
 return {
-    opds_url = "https://opds.lingering.app",
-    sync_url = "https://koreader.lingering.app",
+    opds_url = os.getenv("LINGERING_OPDS_URL") or "https://opds.lingering.app",
+    sync_url = os.getenv("LINGERING_SYNC_URL") or "https://koreader.lingering.app",
     -- Mappen uit de OPDS-catalogus die als blok (stapel omslagen) op het homescreen staan;
     -- een tik opent die map in Mijn boeken. Op naam (hoofdletters maken niet uit).
     collections = { "Wil ik lezen", "Al mijn boeken" },

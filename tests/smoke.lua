@@ -1,9 +1,11 @@
 --[[--
-Rooktest in de emulator. Wordt alleen geladen als LINGERING_TEST gezet is (zie main.lua).
-LINGERING_TEST=fm      homescreen → Mijn boeken → eerste map → Instellingen → Account →
-                       inloggen (goed/fout) → downloaden (tijdelijk) → omslag zonder cache
+Rooktest in de emulator. Wordt alleen geladen als LINGERING_TEST gezet is (zie main.lua);
+tools/smoke.sh start KOReader in een eigen testmap (KO_HOME) tegen tools/mock_server.py.
+LINGERING_TEST=setup   inloggen op de testserver (echte AccountService), daarna afsluiten
 LINGERING_TEST=reader  actiebalk → inhoudsopgave → sync-knop → springen → wegschrijven →
-                       boek sluiten (let op: schrijft echte voortgang naar het testaccount)
+                       boek sluiten
+LINGERING_TEST=fm      homescreen → Mijn boeken → eerste map → Instellingen → Taal →
+                       Woordenboek → Account → inloggen (goed/fout) → downloaden → update
 LINGERING_SHOTS=<map>  schermafdrukken
 Elke scène logt "Lingering: SMOKE <naam> OK"; fouten verschijnen als WARN/ERROR in de log.
 ]]
@@ -32,6 +34,22 @@ local function run(steps)
 end
 
 local Smoke = {}
+
+-- Testaccount van tools/mock_server.py.
+local TEST_USER, TEST_PASSWORD = "test", "test"
+
+function Smoke.setup(plugin)
+    run{
+        { name = "inloggen op de testserver", wait = 2, fn = function()
+            local AccountService = require("lingering.app.account_service")
+            assert(AccountService.verify(TEST_USER, TEST_PASSWORD), "testserver weigert het testaccount")
+            assert(AccountService.save(TEST_USER, TEST_PASSWORD, plugin.ui), "account opslaan mislukt")
+        end },
+        { name = "afsluiten", fn = function()
+            UIManager:quit()
+        end },
+    }
+end
 
 function Smoke.filemanager(plugin)
     local lib
@@ -203,7 +221,15 @@ function Smoke.filemanager(plugin)
         { name = "woordenboek getekend", fn = function()
             shot("4d-dictionary")
             -- Nederlands kiezen; staat het er nog niet op, dan vraagt KOReader bevestiging.
+            -- Het woordenboek komt van de testserver (klein), niet uit KOReaders lijst.
+            local Dictionaries = require("lingering.koreader.dictionaries")
+            local real_entry = Dictionaries.entry
+            Dictionaries.entry = function(name)
+                local server = os.getenv("LINGERING_OPDS_URL"):gsub("/opds$", "")
+                return { name = name, lang_in = "nld", lang_out = "nld", url = server .. "/dict/test-nl.zip" }
+            end
             state.dict.items[1].choose(state.dict)
+            Dictionaries.entry = real_entry
         end },
         { name = "woordenboek: bevestigen", wait = 4, fn = function()
             local top = UIManager:getTopmostVisibleWidget()
@@ -213,7 +239,7 @@ function Smoke.filemanager(plugin)
                 UIManager:close(top)
             end
         end },
-        { name = "woordenboek gekozen", wait = 25, fn = function()
+        { name = "woordenboek gekozen", wait = 5, fn = function()
             local Dictionaries = require("lingering.koreader.dictionaries")
             local name = require("lingering.config").dictionaries[1].name
             assert(Dictionaries.isInstalled(plugin.ui, name), "woordenboek niet geïnstalleerd")
@@ -399,18 +425,6 @@ function Smoke.reader(ui, show_action_bar)
         { name = "inhoudsopgave getekend", fn = function()
             shot("6-toc")
             UIManager:close(UIManager:getTopmostVisibleWidget())
-        end },
-        -- Elke run schrijft 5 pagina's verder weg; is het testboek bijna uit, dan eerst naar
-        -- 30% en die stand rechtstreeks naar de server (anders kan "verder bladeren" niet meer;
-        -- niet naar pagina 1, want dan kan "terugbladeren" niet).
-        { name = "testboek terugzetten (bijna uit)", fn = function()
-            if (ui.kosync:getLastPercent() or 0) < 0.8 then return end
-            local page = math.max(10, math.floor(ui.document:getPageCount() * 0.3))
-            ui:handleEvent(require("ui/event"):new("GotoPage", page))
-            local session = assert(require("lingering.koreader.kosync").session(ui.kosync), "geen sessie")
-            session:store(session:snapshot(), function(ok)
-                logger.info("Lingering: SMOKE testboek teruggezet:", ok)
-            end)
         end },
         { name = "sync-knop", wait = 3, fn = function()
             SyncService.syncNow(ui, function(ok)
