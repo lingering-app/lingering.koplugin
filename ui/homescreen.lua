@@ -162,6 +162,129 @@ function ReadingTile:onTapTile()
     return true
 end
 
+--[[--
+Halve kaart voor twee boeken naast elkaar (2 kolommen): links de omslag, rechts titel,
+auteur, voortgangsbalk en "X% gelezen" met lichter de resterende tijd; "⋮" rechtsonder.
+Een tik roept callback() aan.
+]]
+local HalfCard = InputContainer:extend{
+    book = nil,         -- { file, title, authors, percent, cover, stats }
+    width = nil,
+    height = nil,       -- beschikbare hoogte; de omslag krimpt als het niet past
+    callback = nil,
+    on_menu = nil,      -- function(anchor): menu van de "⋮"-knop
+}
+
+function HalfCard:init()
+    local book = self.book
+    local gap = Size.padding.large
+    local cover_w = math.floor(self.width * 0.42)
+    local cover_h = math.floor(cover_w * 3 / 2)
+    if cover_h > self.height then
+        cover_h = math.max(0, self.height)
+        cover_w = math.floor(cover_h * 2 / 3)
+    end
+    local cover
+    if book.cover then
+        local bb = book.cover
+        local scale = math.min(cover_w / bb:getWidth(), cover_h / bb:getHeight())
+        cover_w = math.floor(bb:getWidth() * scale)
+        cover = ImageWidget:new{
+            image = bb,
+            -- Zelf vrijgeven in HomeScreen:onCloseWidget: de omslag mag een herbouw overleven.
+            image_disposable = false,
+            width = cover_w,
+            height = math.floor(bb:getHeight() * scale),
+            scale_factor = 0,
+        }
+    else
+        cover = CenterContainer:new{
+            dimen = Geom:new{ w = cover_w, h = cover_h },
+            Widgets.icon({ icon_file = "menu_book.svg" }, math.floor(cover_w / 2)),
+        }
+    end
+
+    local text_w = self.width - cover_w - gap
+    local info = VerticalGroup:new{ align = "left" }
+    table.insert(info, TextBoxWidget:new{
+        text = book.title,
+        face = Font:getFace("cfont", 18),
+        bold = true,
+        width = text_w,
+        height = Screen:scaleBySize(18) * 3,
+        height_adjust = true,
+        height_overflow_show_ellipsis = true,
+    })
+    if book.authors and book.authors ~= "" then
+        table.insert(info, VerticalSpan:new{ width = Size.padding.small })
+        table.insert(info, TextBoxWidget:new{
+            text = book.authors,
+            face = Font:getFace("cfont", 15),
+            width = text_w,
+            height = Screen:scaleBySize(15) * 2,
+            height_adjust = true,
+            height_overflow_show_ellipsis = true,
+        })
+    end
+    local percent = book.percent or 0
+    table.insert(info, VerticalSpan:new{ width = Size.padding.large * 2 })
+    table.insert(info, ProgressWidget:new{
+        width = text_w,
+        height = Screen:scaleBySize(6),
+        percentage = percent,
+        margin_h = 0,
+        margin_v = 0,
+        radius = 0,
+        bordersize = 0,
+        bgcolor = Style.progress.track,
+        fillcolor = Style.progress.fill,
+    })
+    table.insert(info, VerticalSpan:new{ width = Size.padding.default })
+    -- Ruimte rechts voor de "⋮"-knop naast de twee regels.
+    local more = moreButton(function(anchor) if self.on_menu then self.on_menu(anchor) end end)
+    local lines_w = text_w - more.width
+    local lines = VerticalGroup:new{
+        align = "left",
+        TextWidget:new{
+            text = T(_("%1% gelezen"), math.floor(percent * 100 + 0.5)),
+            face = Font:getFace("cfont", 15),
+            bold = true,
+            max_width = lines_w,
+        },
+    }
+    if book.stats then
+        table.insert(lines, TextWidget:new{
+            text = T(_("%1 te gaan"), formatHours(book.stats.left_secs)),
+            face = Font:getFace("cfont", 13),
+            fgcolor = Style.text_secondary,
+            max_width = lines_w,
+        })
+    end
+    local lines_h = lines:getSize().h
+    -- ⋮ verticaal gecentreerd naast de twee regels, puntjes tegen de rechterrand.
+    more.overlap_offset = { text_w - more.ink_right, math.floor((lines_h - more.height) / 2) }
+    table.insert(info, OverlapGroup:new{
+        dimen = Geom:new{ w = text_w, h = math.max(lines_h, more.height) },
+        lines,
+        more,
+    })
+
+    self[1] = HorizontalGroup:new{
+        align = "top",
+        cover,
+        HorizontalSpan:new{ width = gap },
+        info,
+    }
+    self.ges_events = {
+        TapTile = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
+    }
+end
+
+function HalfCard:onTapTile()
+    if self.callback then Widgets.safeCall("boek " .. tostring(self.book.title), self.callback) end
+    return true
+end
+
 local HomeScreen = InputContainer:extend{
     fm = nil,               -- FileManager-instantie
     library = nil,          -- app/library_service (mappen in de catalogus)
@@ -179,7 +302,7 @@ Widgets.guardPaint(HomeScreen, "homescreen")
 Widgets.guardEvents(HomeScreen, "homescreen")
 Widgets.followRotation(HomeScreen)
 
--- Eén boek aan het lezen: de grote kaart (self.book); meer: een rij van hooguit 4.
+-- Eén boek aan het lezen: de grote kaart (self.book); twee: halve kaarten; meer: een rij van hooguit 4.
 function HomeScreen:loadBooks()
     self.books = Books.readingBooks(self.fm, 4)
     for _, book in ipairs(self.books) do
@@ -286,9 +409,29 @@ function HomeScreen:readingTiles(width, height)
     return tiles, tiles_h
 end
 
---- Rij 1 van het raster: { columns, cells } en de hoogte. Meer boeken: 4 kolommen; anders de
---- grote kaart of de melding "nog geen boek" over 1 kolom.
+--- Rij 1 van het raster: { columns, cells } en de hoogte. Twee boeken: halve kaarten over
+--- 2 kolommen; drie of vier: 4 kolommen; anders de grote kaart of de melding "nog geen boek" over 1 kolom.
 function HomeScreen:bookRow(width, height)
+    if #self.books == 2 then
+        local Grid = require("lingering.ui.grid")
+        local cards, h = {}, 0
+        for _, book in ipairs(self.books) do
+            local card = HalfCard:new{
+                book = book,
+                width = Grid.columnWidth(width, 2),
+                height = height,
+                callback = function()
+                    logger.info("Lingering: homescreen, boek openen")
+                    self:close()
+                    Navigation.openBook(book.file)
+                end,
+                on_menu = function(anchor) self:showBookMenu(book, anchor) end,
+            }
+            h = math.max(h, card:getSize().h)
+            table.insert(cards, card)
+        end
+        return { columns = 2, cells = cards }, h
+    end
     if #self.books > 1 then
         local tiles, h = self:readingTiles(width, height)
         return { columns = 4, cells = tiles }, h
@@ -424,7 +567,7 @@ function HomeScreen:build()
     local status_h = status:getSize().h
     local area_h = height - status_h - nav:getSize().h
 
-    -- Eén raster (ui/grid.lua): rij 1 het boek (grote kaart, 1 kolom) of de boeken (4 kolommen),
+    -- Eén raster (ui/grid.lua): rij 1 het boek (grote kaart, 1 kolom) of de boeken (2 of 4 kolommen),
     -- rij 2 de mappen (2 kolommen) als die passen.
     local folders, folders_h = self:collectionRow(width, area_h)
     folders_h = folders_h or 0
