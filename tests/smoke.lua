@@ -150,7 +150,7 @@ function Smoke.filemanager(plugin)
             assert(book and Library:hasCover(book.thumbnail), "geen omslag in de cache")
             local Screen_ = require("device").screen
             local cw, ch = Screen_:scaleBySize(120), Screen_:scaleBySize(180)
-            local sw, sh = Widgets.stackSize(cw, ch)
+            local sw, sh = math.floor(cw * 2.4), ch
             local covers = {}
             for _ = 1, 3 do table.insert(covers, Widgets.loadCover(Library, book.thumbnail, cw, ch)) end
             local stack = assert(Widgets.coverStack(covers, sw, sh), "geen stapel")

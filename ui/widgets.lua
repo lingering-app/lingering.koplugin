@@ -98,46 +98,40 @@ function Widgets.loadCover(library, url, w, h)
 end
 
 --[[--
-Stapel omslagen (herbruikbaar): tot drie omslagen op elkaar, de voorste linksonder, de
-achterste steken STACK_OFFSET × omslagbreedte naar rechtsboven uit. Elke omslag krijgt een
-dun randje, zodat ze van elkaar loskomen; onderaan uitgelijnd.
+Omslagen van een map, uitgewaaierd over de hele breedte (herbruikbaar): de voorste links,
+de andere naar rechts verspreid tot de laatste tegen de rechterrand staat. Elke omslag erachter
+is COVER_SHRINK keer zo groot als de vorige; allemaal onderaan uitgelijnd, als op een plank.
+Elke omslag krijgt een dun randje (Style.cover_border), zodat ze van elkaar loskomen.
 
-Widgets.stackSize(cover_w, cover_h)      → breedte, hoogte van de hele stapel
-Widgets.stackCoverSize(stack_w, stack_h) → breedte, hoogte van één omslag in die stapel
+Widgets.stackCoverSize(stack_w, stack_h) → breedte, hoogte van de voorste omslag (2:3)
+Widgets.folderStackSize(tile_w, body_h)  → voorste omslag b/h en waaier b/h voor een maptegel
 Widgets.coverStack(covers, stack_w, stack_h)
-    covers: lijst BlitBuffers (voorste eerst; de stapel geeft ze vrij bij het sluiten).
+    covers: lijst BlitBuffers (voorste eerst; de waaier geeft ze vrij bij het sluiten).
     Geeft een widget van stack_w × stack_h, of nil bij een lege lijst.
 ]]
-Widgets.STACK_OFFSET = 0.18
-local STACK_MAX = 3
+Widgets.COVER_MAX = 4
+Widgets.COVER_SHRINK = 0.88
 
-function Widgets.stackSize(cover_w, cover_h)
-    local off = math.floor(cover_w * Widgets.STACK_OFFSET)
-    return cover_w + 2 * off, cover_h + 2 * off
-end
-
-function Widgets.stackCoverSize(stack_w, stack_h)
-    local cover_w = math.floor(stack_w / (1 + 2 * Widgets.STACK_OFFSET))
-    local off = math.floor(cover_w * Widgets.STACK_OFFSET)
-    return cover_w, stack_h - 2 * off
+function Widgets.stackCoverSize(_, stack_h)
+    return math.floor(stack_h * 2 / 3), stack_h
 end
 
 --[[--
-Maat van een mapstapel, gelijk op het homescreen en in Mijn boeken: twee kolommen van
-tile_w; de omslag hooguit de halve kolombreedte en hooguit 40% van body_h (de hoogte tussen
-bovenbalk en navigatiebalk). Geeft omslag_b, omslag_h, stapel_b, stapel_h.
+Maat van de waaier in een maptegel, gelijk op het homescreen en in Mijn boeken: zo breed als de
+tegel (min een kleine marge); de voorste omslag 42% van die breedte en hooguit 30% van body_h
+(de hoogte tussen bovenbalk en navigatiebalk). Geeft omslag_b, omslag_h, waaier_b, waaier_h.
 ]]
 function Widgets.folderStackSize(tile_w, body_h)
     local gap = Size.padding.default
-    local single_w = math.min(math.floor(Widgets.stackCoverSize(tile_w - 2 * gap, math.huge)), math.floor(tile_w * 0.5))
+    local stack_w = tile_w - 2 * gap
+    local single_w = math.floor(stack_w * 0.42)
     local single_h = math.floor(single_w * 3 / 2)
-    local max_single_h = math.floor(body_h * 0.4)
-    if single_h > max_single_h then
-        single_h = max_single_h
+    local max_h = math.floor(body_h * 0.3)
+    if single_h > max_h then
+        single_h = max_h
         single_w = math.floor(single_h * 2 / 3)
     end
-    local stack_w, stack_h = Widgets.stackSize(single_w, single_h)
-    return single_w, single_h, stack_w, stack_h
+    return single_w, single_h, stack_w, single_h
 end
 
 -- Titel onder een mapstapel (homescreen en Mijn boeken).
@@ -147,28 +141,38 @@ function Widgets.coverStack(covers, stack_w, stack_h)
     if not covers or #covers == 0 then return nil end
     local ImageWidget = require("ui/widget/imagewidget")
     local OverlapGroupW = require("ui/widget/overlapgroup")
-    local cover_w, cover_h = Widgets.stackCoverSize(stack_w, stack_h)
-    local off = math.floor(cover_w * Widgets.STACK_OFFSET)
+    local front_w, front_h = Widgets.stackCoverSize(stack_w, stack_h)
     local border = Style.cover_border.size
-    local group = OverlapGroupW:new{ dimen = Geom:new{ w = stack_w, h = stack_h } }
-    -- Achterste eerst tekenen; k = 0 is de voorste.
-    for i = math.min(#covers, STACK_MAX), 1, -1 do
-        local k = i - 1
-        local bb = covers[i]
-        local scale = math.min((cover_w - 2 * border) / bb:getWidth(), (cover_h - 2 * border) / bb:getHeight())
+    local n = math.min(#covers, Widgets.COVER_MAX)
+    -- Per omslag de maat (kleiner naar achteren), met behoud van de eigen verhouding.
+    local framed = {}
+    for k = 0, n - 1 do
+        local bb = covers[k + 1]
+        local factor = Widgets.COVER_SHRINK ^ k
+        local box_w, box_h = front_w * factor - 2 * border, front_h * factor - 2 * border
+        local scale = math.min(box_w / bb:getWidth(), box_h / bb:getHeight())
         local w, h = math.floor(bb:getWidth() * scale), math.floor(bb:getHeight() * scale)
-        local framed = FrameContainer:new{
+        framed[k] = FrameContainer:new{
             padding = 0,
             bordersize = border,
             color = Style.cover_border.color,
             background = Style.background,
             ImageWidget:new{ image = bb, image_disposable = true, width = w, height = h, scale_factor = 0 },
         }
-        framed.overlap_offset = { k * off, (STACK_MAX - 1 - k) * off + (cover_h - (h + 2 * border)) }
-        table.insert(group, framed)
+    end
+    -- Verdelen over de breedte: de voorste op x = 0, de laatste tegen de rechterrand.
+    local last_w = framed[n - 1]:getSize().w
+    local span = math.max(0, stack_w - last_w)
+    local group = OverlapGroupW:new{ dimen = Geom:new{ w = stack_w, h = stack_h } }
+    -- Achterste eerst tekenen; k = 0 is de voorste.
+    for k = n - 1, 0, -1 do
+        local size = framed[k]:getSize()
+        local x = n > 1 and math.floor(span * k / (n - 1)) or 0
+        framed[k].overlap_offset = { x, stack_h - size.h }
+        table.insert(group, framed[k])
     end
     -- Omslagen boven het maximum worden niet getekend: meteen vrijgeven.
-    for i = STACK_MAX + 1, #covers do covers[i]:free() end
+    for i = n + 1, #covers do covers[i]:free() end
     return group
 end
 

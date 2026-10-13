@@ -1,8 +1,8 @@
 --[[--
-Tegel voor een map uit de catalogus, gelijk op het homescreen en in Mijn boeken: stapel van
-tot drie omslagen (Widgets.coverStack; zonder omslagen een mapicoon), daaronder de naam en
-grijs het aantal boeken. Tekst links, gelijk met de linkerrand van de stapel; de stapel staat
-gecentreerd in de tegel. Omslagen en aantal komen uit de cache van de map (library:cached);
+Tegel voor een map uit de catalogus, gelijk op het homescreen en in Mijn boeken: tot vier
+omslagen uitgewaaierd over de breedte van de tegel (Widgets.coverStack; zonder omslagen een
+mapicoon), daaronder de naam en grijs het aantal boeken. Tekst links, gelijk met de linkerrand
+van de waaier. Omslagen en aantal komen uit de cache van de map (library:cached);
 staat de map er nog niet in, dan geen aantal. Een tik roept callback() aan.
 
 FolderTile:new{ library, url, title, width, stack_w, stack_h, callback }
@@ -46,7 +46,7 @@ function FolderTile.height(stack_h)
     return stack_h + Size.padding.small + lineHeight(Widgets.FOLDER_TITLE_FACE, true) + lineHeight(COUNT_FACE)
 end
 
--- Tot drie omslagen en het aantal boeken uit de cache; aantal nil als de map er niet in staat.
+-- Tot vier omslagen en het aantal boeken uit de cache; aantal nil als de map er niet in staat.
 function FolderTile:loadFolder()
     local feed = self.library:cached(self.url)
     local single_w, single_h = Widgets.stackCoverSize(self.stack_w, self.stack_h)
@@ -54,7 +54,7 @@ function FolderTile:loadFolder()
     for _, item in ipairs(feed and feed.items or {}) do
         if item.kind == "book" then
             count = count + 1
-            if #covers < 3 and item.thumbnail then
+            if #covers < Widgets.COVER_MAX and item.thumbnail then
                 local bb = Widgets.loadCover(self.library, item.thumbnail, single_w, single_h)
                 if bb then table.insert(covers, bb) end
             end
