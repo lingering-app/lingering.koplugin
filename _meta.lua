@@ -5,7 +5,7 @@ local dutch = ok and type(lang) == "string" and lang:match("^nl") ~= nil
 return {
     fullname = "Lingering UI",
     -- Versie van deze plugin; tools/release.sh zet hem en maakt de tag v<versie>.
-    version = "0.0.10",
+    version = "0.0.11",
     description = dutch
         and "Een versimpelde schil over KOReader: homescreen, mijn boeken en leesscherm."
         or "A simplified shell over KOReader: home screen, my books and reading screen.",
