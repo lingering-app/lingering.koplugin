@@ -122,6 +122,27 @@ function Widgets.stackCoverSize(stack_w, stack_h)
     return cover_w, stack_h - 2 * off
 end
 
+--[[--
+Maat van een mapstapel, gelijk op het homescreen en in Mijn boeken: twee kolommen van
+tile_w; de omslag hooguit de halve kolombreedte en hooguit 40% van body_h (de hoogte tussen
+bovenbalk en navigatiebalk). Geeft omslag_b, omslag_h, stapel_b, stapel_h.
+]]
+function Widgets.folderStackSize(tile_w, body_h)
+    local gap = Size.padding.default
+    local single_w = math.min(math.floor(Widgets.stackCoverSize(tile_w - 2 * gap, math.huge)), math.floor(tile_w * 0.5))
+    local single_h = math.floor(single_w * 3 / 2)
+    local max_single_h = math.floor(body_h * 0.4)
+    if single_h > max_single_h then
+        single_h = max_single_h
+        single_w = math.floor(single_h * 2 / 3)
+    end
+    local stack_w, stack_h = Widgets.stackSize(single_w, single_h)
+    return single_w, single_h, stack_w, stack_h
+end
+
+-- Titel onder een mapstapel (homescreen en Mijn boeken).
+Widgets.FOLDER_TITLE_FACE = Font:getFace("cfont", 15)
+
 function Widgets.coverStack(covers, stack_w, stack_h)
     if not covers or #covers == 0 then return nil end
     local ImageWidget = require("ui/widget/imagewidget")

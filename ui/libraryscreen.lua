@@ -37,7 +37,7 @@ local Style = require("lingering.ui.style")
 
 -- Titel onder een tegel: twee regels. Regelhoogte zoals TextBoxWidget die berekent:
 -- (1 + line_height) * face.size, met line_height = 0.3 als standaard.
-local TITLE_FACE = Font:getFace("cfont", 15)
+local TITLE_FACE = Widgets.FOLDER_TITLE_FACE
 local TITLE_HEIGHT = 2 * math.floor((1 + 0.3) * TITLE_FACE.size + 0.5)
 
 local function loadCover(library, url, w, h)
@@ -296,15 +296,9 @@ function LibraryScreen:render(partial)
         end
         tile_h = cover_h + 2 * gap + row_gap
     else
-        -- Mapstapel: omslag hooguit de halve tegelbreedte, en niet hoger dan 40% van het scherm.
-        local single_w = math.min(math.floor(Widgets.stackCoverSize(tile_w - 2 * gap, math.huge)), math.floor(tile_w * 0.5))
-        local single_h = math.floor(single_w * 3 / 2)
-        local max_single_h = math.floor(body_h * 0.4)
-        if single_h > max_single_h then
-            single_h = max_single_h
-            single_w = math.floor(single_h * 2 / 3)
-        end
-        cover_w, cover_h = Widgets.stackSize(single_w, single_h)
+        -- Mapstapel: zelfde maat als op het homescreen (Widgets.folderStackSize).
+        local _, _, stack_w, stack_h = Widgets.folderStackSize(tile_w, body_h)
+        cover_w, cover_h = stack_w, stack_h
         tile_h = cover_h + gap + TITLE_HEIGHT + 2 * gap
     end
 

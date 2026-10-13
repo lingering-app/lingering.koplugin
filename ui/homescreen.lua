@@ -78,18 +78,19 @@ function CollectionTile:init()
             dimen = Geom:new{ w = self.stack_w, h = self.stack_h },
             Widgets.icon({ icon_file = "folder.svg" }, math.floor(math.min(self.stack_w, self.stack_h) * 0.4)),
         }
+    -- Titel zoals onder de mappen in Mijn boeken.
     self[1] = CenterContainer:new{
-        dimen = Geom:new{ w = self.width, h = self.stack_h + Size.padding.large + Screen:scaleBySize(24) },
+        dimen = Geom:new{ w = self.width, h = self.stack_h + Size.padding.small + Screen:scaleBySize(24) },
         ignore = "height",
         VerticalGroup:new{
             align = "center",
             stack,
-            VerticalSpan:new{ width = Size.padding.large },
+            VerticalSpan:new{ width = Size.padding.small },
             TextWidget:new{
                 text = self.title,
-                face = Font:getFace("cfont", 16),
+                face = Widgets.FOLDER_TITLE_FACE,
                 bold = true,
-                max_width = self.width,
+                max_width = self.width - 2 * Size.padding.default,
             },
         },
     }
@@ -461,7 +462,7 @@ function HomeScreen:build()
     local area_h = height - status_h - nav:getSize().h
 
     -- Blokken met mappen (stapels omslagen) onder het huidige boek, als ze passen.
-    local shelf = self:buildCollections(width)
+    local shelf = self:buildCollections(width, area_h)
     local shelf_h = shelf and shelf:getSize().h or 0
     if shelf and area_h - shelf_h < Screen:scaleBySize(240) then
         shelf, shelf_h = nil, 0
@@ -497,7 +498,7 @@ end
 Blokken naast elkaar voor de mappen uit config.collections (alleen mappen die in de
 catalogus bestaan): stapel van de eerste drie omslagen uit de cache, naam eronder.
 ]]
-function HomeScreen:buildCollections(width)
+function HomeScreen:buildCollections(width, area_h)
     if not (self.library and self.collections) then return nil end
     local found = {}
     for _, title in ipairs(self.collections) do
@@ -506,17 +507,14 @@ function HomeScreen:buildCollections(width)
     end
     if #found == 0 then return nil end
 
-    local padding = Size.padding.large * 2
-    local gap = Size.padding.large * 2
-    local tile_w = math.floor((width - 2 * padding - (#found - 1) * gap) / #found)
-    -- Stapel: omslag hooguit 40% van de blokbreedte.
-    local cover_w = math.floor(tile_w * 0.4)
-    local cover_h = math.floor(cover_w * 3 / 2)
-    local stack_w, stack_h = Widgets.stackSize(cover_w, cover_h)
+    -- Zelfde maat en plek als de mappen in Mijn boeken: twee kolommen over de breedte zonder
+    -- schuifbalk, stapel volgens Widgets.folderStackSize met dezelfde beschikbare hoogte.
+    local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
+    local tile_w = math.floor((width - ScrollableContainer:getScrollbarWidth()) / 2)
+    local cover_w, cover_h, stack_w, stack_h = Widgets.folderStackSize(tile_w, area_h)
 
     local row = HorizontalGroup:new{ align = "top" }
-    for i, collection in ipairs(found) do
-        if i > 1 then table.insert(row, HorizontalSpan:new{ width = gap }) end
+    for _, collection in ipairs(found) do
         local covers = {}
         local ok, books = pcall(self.library.collectionBooks, self.library, collection.title)
         for _, entry in ipairs(ok and books or {}) do
@@ -539,9 +537,7 @@ function HomeScreen:buildCollections(width)
     end
     return FrameContainer:new{
         padding = 0,
-        padding_left = padding,
-        padding_right = padding,
-        padding_bottom = padding,
+        padding_bottom = Size.padding.large * 2,
         bordersize = 0,
         row,
     }
