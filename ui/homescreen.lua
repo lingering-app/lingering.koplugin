@@ -473,16 +473,18 @@ function HomeScreen:build()
 
     self.status_dimen = Geom:new{ x = 0, y = 0, w = width, h = status_h }
     self.book_dimen = Geom:new{ x = 0, y = status_h, w = width, h = card_h }
-    self.shelf_dimen = Geom:new{ x = 0, y = status_h + card_h, w = width, h = shelf_h }
+    -- Mapblokken tegen de onderkant (boven de navigatiebalk): altijd op dezelfde plek, of je nu
+    -- één boek (grote kaart) of meer (rij) aan het lezen bent.
+    self.shelf_dimen = Geom:new{ x = 0, y = status_h + area_h - shelf_h, w = width, h = shelf_h }
 
-    -- Statusregel boven (zonder lijn), huidig boek, mappen, navigatiebalk onderaan.
+    -- Statusregel boven (zonder lijn), huidig boek, ruimte, mappen, navigatiebalk onderaan.
     self.layout_group = VerticalGroup:new{
         align = "left",
         status,
         book,
     }
-    if shelf then table.insert(self.layout_group, shelf) end
     table.insert(self.layout_group, VerticalSpan:new{ width = math.max(0, area_h - card_h - shelf_h) })
+    if shelf then table.insert(self.layout_group, shelf) end
     table.insert(self.layout_group, nav)
     self[1] = FrameContainer:new{
         width = width,
