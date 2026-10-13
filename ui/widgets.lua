@@ -118,12 +118,11 @@ end
 
 --[[--
 Maat van de waaier in een maptegel, gelijk op het homescreen en in Mijn boeken: zo breed als de
-tegel (min een kleine marge); de voorste omslag 42% van die breedte en hooguit 30% van body_h
+tegel (een kolom van ui/grid.lua); de voorste omslag 42% van die breedte en hooguit 30% van body_h
 (de hoogte tussen bovenbalk en navigatiebalk). Geeft omslag_b, omslag_h, waaier_b, waaier_h.
 ]]
 function Widgets.folderStackSize(tile_w, body_h)
-    local gap = Size.padding.default
-    local stack_w = tile_w - 2 * gap
+    local stack_w = tile_w
     local single_w = math.floor(stack_w * 0.42)
     local single_h = math.floor(single_w * 3 / 2)
     local max_h = math.floor(body_h * 0.3)

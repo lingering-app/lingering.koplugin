@@ -32,6 +32,7 @@ local Network = require("lingering.koreader.network")
 local BookOpener = require("lingering.ui.book_opener")
 local Widgets = require("lingering.ui.widgets")
 local FolderTile = require("lingering.ui.folder_tile")
+local Grid = require("lingering.ui.grid")
 local Layout = require("lingering.domain.layout")
 local Item = require("lingering.ui.actionbar").Item
 local Style = require("lingering.ui.style")
@@ -224,41 +225,26 @@ function LibraryScreen:render(partial)
     self:setTitle(current.title)
 
     local body_h = height - self.header_h - self.nav_h
-    -- Raster: minstens 3 kolommen; de omslag krimpt als het scherm laag is (2 rijen zichtbaar).
-    -- Breedte zonder de verticale schuifbalk, anders ontstaat een horizontale schuifbalk.
-    local grid_w = width - ScrollableContainer:getScrollbarWidth()
+    -- Raster (ui/grid.lua): mappen in rijen van 2, boeken in rijen van 4, altijd dezelfde
+    -- marges. De schuifbalk gaat van de rechtermarge af (anders een horizontale schuifbalk).
+    local scrollbar_w = ScrollableContainer:getScrollbarWidth()
     local feed = self.library:cached(current.url)
     local items = feed and feed.items
-    local has_books = false
-    for _, entry in ipairs(items or {}) do
-        if entry.kind == "book" then has_books = true break end
-    end
 
-    -- Boeken: raster van 4 met omslagen zo groot als past. Alleen collecties: raster van 2.
-    local columns = has_books and 4 or 2
-    local tile_w = math.floor(grid_w / columns)
-    local gap = Size.padding.default
-    local cover_w, cover_h
-    local tile_h
-    if has_books then
-        -- Alleen omslagen, zonder titel eronder.
-        cover_w = tile_w - 2 * gap
-        cover_h = math.floor(cover_w * 3 / 2)
-        -- Ruimte onder elke rij, zodat de rijen omslagen loskomen van elkaar.
-        local row_gap = Size.padding.large * 3
-        -- Eén tegel moet altijd in beeld passen.
-        local max_cover_h = body_h - 3 * gap - row_gap
-        if cover_h > max_cover_h then
-            cover_h = max_cover_h
-            cover_w = math.floor(cover_h * 2 / 3)
-        end
-        tile_h = cover_h + 2 * gap + row_gap
-    else
-        -- Mapstapel: zelfde maat als op het homescreen (Widgets.folderStackSize).
-        local _, _, stack_w, stack_h = Widgets.folderStackSize(tile_w, body_h)
-        cover_w, cover_h = stack_w, stack_h
-        tile_h = FolderTile.height(cover_h) + 3 * gap
+    -- Boeken: alleen de omslag; één rij moet altijd in beeld passen.
+    local book_w = Grid.columnWidth(width, 4)
+    local book_cover_w = book_w
+    local book_cover_h = math.floor(book_cover_w * 3 / 2)
+    local max_cover_h = body_h - Grid.MARGIN - Grid.ROW_GAP
+    if book_cover_h > max_cover_h then
+        book_cover_h = max_cover_h
+        book_cover_w = math.floor(book_cover_h * 2 / 3)
     end
+    local book_tile_h = book_cover_h + Grid.ROW_GAP
+    -- Mappen: waaier zoals op het homescreen (Widgets.folderStackSize).
+    local folder_w = Grid.columnWidth(width, 2)
+    local _, _, stack_w, stack_h = Widgets.folderStackSize(folder_w, body_h)
+    local folder_tile_h = FolderTile.height(stack_h) + Grid.ROW_GAP
 
     -- Schuifpositie bewaren bij opnieuw opbouwen (omslagen binnen, na sync).
     if self.scroll and self.scroll_url == current.url then
@@ -274,43 +260,54 @@ function LibraryScreen:render(partial)
     elseif #items == 0 then
         body = self:message(_("Geen boeken."), width, body_h)
     else
-        local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = gap } }
-        -- Rijen voor step_scroll_grid, aansluitend vanaf y = 0 (domain/layout.lua).
-        local rows_info = Layout.gridRows(#items, columns, tile_h, gap)
-        local row
-        for i, entry in ipairs(items) do
-            if (i - 1) % columns == 0 then
-                row = HorizontalGroup:new{ align = "top" }
-                table.insert(grid, row)
+        -- Opeenvolgende mappen in rijen van 2, opeenvolgende boeken in rijen van 4.
+        local rows = {}
+        for _, entry in ipairs(items) do
+            local columns = entry.kind == "folder" and 2 or 4
+            local last = rows[#rows]
+            if not last or last.kind ~= entry.kind or #last.entries >= columns then
+                last = { kind = entry.kind, columns = columns, entries = {} }
+                table.insert(rows, last)
             end
-            if entry.kind == "folder" then
-                -- Zelfde tegel als de mapblokken op het homescreen, bovenaan in de rasterrij.
-                local tile = FolderTile:new{
-                    library = self.library,
-                    url = entry.url,
-                    title = entry.title,
-                    width = tile_w,
-                    stack_w = cover_w,
-                    stack_h = cover_h,
-                    callback = function() self:openEntry(entry) end,
-                }
-                table.insert(row, TopContainer:new{
-                    dimen = Geom:new{ w = tile_w, h = tile_h },
-                    VerticalGroup:new{ VerticalSpan:new{ width = gap }, tile },
-                })
-            else
-                table.insert(row, GridTile:new{
-                    entry = entry,
-                    library = self.library,
-                    width = tile_w,
-                    height = tile_h,
-                    cover_w = cover_w,
-                    cover_h = cover_h,
-                    show_parent = self,
-                    callback = function(e) self:openEntry(e) end,
-                })
-            end
+            table.insert(last.entries, entry)
         end
+        local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = Grid.MARGIN } }
+        local heights = {}
+        for _, row in ipairs(rows) do
+            local cells = {}
+            for _, entry in ipairs(row.entries) do
+                if entry.kind == "folder" then
+                    -- Zelfde tegel als de mapblokken op het homescreen.
+                    table.insert(cells, TopContainer:new{
+                        dimen = Geom:new{ w = folder_w, h = folder_tile_h },
+                        FolderTile:new{
+                            library = self.library,
+                            url = entry.url,
+                            title = entry.title,
+                            width = folder_w,
+                            stack_w = stack_w,
+                            stack_h = stack_h,
+                            callback = function() self:openEntry(entry) end,
+                        },
+                    })
+                else
+                    table.insert(cells, GridTile:new{
+                        entry = entry,
+                        library = self.library,
+                        width = book_w,
+                        height = book_tile_h,
+                        cover_w = book_cover_w,
+                        cover_h = book_cover_h,
+                        show_parent = self,
+                        callback = function(e) self:openEntry(e) end,
+                    })
+                end
+            end
+            table.insert(grid, Grid.row(width, row.columns, cells, { reserved_right = scrollbar_w }))
+            table.insert(heights, row.kind == "folder" and folder_tile_h or book_tile_h)
+        end
+        -- Rijen voor step_scroll_grid, aansluitend vanaf y = 0 (domain/layout.lua).
+        local rows_info = Layout.stackRows(heights, Grid.MARGIN)
         if grid:getSize().h <= body_h then
             -- Past alles al: geen schuifcontainer nodig.
             body = grid

@@ -28,6 +28,22 @@ function Layout.readerZones(menu, menu_ext, config)
     }
 end
 
+--[[--
+stackRows(heights, top_gap): zoals gridRows, maar voor rijen van verschillende hoogte
+(bijv. een rij mappen en een rij boeken). Aansluitend vanaf y = 0; de marge bovenaan hoort
+bij de eerste rij.
+]]
+function Layout.stackRows(heights, top_gap)
+    local rows = {}
+    local y = 0
+    for i, h in ipairs(heights) do
+        local top = y
+        y = y + h + (i == 1 and (top_gap or 0) or 0)
+        table.insert(rows, { top = top, bottom = y - 1 })
+    end
+    return rows
+end
+
 function Layout.gridRows(count, columns, tile_h, top_gap)
     local rows = {}
     local y = 0

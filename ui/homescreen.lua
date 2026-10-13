@@ -253,23 +253,22 @@ function HomeScreen:buildStatus(width)
     return self.status_bar
 end
 
+-- Rij van hooguit 4 boeken die je aan het lezen bent, op het raster (ui/grid.lua, 4 kolommen).
 function HomeScreen:buildReadingRow(width, height)
-    local padding = Size.padding.large * 2
-    local gap = Size.padding.default
-    local columns = 4
-    local tile_w = math.floor((width - 2 * padding) / columns)
-    local cover_w = tile_w - 2 * gap
+    local Grid = require("lingering.ui.grid")
+    local tile_w = Grid.columnWidth(width, 4)
+    local cover_w = tile_w
     local cover_h = math.floor(cover_w * 3 / 2)
     -- Ruimte voor de twee regels onder de omslag; de omslag krimpt als het niet past.
     local text_h = Screen:scaleBySize(15 + 13) + 3 * Size.padding.default
-    local max_cover_h = height - 2 * padding - text_h
+    local max_cover_h = height - 2 * Grid.MARGIN - text_h
     if cover_h > max_cover_h then
         cover_h = math.max(0, max_cover_h)
         cover_w = math.floor(cover_h * 2 / 3)
     end
-    local row = HorizontalGroup:new{ align = "top" }
+    local tiles = {}
     for _, book in ipairs(self.books) do
-        table.insert(row, ReadingTile:new{
+        table.insert(tiles, ReadingTile:new{
             book = book,
             width = tile_w,
             cover_w = cover_w,
@@ -283,9 +282,11 @@ function HomeScreen:buildReadingRow(width, height)
         })
     end
     return FrameContainer:new{
-        padding = padding,
+        padding = 0,
+        padding_top = Grid.MARGIN,
+        padding_bottom = Grid.MARGIN,
         bordersize = 0,
-        row,
+        Grid.row(width, 4, tiles),
     }
 end
 
@@ -465,17 +466,17 @@ function HomeScreen:buildCollections(width, area_h)
     end
     if #found == 0 then return nil end
 
-    -- Zelfde maat en plek als de mappen in Mijn boeken: twee kolommen over de breedte zonder
-    -- schuifbalk, stapel volgens Widgets.folderStackSize met dezelfde beschikbare hoogte.
-    local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
-    local tile_w = math.floor((width - ScrollableContainer:getScrollbarWidth()) / 2)
+    -- Zelfde maat en plek als de mappen in Mijn boeken: 2 kolommen op het raster (ui/grid.lua),
+    -- waaier volgens Widgets.folderStackSize met dezelfde beschikbare hoogte.
+    local Grid = require("lingering.ui.grid")
+    local tile_w = Grid.columnWidth(width, 2)
     local _, _, stack_w, stack_h = Widgets.folderStackSize(tile_w, area_h)
 
     -- Zelfde tegel als in Mijn boeken (ui/folder_tile.lua).
     local FolderTile = require("lingering.ui.folder_tile")
-    local row = HorizontalGroup:new{ align = "top" }
+    local tiles = {}
     for _, collection in ipairs(found) do
-        table.insert(row, FolderTile:new{
+        table.insert(tiles, FolderTile:new{
             library = self.library,
             url = collection.url,
             title = collection.title,
@@ -490,9 +491,9 @@ function HomeScreen:buildCollections(width, area_h)
     end
     return FrameContainer:new{
         padding = 0,
-        padding_bottom = Size.padding.large * 2,
+        padding_bottom = Grid.MARGIN,
         bordersize = 0,
-        row,
+        Grid.row(width, 2, tiles),
     }
 end
 

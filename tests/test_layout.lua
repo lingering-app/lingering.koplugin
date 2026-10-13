@@ -31,3 +31,10 @@ function TestLayout:test_een_boek_is_een_rij()
     lu.assertEquals(#rows, 1)
     lu.assertEquals(rows[1].top, 0)
 end
+
+function TestLayout:test_rijen_van_verschillende_hoogte()
+    local rows = Layout.stackRows({ 400, 300, 300 }, 20)
+    lu.assertEquals(rows[1], { top = 0, bottom = 419 })
+    lu.assertEquals(rows[2], { top = 420, bottom = 719 })
+    lu.assertEquals(rows[3], { top = 720, bottom = 1019 })
+end
