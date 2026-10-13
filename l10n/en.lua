@@ -10,6 +10,12 @@ return {
 
     -- Homescreen
     ["%1% gelezen"] = "%1% read",
+    ["1 dag"] = "1 day",
+    ["%1 dagen"] = "%1 days",
+    ["Vandaag"] = "Today",
+    ["Deze week"] = "This week",
+    ["Op rij"] = "In a row",
+    ["Dit jaar"] = "This year",
     ["%1 te gaan"] = "%1 to go",
     ["1 uur"] = "1 hour",
     ["%1 uur"] = "%1 hours",

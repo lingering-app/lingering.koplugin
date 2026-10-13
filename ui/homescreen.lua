@@ -29,6 +29,7 @@ local T = require("ffi/util").template
 local Screen = Device.screen
 
 local Books = require("lingering.koreader.books")
+local ReadingStats = require("lingering.domain.reading_stats")
 local ReadingTime = require("lingering.domain.reading_time")
 local Navigation = require("lingering.koreader.navigation")
 local Network = require("lingering.koreader.network")
@@ -309,6 +310,9 @@ function HomeScreen:loadBooks()
         book.stats = ReadingTime.estimate(Books.stats(self.fm, book.file), book.percent)
     end
     self.book = #self.books == 1 and self.books[1] or nil
+    -- Leesstatistieken (alleen met de statistics-plugin aan en als er al iets gelezen is).
+    local days = Books.readingDays(self.fm)
+    self.reading = days and next(days) and ReadingStats.summary(days, os.time()) or nil
 end
 
 local function freeCovers(books)
@@ -568,17 +572,25 @@ function HomeScreen:build()
     local area_h = height - status_h - nav:getSize().h
 
     -- Eén raster (ui/grid.lua): rij 1 het boek (grote kaart, 1 kolom) of de boeken (2 of 4 kolommen),
-    -- rij 2 de mappen (2 kolommen) als die passen.
+    -- rij 2 de mappen (2 kolommen), rij 3 de leesstatistieken (4 kolommen), als die passen.
+    -- Te weinig ruimte voor het boek: eerst de statistieken weg, dan de mappen.
     local folders, folders_h = self:collectionRow(width, area_h)
     folders_h = folders_h or 0
-    local book_h = area_h - Grid.rowsHeight({ 0 }) - (folders and folders_h + Grid.ROW_GAP or 0)
-    if folders and book_h < Screen:scaleBySize(240) then
-        folders, folders_h = nil, 0
-        book_h = area_h - Grid.rowsHeight({ 0 })
+    local stats, stats_h = self:statsRow(width)
+    stats_h = stats_h or 0
+    local function bookHeight()
+        return area_h - Grid.rowsHeight({ 0 })
+            - (folders and folders_h + Grid.ROW_GAP or 0)
+            - (stats and stats_h + Grid.ROW_GAP or 0)
     end
+    local min_book_h = Screen:scaleBySize(240)
+    if stats and bookHeight() < min_book_h then stats, stats_h = nil, 0 end
+    if folders and bookHeight() < min_book_h then folders, folders_h = nil, 0 end
+    local book_h = bookHeight()
     local books, books_h = self:bookRow(width, book_h)
     local rows = { books }
     if folders then table.insert(rows, folders) end
+    if stats then table.insert(rows, stats) end
     local grid = Grid.rows(width, rows)
 
     self.status_dimen = Geom:new{ x = 0, y = 0, w = width, h = status_h }
@@ -603,6 +615,42 @@ function HomeScreen:build()
         background = Style.background,
         self.layout_group,
     }
+end
+
+--- Rij 3 van het raster: leesstatistieken in 4 kolommen (waarde vet, label grijs eronder) en
+--- de hoogte, of nil zonder statistieken.
+function HomeScreen:statsRow(width)
+    local reading = self.reading
+    if not reading then return nil end
+    local Grid = require("lingering.ui.grid")
+    local cell_w = Grid.columnWidth(width, 4)
+    local streak = reading.streak == 1 and _("1 dag") or T(_("%1 dagen"), reading.streak)
+    local cells, h = {}, 0
+    for _, stat in ipairs{
+        { formatDuration(reading.today), _("Vandaag") },
+        { formatDuration(reading.week), _("Deze week") },
+        { streak, _("Op rij") },
+        { formatHours(reading.year), _("Dit jaar") },
+    } do
+        local cell = VerticalGroup:new{
+            align = "left",
+            TextWidget:new{
+                text = stat[1],
+                face = Font:getFace("cfont", 18),
+                bold = true,
+                max_width = cell_w,
+            },
+            TextWidget:new{
+                text = stat[2],
+                face = Font:getFace("cfont", 13),
+                fgcolor = Style.text_secondary,
+                max_width = cell_w,
+            },
+        }
+        h = math.max(h, cell:getSize().h)
+        table.insert(cells, LeftContainer:new{ dimen = Geom:new{ w = cell_w, h = cell:getSize().h }, cell })
+    end
+    return { columns = 4, cells = cells }, h
 end
 
 --[[--

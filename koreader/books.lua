@@ -204,6 +204,44 @@ function M.stats(fm, file)
     return ok and stats or nil
 end
 
+--[[--
+Leestijd per lokale dag over alle boeken, uit dezelfde database: { ["2026-10-13"] = sec, ... }
+voor de laatste 400 dagen (genoeg voor dit jaar en een lange reeks). Elke rij in
+page_stat_data telt hooguit max_sec, zoals de statistics-plugin te lange pauzes afkapt.
+Alleen als de statistics-plugin aan staat; anders nil.
+]]
+function M.readingDays(fm)
+    local ok, days = try("readingDays", function()
+        local statistics = fm and fm.statistics
+        if not (statistics and statistics.settings and statistics.settings.is_enabled) then
+            return nil
+        end
+        local DataStorage = require("datastorage")
+        local SQ3 = require("lua-ljsqlite3/init")
+        local lfs = require("libs/libkoreader-lfs")
+        local db = DataStorage:getSettingsDir() .. "/statistics.sqlite3"
+        if lfs.attributes(db, "mode") ~= "file" then return nil end
+
+        local max_sec = tonumber(statistics.settings.max_sec) or 120
+        local conn = SQ3.open(db)
+        local result = conn:exec(string.format([[
+            SELECT date(start_time, 'unixepoch', 'localtime') AS day, sum(min(duration, %d))
+            FROM page_stat_data
+            WHERE start_time >= %d
+            GROUP BY day;
+        ]], max_sec, os.time() - 400 * 86400))
+        conn:close()
+        local days = {}
+        if result then
+            for i, day in ipairs(result[1]) do
+                days[day] = tonumber(result[2][i]) or 0
+            end
+        end
+        return days
+    end)
+    return ok and days or nil
+end
+
 --- Thuismap van KOReader (filemanagerutil.getHomeFolder).
 function M.homeFolder()
     local ok, dir = try("getHomeFolder", function()
