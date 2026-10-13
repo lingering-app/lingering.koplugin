@@ -4,12 +4,14 @@ aanroepen in koreader/kosync.lua en koreader/network.lua.
 
 - reconcile(kosync, opts, done): momentopname → ophalen → besluiten → springen/wegschrijven.
 - syncNow(ui, done): sync-knop; wifi aan zonder te vragen, daarna weer uit als hij uit stond.
+- markFinished(file, done): boek op uit en, met verbinding, 100% naar de server.
 - policy: wanneer kosync automatisch synchroniseert (zie koreader/kosync.lua installRules):
   alleen met verbinding, nooit wifi aanzetten; bij openen één nieuwe poging na 3 s.
 ]]
 local UIManager = require("ui/uimanager")
 local logger = require("logger")
 
+local Books = require("lingering.koreader.books")
 local Kosync = require("lingering.koreader.kosync")
 local Network = require("lingering.koreader.network")
 local SyncRules = require("lingering.domain.sync_rules")
@@ -87,6 +89,26 @@ function SyncService.syncNow(ui, done)
         SyncService.reconcile(kosync, { jump = true }, finish)
     end)
     if not started then finish(false) end
+end
+
+--[[--
+Boek als gelezen markeren (menu "…" op het homescreen): in KOReader op "uit" (verdwijnt uit
+"aan het lezen") en, met verbinding, 100% naar de syncserver. 100% is nooit achteruit, dus
+dit past bij "verder wint". Zonder verbinding alleen lokaal; nooit wifi aanzetten.
+done() volgt als het klaar is.
+]]
+function SyncService.markFinished(file, done)
+    Books.markFinished(file)
+    local position = Books.syncPosition(file)
+    if position and Network.isOnline() then
+        Kosync.storeFinished(position, function(ok)
+            logger.info("Lingering: gelezen naar de server:", ok and "ok" or "mislukt")
+            if done then done() end
+        end)
+    else
+        logger.info("Lingering: gelezen, alleen lokaal (geen verbinding of geen stand)")
+        if done then done() end
+    end
 end
 
 SyncService.policy = {}

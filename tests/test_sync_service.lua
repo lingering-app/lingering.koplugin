@@ -124,3 +124,30 @@ function TestSyncService:test_syncknop_zonder_verbinding()
     Fakes.runScheduled()
     lu.assertEquals(Fakes.calls.disable_wifi, 1)
 end
+
+function TestSyncService:test_gelezen_met_verbinding_naar_server()
+    Fakes.state.online = true
+    local done = false
+    SyncService.markFinished("/boeken/a.epub", function() done = true end)
+    lu.assertTrue(done)
+    lu.assertEquals(Fakes.calls.finished, "/boeken/a.epub")
+    lu.assertEquals(Fakes.calls.store_finished.digest, "md5-/boeken/a.epub")
+end
+
+function TestSyncService:test_gelezen_zonder_verbinding_alleen_lokaal()
+    Fakes.state.online, Fakes.state.wifi_on = false, false
+    local done = false
+    SyncService.markFinished("/boeken/a.epub", function() done = true end)
+    lu.assertTrue(done)
+    lu.assertEquals(Fakes.calls.finished, "/boeken/a.epub")
+    lu.assertNil(Fakes.calls.store_finished)
+    -- Nooit wifi aanzetten voor "gelezen".
+    lu.assertNil(Fakes.calls.turn_on_wifi)
+end
+
+function TestSyncService:test_gelezen_zonder_stand_alleen_lokaal()
+    Fakes.state.online, Fakes.state.no_position = true, true
+    SyncService.markFinished("/boeken/a.epub", function() end)
+    lu.assertEquals(Fakes.calls.finished, "/boeken/a.epub")
+    lu.assertNil(Fakes.calls.store_finished)
+end

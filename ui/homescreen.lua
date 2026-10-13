@@ -14,6 +14,8 @@ local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan = require("ui/widget/horizontalspan")
 local ImageWidget = require("ui/widget/imagewidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
+local LeftContainer = require("ui/widget/container/leftcontainer")
+local OverlapGroup = require("ui/widget/overlapgroup")
 local ProgressWidget = require("ui/widget/progresswidget")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
@@ -101,6 +103,21 @@ function CollectionTile:onTapTile()
     return true
 end
 
+-- "…"-knop (grijs) voor het menu van een boek; on_tap(anchor) krijgt de positie van de knop.
+local function moreButton(on_tap)
+    local Item = require("lingering.ui.actionbar").Item
+    return Item:new{
+        action = {
+            icon_file = "more_horiz.svg",
+            quiet = true,
+            tap = function(item) on_tap(item.dimen) end,
+        },
+        width = Screen:scaleBySize(36),
+        height = Screen:scaleBySize(36),
+        icon_size = Screen:scaleBySize(24),
+    }
+end
+
 --[[--
 Tegel in het raster "aan het lezen" (twee of meer boeken): omslag, "X% gelezen" en
 lichter de resterende tijd (als de statistics-plugin aan staat). Een tik roept callback() aan.
@@ -111,6 +128,7 @@ local ReadingTile = InputContainer:extend{
     cover_w = nil,
     cover_h = nil,
     callback = nil,
+    on_menu = nil,      -- function(anchor): menu van de "…"-knop
 }
 
 function ReadingTile:init()
@@ -132,26 +150,37 @@ function ReadingTile:init()
         cover = Widgets.icon({ icon_file = "menu_book.svg" }, math.floor(self.cover_w / 2))
     end
     local BottomContainer = require("ui/widget/container/bottomcontainer")
-    local group = VerticalGroup:new{
-        align = "center",
-        BottomContainer:new{ dimen = Geom:new{ w = self.width, h = self.cover_h }, cover },
-        VerticalSpan:new{ width = Size.padding.default },
+    -- Onder de omslag: teksten links uitgelijnd met het omslagvak, rechts de "…"-knop.
+    local more = moreButton(function(anchor) if self.on_menu then self.on_menu(anchor) end end)
+    local more_w = more.width
+    local texts = VerticalGroup:new{
+        align = "left",
         TextWidget:new{
             text = T(_("%1% gelezen"), math.floor((book.percent or 0) * 100 + 0.5)),
             face = Font:getFace("cfont", 15),
             bold = true,
-            max_width = self.width,
+            max_width = self.cover_w - more_w,
         },
     }
     if book.stats then
-        table.insert(group, TextWidget:new{
+        table.insert(texts, TextWidget:new{
             text = T(_("%1 te gaan"), formatHours(book.stats.left_secs)),
             face = Font:getFace("cfont", 13),
             fgcolor = Style.text_secondary,
-            max_width = self.width,
+            max_width = self.cover_w - more_w,
         })
     end
-    self[1] = group
+    local row_h = math.max(texts:getSize().h, more.height)
+    self[1] = VerticalGroup:new{
+        align = "center",
+        BottomContainer:new{ dimen = Geom:new{ w = self.width, h = self.cover_h }, cover },
+        VerticalSpan:new{ width = Size.padding.default },
+        HorizontalGroup:new{
+            align = "center",
+            LeftContainer:new{ dimen = Geom:new{ w = self.cover_w - more_w, h = row_h }, texts },
+            more,
+        },
+    }
     self.ges_events = {
         TapTile = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
     }
@@ -179,14 +208,54 @@ Widgets.guardPaint(HomeScreen, "homescreen")
 Widgets.guardEvents(HomeScreen, "homescreen")
 Widgets.followRotation(HomeScreen)
 
-function HomeScreen:init()
-    self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }
-    -- Eén boek aan het lezen: de grote kaart (self.book); meer: een rij van hooguit 4.
+-- Eén boek aan het lezen: de grote kaart (self.book); meer: een rij van hooguit 4.
+function HomeScreen:loadBooks()
     self.books = Books.readingBooks(self.fm, 4)
     for _, book in ipairs(self.books) do
         book.stats = ReadingTime.estimate(Books.stats(self.fm, book.file), book.percent)
     end
     self.book = #self.books == 1 and self.books[1] or nil
+end
+
+local function freeCovers(books)
+    for _, book in ipairs(books or {}) do
+        if book.cover then
+            book.cover:free()
+            book.cover = nil
+        end
+    end
+end
+
+--- Boeken opnieuw laden en het scherm herbouwen (na "Gelezen" in het menu).
+function HomeScreen:reloadBooks()
+    if self.closed then return end
+    freeCovers(self.books)
+    self:loadBooks()
+    self:build()
+    UIManager:setDirty(self, "ui")
+end
+
+--- Menu van de "…"-knop op een boek (ui/popover_menu.lua).
+function HomeScreen:showBookMenu(book, anchor)
+    require("lingering.ui.popover_menu").show{
+        anchor = anchor,
+        items = {
+            {
+                text = _("Gelezen"),
+                callback = function()
+                    logger.info("Lingering: homescreen, gelezen:", book.title)
+                    require("lingering.app.sync_service").markFinished(book.file, function()
+                        self:reloadBooks()
+                    end)
+                end,
+            },
+        },
+    }
+end
+
+function HomeScreen:init()
+    self.dimen = Geom:new{ x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }
+    self:loadBooks()
     self:build()
 
     self.ges_events = {
@@ -239,6 +308,7 @@ function HomeScreen:buildReadingRow(width, height)
                 self:close()
                 Navigation.openBook(book.file)
             end,
+            on_menu = function(anchor) self:showBookMenu(book, anchor) end,
         })
     end
     return FrameContainer:new{
@@ -344,7 +414,7 @@ function HomeScreen:buildBook(width, height)
         width = text_w,
     })
 
-    return FrameContainer:new{
+    local card = FrameContainer:new{
         padding = padding,
         bordersize = 0,
         HorizontalGroup:new{
@@ -353,6 +423,16 @@ function HomeScreen:buildBook(width, height)
             HorizontalSpan:new{ width = padding },
             info,
         },
+    }
+    -- "…"-knop rechtsonder in de kaart, voor het menu van het boek.
+    local book = self.book
+    local more = moreButton(function(anchor) self:showBookMenu(book, anchor) end)
+    local size = card:getSize()
+    more.overlap_offset = { size.w - padding - more.width, size.h - padding - more.height }
+    return OverlapGroup:new{
+        dimen = Geom:new{ w = size.w, h = size.h },
+        card,
+        more,
     }
 end
 
@@ -511,12 +591,7 @@ function HomeScreen:onCloseWidget()
         UIManager:unschedule(self.emergency_task)
         self.emergency_task = nil
     end
-    for _, book in ipairs(self.books or {}) do
-        if book.cover then
-            book.cover:free()
-            book.cover = nil
-        end
-    end
+    freeCovers(self.books)
     if self.on_closed then
         Widgets.safeCall("homescreen gesloten", self.on_closed)
     end

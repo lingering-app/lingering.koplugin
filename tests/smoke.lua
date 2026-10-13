@@ -72,6 +72,17 @@ function Smoke.filemanager(plugin)
         end },
         { name = "raster aan het lezen getekend", fn = function()
             shot("1d-home-reading-grid")
+            -- Menu van de "…"-knop (alleen tonen: "Gelezen" zou het boek echt op uit zetten).
+            local Geom = require("ui/geometry")
+            local Screen_ = require("device").screen
+            state.grid_home:showBookMenu(state.grid_home.books[1],
+                Geom:new{ x = Screen_:scaleBySize(140), y = Screen_:scaleBySize(330), w = 36, h = 36 })
+            state.menu = UIManager:getTopmostVisibleWidget()
+            assert(state.menu and state.menu.content, "geen menu")
+        end },
+        { name = "boekmenu getekend", fn = function()
+            shot("1g-book-menu")
+            state.menu:dismiss()
             state.grid_home:close()
         end },
         { name = "batterij-kader", fn = function()

@@ -82,6 +82,15 @@ Fakes.opds = { filetype = function() return "epub" end, credentials = function()
 
 Fakes.books = {}
 function Fakes.books.homeFolder() return "/boeken" end
+function Fakes.books.markFinished(file) Fakes.calls.finished = file end
+function Fakes.books.syncPosition(file)
+    if Fakes.state.no_position then return nil end
+    return { digest = "md5-" .. file, progress = "/body/end" }
+end
+function Fakes.kosync.storeFinished(position, done)
+    Fakes.calls.store_finished = position
+    done(true)
+end
 
 function Fakes.reset()
     Fakes.scheduled = {}

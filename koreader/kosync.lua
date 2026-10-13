@@ -185,6 +185,40 @@ local function pluginClass(name)
 end
 
 --[[--
+Een boek als uit (100%) wegschrijven zonder het te openen: KOSyncClient:update_progress
+met percentage 1, zoals KOSync:updateProgress, met de gegevens uit kosync.lua (gebruiker,
+userkey, server) en G_reader_settings "device_id". position = Books.syncPosition(file).
+done(ok) volgt als de server antwoordt; false als kosync niet ingelogd is.
+]]
+function M.storeFinished(position, done)
+    local ok, started = try("storeFinished", function()
+        local DataStorage = require("datastorage")
+        local Device = require("device")
+        local KOSyncClient = require("KOSyncClient")
+        local LuaSettings = require("luasettings")
+        local class = pluginClass("kosync")
+        local store = (class and class.settings_obj)
+            or LuaSettings:open(DataStorage:getSettingsDir() .. "/kosync.lua")
+        local settings = store:readSetting("settings") or {}
+        if not (settings.username and settings.userkey) then return false end
+        local client = KOSyncClient:new{
+            custom_url = settings.custom_server,
+            service_spec = kosyncServiceSpec(),
+        }
+        client:update_progress(
+            settings.username, settings.userkey, position.digest, nil, position.progress, 1,
+            settings.kosync_hostname or Device.model, G_reader_settings:readSetting("device_id"),
+            function(success, status)
+                if not success then logger.warn("Lingering: uit wegschrijven mislukt, status", tostring(status)) end
+                if done then done(success and true or false) end
+            end)
+        return true
+    end)
+    if not (ok and started) and done then done(false) end
+end
+
+
+--[[--
 Schrijft de kosync-instellingen in <settings>/kosync.lua (sleutel "settings"):
 custom_server, username, userkey = md5(wachtwoord), auto_sync aan,
 sync_forward = SILENT (2), sync_backward = PROMPT (1) (SYNC_STRATEGY in kosync main.lua),

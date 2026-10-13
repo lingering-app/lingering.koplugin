@@ -300,6 +300,7 @@ markeringen gaan standaard dus vóór bladeren.
 | `koreader/dictionaries.entry` / `isInstalled` / `isEnabled` / `download` / `choose` | KOReaders lijst `ui/data/dictionaries.lua` (op naam uit `config.dictionaries`), `fm.dictionary:downloadDictionary` (in `Trapper:wrap`; bevestiging met grootte, uitpakken in `<data_dir>/<veilige naam>`), aan/uit via `G_reader_settings` `dicts_disabled` (sleutel = .ifo-pad), zoals `ReaderDictionary:showDictionariesMenu` | Scherm Woordenboek toont alles als "downloaden"; kiezen doet niets |
 | `koreader/device.brightnessRange` / `brightness` / `setBrightness` | `BasePowerD.fl_min/fl_max`, `frontlightIntensity`, `setIntensity` / `turnOffFrontlight`, `updateResumeFrontlightState` (zoals `FrontLightWidget:setFrontLightIntensity`); KOReader bewaart de stand zelf | Schuif doet niets |
 | `koreader/books.readingBooks` | `ReadHistory.hist`, `BookList.getDocSettings` (`percent_finished`, `summary.status` zoals `BookList.getBookStatus`), `FileManagerBookInfo:getDocProps/getCoverImage`. Aan het lezen = status `reading` (niet on hold/uit), hooguit 4, hetzelfde boek in meer bestanden één keer (zelfde `partial_md5_checksum` of titel+auteur; recentste wint); niets aan het lezen → het laatst geopende boek. Homescreen: 1 boek = grote kaart, 2–4 = rij in het raster van Mijn boeken | Homescreen zonder boek ("Nog geen boek") |
+| `koreader/books.markFinished` / `syncPosition`, `koreader/kosync.storeFinished` | `summary.status = "complete"` + `filemanagerutil.saveSummary` + `BookList.setBookInfoCacheProperty` (zoals KOReaders statusknoppen); `partial_md5_checksum` en `last_xpointer`/`last_page`; `KOSyncClient:update_progress` met percentage 1 | "Gelezen" doet niets of alleen lokaal |
 | `koreader/device.rotateWithinOrientation` | `Screen:setRotationMode` + `UIManager:onRotation` (zoals `Input:handleGyroEv` met vergrendelde g-sensor); `fm_rotation_mode` voor `FileManager:setRotationMode`. Aangeroepen vanuit `onSetRotationMode` van onze schermen (`Widgets.followRotation`): `SetRotationMode` gaat alleen naar het bovenste venster. Alleen binnen dezelfde stand | Scherm draait niet mee |
 | `koreader/device.setAutoRotate` / `isAutoRotateOn` | `input_ignore_gsensor` + `Device:toggleGSensor` (zoals `DeviceListener:onToggleGSensor`, zonder melding) | Schakelaar doet niets |
 | Actiebalk (`actionbar.lua`) | geen haak: eigen `InputContainer` met `Button`s, getoond met `UIManager:show` | — |
@@ -342,6 +343,12 @@ Taal:
 - `_meta.lua` wordt vóór main.lua gelezen (zonder onze loader) en kiest de taal zelf.
 - Mapnamen uit de OPDS-catalogus (`config.collections`) worden niet vertaald: daaraan
   worden de mappen herkend.
+
+Boekmenu:
+- Op het homescreen heeft elk boek (rij en grote kaart) rechtsonder een grijze "…"-knop met een
+  menu (`ui/popover_menu.lua`, herbruikbaar). Nu één item: Gelezen → `SyncService.markFinished`:
+  in KOReader op uit (verdwijnt uit de rij) en, met verbinding, 100% naar de syncserver
+  (nooit wifi aanzetten; 100% is nooit achteruit).
 
 Stijl:
 - Alle kleuren, lijnen, randen en de maten van de bovenbalk staan in `ui/style.lua`

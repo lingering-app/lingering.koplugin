@@ -103,6 +103,38 @@ function M.readingBooks(fm, limit)
 end
 
 --[[--
+Boek op "uit" (complete) zetten, zoals de statusknoppen van KOReader
+(filemanagerutil.genStatusButtonsRow: summary.status + saveSummary + BookList-cache).
+]]
+function M.markFinished(file)
+    return try("markFinished", function()
+        local BookList = require("ui/widget/booklist")
+        local filemanagerutil = require("apps/filemanager/filemanagerutil")
+        local doc_settings = BookList.getDocSettings(file)
+        local summary = doc_settings:readSetting("summary") or {}
+        summary.status = "complete"
+        filemanagerutil.saveSummary(doc_settings, summary)
+        BookList.setBookInfoCacheProperty(file, "status", "complete")
+    end)
+end
+
+--[[--
+Wat kosync nodig heeft om de stand van een (niet geopend) boek weg te schrijven:
+{ digest = partial_md5_checksum, progress = last_xpointer (epub) of last_page (pdf) }, of nil.
+Zoals KOSync:getDocumentDigest (binary) en KOSync:getLastProgress.
+]]
+function M.syncPosition(file)
+    local ok, position = try("syncPosition", function()
+        local doc_settings = require("ui/widget/booklist").getDocSettings(file)
+        local digest = doc_settings:readSetting("partial_md5_checksum")
+        local progress = doc_settings:readSetting("last_xpointer") or doc_settings:readSetting("last_page")
+        if not (digest and progress) then return nil end
+        return { digest = digest, progress = progress }
+    end)
+    return ok and position or nil
+end
+
+--[[--
 Leesstatistieken van een boek uit de database van de statistics-plugin, alleen als die
 plugin geladen is én aan staat (fm.statistics.settings.is_enabled). Anders nil.
 

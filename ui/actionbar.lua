@@ -78,8 +78,8 @@ function Item:currentIcon()
     if action.task and self.frame > 0 then
         return { icon_file = action.frames[self.frame] }
     end
-    -- Een taak staat grijs tot hij iets doet (dan draait het icoon zwart).
-    return { icon = action.icon, icon_file = action.icon_file, dim = action.task or nil }
+    -- Een taak staat grijs tot hij iets doet (dan draait het icoon zwart); quiet = altijd grijs.
+    return { icon = action.icon, icon_file = action.icon_file, dim = (action.task or action.quiet) or nil }
 end
 
 function Item:build()
