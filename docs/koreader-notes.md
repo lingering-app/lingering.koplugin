@@ -56,6 +56,8 @@ algemene bibliotheken; `ui/`, `app/` en `main.lua` gebruiken geen `G_reader_sett
 | `tools/release.sh` | nieuwe versie: versie in `_meta.lua`, controles, commit, tag `v<versie>`, optioneel `--push` |
 | `tools/smoke.sh` | rooktest in de emulator tegen `tools/mock_server.py` (lokale OPDS + kosync, poort 8765, altijd dezelfde testboeken), in een eigen lege KOReader-map (`KO_HOME`, via `getHomeDir()`): jouw KOReader en de echte server blijven onaangeraakt. Fases `LINGERING_TEST=setup` (inloggen), `reader` (actiebalk, inhoudsopgave, sync, springen, wegschrijven, sluiten), `fm` (homescreen, Mijn boeken, Instellingen, Taal, Woordenboek, Account, inloggen goed/fout, downloaden, update), met schermafdrukken |
 | `tools/mock_server.py` | testserver (alleen Python-standaardbibliotheek): OPDS-catalogus met zes zelfgemaakte epubs en omslagen, kosync-API in het geheugen, klein StarDict-woordenboek; account `test`/`test`. KOReader wijst ernaartoe via `LINGERING_OPDS_URL` en `LINGERING_SYNC_URL` (zie `config.lua`) |
+| `tools/screenshots.sh` | schermafdrukken voor de website, tegen de echte catalogus en het account uit je eigen KOReader (kosync.lua, opds.lua, lingering.lua gekopieerd naar een tijdelijke `KO_HOME`), Nederlands, Kobo Clara-resolutie; naar `screenshots-site/` (niet in git). Fases `shots-prep`, `shots-reader`, `shots-fm` in `tests/smoke.lua`; bladert terug naar de beginpagina zodat er niets naar het account geschreven wordt |
+| `tools/kohome.sh` | `getHomeDir()`: lege KOReader-map voor `KO_HOME` (gedeeld door smoke.sh en screenshots.sh) |
 
 Na een KOReader-update: `tools/check.sh`, `tools/test.sh`, `tools/smoke.sh`; bij fouten eerst
 `koreader/` (en de tabel "Haken" hieronder), daarna `ui/`.

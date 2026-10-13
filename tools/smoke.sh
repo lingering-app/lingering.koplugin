@@ -16,24 +16,8 @@ mkdir -p "$shots"
 logs="$(mktemp -d)"
 fail=0
 
-# Lege KOReader-map voor de test, met de plugin (link naar deze map) en een paar instellingen:
-# geen handleiding bij de eerste start, thuismap in de testmap. In de cachemap van de Flatpak,
-# want het gewone /tmp is binnen de Flatpak afgeschermd.
-getHomeDir() {
-    home="$app/cache/lingering-smoke-$$"
-    rm -rf "$home"
-    mkdir -p "$home/plugins" "$home/books/Lingering"
-    ln -s "$dir" "$home/plugins/lingering.koplugin"
-    cat > "$home/settings.reader.lua" <<EOF
-return {
-    ["quickstart_shown_version"] = 999999999999,
-    ["home_dir"] = "$home/books",
-    ["lastdir"] = "$home/books",
-}
-EOF
-    echo "$home"
-}
-
+# Lege KOReader-map voor de test (KO_HOME), zie tools/kohome.sh.
+. "$dir/tools/kohome.sh"
 home="$(getHomeDir)"
 python3 -I "$dir/tools/mock_server.py" --port "$port" > "$logs/server.log" 2>&1 &
 server=$!

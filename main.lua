@@ -65,6 +65,11 @@ function Lingering:init()
             Smoke.setup(self)
             return
         end
+        -- Schermafdrukken (tools/screenshots.sh), fase voorbereiden: boeken downloaden.
+        if Smoke and os.getenv("LINGERING_TEST") == "shots-prep" then
+            Smoke.shotsPrep(self)
+            return
+        end
         if Settings:isActive() then
             -- Na de opbouw van de bestandsbeheerder, zodat het homescreen erbovenop komt.
             UIManager:nextTick(function() self:showHomeScreen() end)
@@ -108,6 +113,9 @@ function Lingering:showHomeScreen()
     end)
     if ok and Smoke and os.getenv("LINGERING_TEST") == "fm" then
         Smoke.filemanager(self)
+    end
+    if ok and Smoke and os.getenv("LINGERING_TEST") == "shots-fm" then
+        Smoke.shotsHome(self)
     end
     if ok then
         logger.info("Lingering: homescreen getoond")

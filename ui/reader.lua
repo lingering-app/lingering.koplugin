@@ -102,10 +102,13 @@ function Reader.install(ui)
         ReaderControl.verifyZoneOrder(ui, zones)
         -- Alleen als onze zones er zijn: anders is het menu de enige weg uit het boek.
         ReaderControl.blockMenu(ui)
-        -- Rooktest in de emulator (tests/smoke.lua), alleen met LINGERING_TEST=reader.
-        local Smoke = os.getenv("LINGERING_TEST") == "reader"
+        -- Rooktest en schermafdrukken in de emulator (tests/smoke.lua), alleen met
+        -- LINGERING_TEST=reader of shots-reader.
+        local test = os.getenv("LINGERING_TEST")
+        local Smoke = (test == "reader" or test == "shots-reader")
             and dofile(require("lingering.plugin").dir .. "/tests/smoke.lua")
-        if Smoke then Smoke.reader(ui, function() showActionBar(ui) end) end
+        if Smoke and test == "reader" then Smoke.reader(ui, function() showActionBar(ui) end) end
+        if Smoke and test == "shots-reader" then Smoke.shotsReader(ui, function() showActionBar(ui) end) end
     end
 end
 

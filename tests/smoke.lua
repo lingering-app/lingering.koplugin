@@ -472,4 +472,127 @@ function Smoke.reader(ui, show_action_bar)
     }
 end
 
+--[[--
+Schermafdrukken voor de website (tools/screenshots.sh), tegen de echte catalogus en het
+account dat het script in de testmap zet. Drie fases:
+- shots-prep:   catalogus en mappen ophalen, de boeken uit "Aan het lezen" downloaden
+- shots-reader: boek openen (kosync haalt de echte stand op); met LINGERING_SHOT_MAIN=1 ook
+                de bladzijde en de bovenbalk vastleggen
+- shots-fm:     homescreen, boekmenu, Mijn boeken, "Al mijn boeken"
+]]
+local MAX_SHOT_BOOKS = 3
+
+function Smoke.shotsPrep(plugin)
+    local Library = require("lingering.app.library_service")
+    local Config = require("lingering.config")
+    -- Achter elkaar: hoofdcatalogus, dan elke map, dan downloaden en afsluiten.
+    local function finish()
+        local ok, books = pcall(Library.collectionBooks, Library, "Aan het lezen")
+        local n = 0
+        for _, book in ipairs(ok and books or {}) do
+            if n >= MAX_SHOT_BOOKS then break end
+            if not Library:isDownloaded(book) then Library:download(book) end
+            n = n + 1
+            logger.info("Lingering: SHOTS gedownload:", book.title)
+        end
+        UIManager:scheduleIn(1, function() UIManager:quit() end)
+    end
+    local function syncFolders(titles, i)
+        local title = titles[i]
+        if not title then return finish() end
+        local url = Library:collectionUrl(title)
+        if not url then return syncFolders(titles, i + 1) end
+        Library:sync(url, function() syncFolders(titles, i + 1) end)
+    end
+    UIManager:scheduleIn(2, function()
+        Library:sync(Library:rootUrl(), function(ok)
+            logger.info("Lingering: SHOTS catalogus:", ok and "ok" or "mislukt")
+            local titles = { "Aan het lezen", Config.finished_collection }
+            for _, title in ipairs(Config.collections) do table.insert(titles, title) end
+            syncFolders(titles, 1)
+        end)
+    end)
+end
+
+function Smoke.shotsReader(ui, show_action_bar)
+    local Navigation = require("lingering.koreader.navigation")
+    local ReaderControl = require("lingering.koreader.reader")
+    local Event = require("ui/event")
+    -- Alles boven het boek sluiten (bijv. KOReaders paneel onderin na een losse tik).
+    local function onlyBook()
+        for _ = 1, 5 do
+            local top = UIManager:getTopmostVisibleWidget()
+            if top == nil or top == ui then break end
+            UIManager:close(top)
+        end
+    end
+    local steps = {}
+    if os.getenv("LINGERING_SHOT_MAIN") == "1" then
+        local start_page
+        table.insert(steps, { name = "bladeren", wait = 8, fn = function()
+            onlyBook()
+            -- Een paar pagina's verder, zodat er tekst staat in plaats van de omslag.
+            start_page = ui:getCurrentPage()
+            for _ = 1, 6 do ReaderControl.turnPage(ui, 1) end
+        end })
+        table.insert(steps, { name = "bladzijde", wait = 2, fn = function()
+            onlyBook()
+            shot("lezen-bladzijde")
+        end })
+        table.insert(steps, { name = "bovenbalk", fn = function() show_action_bar() end })
+        table.insert(steps, { name = "bovenbalk vastgelegd", fn = function()
+            shot("lezen-bovenbalk")
+            onlyBook()
+            -- Terug naar de beginpagina: dan schrijft het sluiten niets naar het account.
+            ui:handleEvent(Event:new("GotoPage", start_page))
+        end })
+    else
+        table.insert(steps, { name = "stand opgehaald", wait = 8, fn = function() end })
+    end
+    table.insert(steps, { name = "boek sluiten", fn = function() Navigation.closeBook(ui) end })
+    table.insert(steps, { name = "afsluiten", wait = 3, fn = function() UIManager:quit() end })
+    run(steps)
+end
+
+function Smoke.shotsHome(plugin)
+    local state = {}
+    run{
+        { name = "homescreen", wait = 5, fn = function() shot("home") end },
+        { name = "boekmenu", fn = function()
+            -- ⋮ van het eerste boek in de rij (zelfde maten als HomeScreen:readingTiles).
+            local Geom = require("ui/geometry")
+            local Grid = require("lingering.ui.grid")
+            local Style = require("lingering.ui.style")
+            local col_w = Grid.columnWidth(Screen:getWidth(), 4)
+            local y = Screen:scaleBySize(Style.top_bar.height) + Grid.MARGIN + math.floor(col_w * 3 / 2)
+            local home = plugin.home
+            if home and home.books and #home.books > 1 then
+                home:showBookMenu(home.books[1], Geom:new{
+                    x = Grid.MARGIN + col_w - Screen:scaleBySize(24), y = y, w = Screen:scaleBySize(24), h = Screen:scaleBySize(40),
+                })
+                state.menu = UIManager:getTopmostVisibleWidget()
+            end
+        end },
+        { name = "boekmenu vastgelegd", fn = function()
+            if state.menu and state.menu.dismiss then
+                shot("home-boekmenu")
+                state.menu:dismiss()
+            end
+        end },
+        { name = "mijn boeken", fn = function() plugin:nav().library() end },
+        { name = "mijn boeken vastgelegd", wait = 10, fn = function()
+            shot("mijn-boeken")
+            local lib = plugin.screens[1]
+            for _, entry in ipairs(lib.page_entries or {}) do
+                if entry.kind == "folder" and entry.title == "Al mijn boeken" then
+                    lib:openEntry(entry)
+                    break
+                end
+            end
+        end },
+        { name = "al mijn boeken vastgelegd", wait = 10, fn = function() shot("al-mijn-boeken") end },
+        { name = "afsluiten", fn = function() UIManager:quit() end },
+    }
+end
+
 return Smoke
