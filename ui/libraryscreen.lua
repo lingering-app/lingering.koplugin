@@ -406,7 +406,7 @@ function LibraryScreen:prefetchFolders()
                     if pcall(self.library.fetchCover, self.library, item.thumbnail) then changed = true end
                 end
                 count = count + 1
-                if count == 3 then break end
+                if count == Widgets.COVER_MAX then break end
             end
         end
     end
@@ -476,9 +476,15 @@ function LibraryScreen:syncCurrent(done)
 end
 
 -- Met wifi aan: deze map één keer per bezoek aan het scherm op de achtergrond verversen.
+-- Hoe oud de cache van een map mag zijn voordat openen hem opnieuw ophaalt (seconden). De
+-- sync-knop haalt altijd op.
+local AUTO_SYNC_AFTER = 3600
+
 function LibraryScreen:autoSync()
     local url = self:current().url
-    if not self.synced[url] and Network.isOnline() then
+    local feed = self.library:cached(url)
+    local fresh = feed and feed.fetched and os.time() - feed.fetched < AUTO_SYNC_AFTER
+    if not self.synced[url] and not fresh and Network.isOnline() then
         self.sync_item:startTask()
     end
 end

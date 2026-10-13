@@ -84,17 +84,40 @@ function Widgets.followRotation(class)
     end
 end
 
---- Omslag uit de cache van Mijn boeken als BlitBuffer, of nil. Zelf decoderen in een pcall:
---- een kapotte afbeelding mag het scherm niet breken (en wordt verwijderd).
+-- Uitgepakte omslagen in het geheugen (zolang KOReader draait), per bestand en maat: opnieuw
+-- opbouwen van een scherm pakt ze dan niet opnieuw uit. Hooguit COVER_CACHE_MAX; de oudste
+-- gaat eruit.
+local COVER_CACHE_MAX = 40
+local cover_cache, cover_order = {}, {}
+
+--[[--
+Omslag uit de cache van Mijn boeken als BlitBuffer van w × h, of nil. Geeft een kopie (die mag
+de aanroeper vrijgeven, bijv. via ImageWidget image_disposable); het origineel blijft in het
+geheugen. Zelf decoderen in een pcall: een kapotte afbeelding mag het scherm niet breken (en
+wordt verwijderd).
+]]
 function Widgets.loadCover(library, url, w, h)
     if not (url and library:hasCover(url)) then return nil end
     local path = library:coverPath(url)
+    local key = path .. "@" .. tostring(w) .. "x" .. tostring(h)
+    local cached = cover_cache[key]
+    if cached then return cached:copy() end
     local ok, bb = pcall(function()
         return require("ui/renderimage"):renderImageFile(path, false, w, h)
     end)
-    if ok and bb then return bb end
-    logger.warn("Lingering: omslag onleesbaar, verwijderd:", url)
-    os.remove(path)
+    if not (ok and bb) then
+        logger.warn("Lingering: omslag onleesbaar, verwijderd:", url)
+        os.remove(path)
+        return nil
+    end
+    cover_cache[key] = bb
+    table.insert(cover_order, key)
+    if #cover_order > COVER_CACHE_MAX then
+        local oldest = table.remove(cover_order, 1)
+        if cover_cache[oldest] then cover_cache[oldest]:free() end
+        cover_cache[oldest] = nil
+    end
+    return bb:copy()
 end
 
 --[[--

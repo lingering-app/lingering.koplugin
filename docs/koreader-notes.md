@@ -366,6 +366,13 @@ Sync en gelezen boeken:
   de server accepteert na "gelezen" weer een gewone stand). Stand bij openen:
   `koreader/kosync.rememberOpen` (in `installRules`).
 
+Snelheid van Mijn boeken:
+- `Widgets.loadCover` houdt uitgepakte omslagen (per bestand en maat, hooguit 40) in het
+  geheugen en geeft een kopie terug; opnieuw opbouwen pakt ze dus niet opnieuw uit.
+- Openen haalt een map pas opnieuw op als de cache ouder is dan een uur (`AUTO_SYNC_AFTER`);
+  de sync-knop haalt altijd op. KOReaders OPDS-functies blokkeren het scherm tijdens het
+  ophalen, dus minder ophalen = minder "bevroren" momenten.
+
 Boekmenu:
 - Op het homescreen heeft elk boek (rij en grote kaart) rechts een grijze "⋮"-knop (Material more_vert) met een
   menu (`ui/popover_menu.lua`, herbruikbaar). Nu één item: Gelezen → `SyncService.markFinished`:
