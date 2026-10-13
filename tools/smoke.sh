@@ -54,8 +54,9 @@ run() {
         rocks.koreader.KOReader "$@" > "$logs/$name.log" 2>&1
     echo "== $name"
     grep -h "Lingering: SMOKE" "$logs/$name.log"
-    # Verwacht: de test met het foute wachtwoord, en waarschuwingen van crengine zelf.
-    expected="CRE WARNING|inloggen mislukt bij OPDS"
+    # Verwacht: de test met het foute wachtwoord, waarschuwingen van crengine zelf, en wat
+    # KOReader meldt bij de eerste start in een lege map (bestanden die nog niet bestaan).
+    expected="CRE WARNING|inloggen mislukt bij OPDS|WARN  os\.(remove|rename): .*No such file|WARN  loadfile: cannot open|BookInfo cache DB schema|Deleting existing .*bookinfo_cache|No (gestures|hotkeys) file"
     if grep -E "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log" | grep -qvE "$expected"; then
         grep -nE "WARN|ERROR|traceback|MISLUKT" "$logs/$name.log" | grep -vE "$expected"
         fail=1

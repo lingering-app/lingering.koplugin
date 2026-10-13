@@ -54,7 +54,8 @@ algemene bibliotheken; `ui/`, `app/` en `main.lua` gebruiken geen `G_reader_sett
 | `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
 | `tools/deploy.sh` | plugin op een aangesloten Kobo zetten (zonder ontwikkelbestanden), na controles en tests |
 | `tools/release.sh` | nieuwe versie: versie in `_meta.lua`, controles, commit, tag `v<versie>`, optioneel `--push` |
-| `tools/smoke.sh` | rooktest in de emulator (`LINGERING_TEST=fm|reader`), met schermafdrukken: homescreen, Mijn boeken, map, Instellingen, Account, inloggen (goed én fout wachtwoord), downloaden naar een tijdelijk pad, omslag zonder cache; in het boek actiebalk, inhoudsopgave, sync, springen, wegschrijven (**schrijft echte voortgang naar het account**), sluiten |
+| `tools/smoke.sh` | rooktest in de emulator tegen `tools/mock_server.py` (lokale OPDS + kosync, poort 8765, altijd dezelfde testboeken), in een eigen lege KOReader-map (`KO_HOME`, via `getHomeDir()`): jouw KOReader en de echte server blijven onaangeraakt. Fases `LINGERING_TEST=setup` (inloggen), `reader` (actiebalk, inhoudsopgave, sync, springen, wegschrijven, sluiten), `fm` (homescreen, Mijn boeken, Instellingen, Taal, Woordenboek, Account, inloggen goed/fout, downloaden, update), met schermafdrukken |
+| `tools/mock_server.py` | testserver (alleen Python-standaardbibliotheek): OPDS-catalogus met zes zelfgemaakte epubs en omslagen, kosync-API in het geheugen, klein StarDict-woordenboek; account `test`/`test`. KOReader wijst ernaartoe via `LINGERING_OPDS_URL` en `LINGERING_SYNC_URL` (zie `config.lua`) |
 
 Na een KOReader-update: `tools/check.sh`, `tools/test.sh`, `tools/smoke.sh`; bij fouten eerst
 `koreader/` (en de tabel "Haken" hieronder), daarna `ui/`.

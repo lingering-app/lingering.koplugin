@@ -426,6 +426,11 @@ function Smoke.reader(ui, show_action_bar)
             shot("6-toc")
             UIManager:close(UIManager:getTopmostVisibleWidget())
         end },
+        -- Het testboek begint op pagina 1: eerst vooruit, zodat terugbladeren kan.
+        { name = "vooruit bladeren", fn = function()
+            turn(10, 1)
+            assert(ui.kosync:getLastPercent() > 0, "niet vooruit gebladerd")
+        end },
         { name = "sync-knop", wait = 3, fn = function()
             SyncService.syncNow(ui, function(ok)
                 logger.info("Lingering: SMOKE sync-knop resultaat", ok)
