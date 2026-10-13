@@ -5,10 +5,9 @@ zijn daardoor precies zo breed als twee 4-kolommen plus de tussenruimte ertussen
 blokken in verschillende rijen op elkaar aansluiten.
 
 Grid.columnWidth(screen_w, columns) → breedte van één kolom
-Grid.row(screen_w, columns, cells, opts) → HorizontalGroup met marges en tussenruimtes
+Grid.row(screen_w, columns, cells) → HorizontalGroup met marges en tussenruimtes
     cells: widgets van columnWidth breed (minder dan columns mag: de rest blijft leeg).
-    opts.reserved_right: ruimte die rechts al bezet is (bijv. de schuifbalk van Mijn boeken);
-    die gaat van de rechtermarge af, zodat de kolommen op dezelfde plek staan als zonder.
+    screen_w: de breedte voor het raster (in Mijn boeken met schuifbalk: de breedte ernaast).
 Grid.ROW_GAP: verticale ruimte tussen rijen.
 ]]
 local HorizontalGroup = require("ui/widget/horizontalgroup")
@@ -25,17 +24,16 @@ function Grid.columnWidth(screen_w, columns)
     return math.floor((screen_w - 2 * Grid.MARGIN - (columns - 1) * Grid.GUTTER) / columns)
 end
 
-function Grid.row(screen_w, columns, cells, opts)
-    local reserved = opts and opts.reserved_right or 0
+function Grid.row(screen_w, columns, cells)
     local row = HorizontalGroup:new{ align = "top" }
     table.insert(row, HorizontalSpan:new{ width = Grid.MARGIN })
     for i, cell in ipairs(cells) do
         if i > 1 then table.insert(row, HorizontalSpan:new{ width = Grid.GUTTER }) end
         table.insert(row, cell)
     end
-    -- Rechtermarge (min wat er rechts al bezet is); lege kolommen tellen gewoon mee.
+    -- Rechtermarge; lege kolommen tellen gewoon mee.
     local used = Grid.MARGIN + #cells * Grid.columnWidth(screen_w, columns) + math.max(0, #cells - 1) * Grid.GUTTER
-    table.insert(row, HorizontalSpan:new{ width = math.max(0, screen_w - reserved - used) })
+    table.insert(row, HorizontalSpan:new{ width = math.max(0, screen_w - used) })
     return row
 end
 

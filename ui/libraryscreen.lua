@@ -226,25 +226,56 @@ function LibraryScreen:render(partial)
 
     local body_h = height - self.header_h - self.nav_h
     -- Raster (ui/grid.lua): mappen in rijen van 2, boeken in rijen van 4, altijd dezelfde
-    -- marges. De schuifbalk gaat van de rechtermarge af (anders een horizontale schuifbalk).
-    local scrollbar_w = ScrollableContainer:getScrollbarWidth()
+    -- marges links en rechts.
     local feed = self.library:cached(current.url)
     local items = feed and feed.items
 
-    -- Boeken: alleen de omslag; één rij moet altijd in beeld passen.
-    local book_w = Grid.columnWidth(width, 4)
-    local book_cover_w = book_w
-    local book_cover_h = math.floor(book_cover_w * 3 / 2)
-    local max_cover_h = body_h - Grid.MARGIN - Grid.ROW_GAP
-    if book_cover_h > max_cover_h then
-        book_cover_h = max_cover_h
-        book_cover_w = math.floor(book_cover_h * 2 / 3)
+    -- Maten bij een bepaalde breedte van het raster.
+    local function sizes(content_w)
+        local z = {}
+        -- Boeken: alleen de omslag; één rij moet altijd in beeld passen.
+        z.book_w = Grid.columnWidth(content_w, 4)
+        z.book_cover_w = z.book_w
+        z.book_cover_h = math.floor(z.book_cover_w * 3 / 2)
+        local max_cover_h = body_h - Grid.MARGIN - Grid.ROW_GAP
+        if z.book_cover_h > max_cover_h then
+            z.book_cover_h = max_cover_h
+            z.book_cover_w = math.floor(z.book_cover_h * 2 / 3)
+        end
+        z.book_tile_h = z.book_cover_h + Grid.ROW_GAP
+        -- Mappen: waaier zoals op het homescreen (Widgets.folderStackSize).
+        z.folder_w = Grid.columnWidth(content_w, 2)
+        local _
+        _, _, z.stack_w, z.stack_h = Widgets.folderStackSize(z.folder_w, body_h)
+        z.folder_tile_h = FolderTile.height(z.stack_h) + Grid.ROW_GAP
+        return z
     end
-    local book_tile_h = book_cover_h + Grid.ROW_GAP
-    -- Mappen: waaier zoals op het homescreen (Widgets.folderStackSize).
-    local folder_w = Grid.columnWidth(width, 2)
-    local _, _, stack_w, stack_h = Widgets.folderStackSize(folder_w, body_h)
-    local folder_tile_h = FolderTile.height(stack_h) + Grid.ROW_GAP
+
+    -- Opeenvolgende mappen in rijen van 2, opeenvolgende boeken in rijen van 4.
+    local rows = {}
+    for _, entry in ipairs(items or {}) do
+        local columns = entry.kind == "folder" and 2 or 4
+        local last = rows[#rows]
+        if not last or last.kind ~= entry.kind or #last.entries >= columns then
+            last = { kind = entry.kind, columns = columns, entries = {} }
+            table.insert(rows, last)
+        end
+        table.insert(last.entries, entry)
+    end
+    local function totalHeight(z)
+        local h = Grid.MARGIN
+        for _, row in ipairs(rows) do h = h + (row.kind == "folder" and z.folder_tile_h or z.book_tile_h) end
+        return h
+    end
+    -- Past het niet, dan komt er rechts een schuifbalk: het raster krijgt dan de breedte náást
+    -- de schuifbalk, zodat de marge rechts even groot is als links.
+    local content_w = width
+    if totalHeight(sizes(width)) > body_h then
+        content_w = width - ScrollableContainer:getScrollbarWidth()
+    end
+    local z = sizes(content_w)
+    local book_w, book_cover_w, book_cover_h, book_tile_h = z.book_w, z.book_cover_w, z.book_cover_h, z.book_tile_h
+    local folder_w, stack_w, stack_h, folder_tile_h = z.folder_w, z.stack_w, z.stack_h, z.folder_tile_h
 
     -- Schuifpositie bewaren bij opnieuw opbouwen (omslagen binnen, na sync).
     if self.scroll and self.scroll_url == current.url then
@@ -260,17 +291,6 @@ function LibraryScreen:render(partial)
     elseif #items == 0 then
         body = self:message(_("Geen boeken."), width, body_h)
     else
-        -- Opeenvolgende mappen in rijen van 2, opeenvolgende boeken in rijen van 4.
-        local rows = {}
-        for _, entry in ipairs(items) do
-            local columns = entry.kind == "folder" and 2 or 4
-            local last = rows[#rows]
-            if not last or last.kind ~= entry.kind or #last.entries >= columns then
-                last = { kind = entry.kind, columns = columns, entries = {} }
-                table.insert(rows, last)
-            end
-            table.insert(last.entries, entry)
-        end
         local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = Grid.MARGIN } }
         local heights = {}
         for _, row in ipairs(rows) do
@@ -303,7 +323,7 @@ function LibraryScreen:render(partial)
                     })
                 end
             end
-            table.insert(grid, Grid.row(width, row.columns, cells, { reserved_right = scrollbar_w }))
+            table.insert(grid, Grid.row(content_w, row.columns, cells))
             table.insert(heights, row.kind == "folder" and folder_tile_h or book_tile_h)
         end
         -- Rijen voor step_scroll_grid, aansluitend vanaf y = 0 (domain/layout.lua).
