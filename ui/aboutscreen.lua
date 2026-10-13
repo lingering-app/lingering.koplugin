@@ -36,7 +36,7 @@ function AboutScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = width, h = height }
     local text_w = width - 8 * Size.padding.large
 
-    local title_bar = Widgets.header{
+    local title_bar = Widgets.pageHeader{
         width = width,
         title = _("Over Lingering"),
         on_back = function() self:close() end,

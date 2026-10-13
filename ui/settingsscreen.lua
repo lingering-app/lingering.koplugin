@@ -39,7 +39,7 @@ function SettingsScreen:init()
     local width, height = Screen:getWidth(), Screen:getHeight()
     self.dimen = Geom:new{ x = 0, y = 0, w = width, h = height }
 
-    local title_bar = Widgets.header{
+    local title_bar = Widgets.pageHeader{
         width = width,
         title = _("Instellingen"),
         on_back = function() self:close() end,

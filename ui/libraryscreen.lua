@@ -34,7 +34,6 @@ local Widgets = require("lingering.ui.widgets")
 local FolderTile = require("lingering.ui.folder_tile")
 local Grid = require("lingering.ui.grid")
 local Layout = require("lingering.domain.layout")
-local Item = require("lingering.ui.actionbar").Item
 local Style = require("lingering.ui.style")
 
 local function loadCover(library, url, w, h)
@@ -179,25 +178,25 @@ function LibraryScreen:current()
 end
 
 -- Titelbalk: terug, titel, sync. Eén keer gebouwd, zodat een draaiend sync-icoon blijft.
+-- Bovenkant: statusbalk (met de sync-knop) en titelbalk (terug, titel), Widgets.pageHeader.
+-- Eén keer gebouwd, zodat een draaiend sync-icoon blijft.
 function LibraryScreen:buildHeader()
-    local h = Screen:scaleBySize(Style.top_bar.height)
-    self.sync_item = Item:new{
-        action = {
-            name = "mijn boeken synchroniseren",
-            task = true,
-            icon_file = "sync.svg",
-            frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
-            run = function(done) self:syncCurrent(done) end,
-        },
-        width = h, height = h, icon_size = Screen:scaleBySize(Style.top_bar.icon_size),
-        show_parent = self,
-    }
-    self.header = Widgets.header{
+    self.header = Widgets.pageHeader{
         width = self.dimen.w,
         on_back = function() self:goBack() end,
-        right = self.sync_item,
         show_parent = self,
+        extra = {
+            {
+                name = "mijn boeken synchroniseren",
+                task = true,
+                icon_file = "sync.svg",
+                frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
+                run = function(done) self:syncCurrent(done) end,
+            },
+        },
     }
+    -- De sync-knop is het eerste icoon van de statusbalk.
+    self.sync_item = self.header.status_bar.items[1]
     self.header_h = self.header.height
 end
 

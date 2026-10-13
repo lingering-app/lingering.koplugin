@@ -98,8 +98,8 @@ function Widgets.loadCover(library, url, w, h)
 end
 
 --[[--
-Omslagen van een map, uitgewaaierd over de hele breedte (herbruikbaar): de voorste links,
-de andere naar rechts verspreid tot de laatste tegen de rechterrand staat. Elke omslag erachter
+Omslagen van een map, uitgewaaierd over de breedte (herbruikbaar): de voorste links, de andere
+in vaste stappen naar rechts; een volle waaier (COVER_MAX) reikt tot de rechterrand. Elke omslag erachter
 is COVER_SHRINK keer zo groot als de vorige; allemaal onderaan uitgelijnd, als op een plank.
 Elke omslag krijgt een dun randje (Style.cover_border), zodat ze van elkaar loskomen.
 
@@ -136,19 +136,20 @@ end
 -- Titel onder een mapstapel (homescreen en Mijn boeken).
 Widgets.FOLDER_TITLE_FACE = Font:getFace("cfont", 15)
 
--- Omslagen (FrameContainers, voorste eerst) uitwaaieren over stack_w: de voorste op x = 0,
--- de laatste tegen de rechterrand, allemaal onderaan uitgelijnd.
+-- Omslagen (FrameContainers, voorste eerst) uitwaaieren: de voorste op x = 0, elke volgende
+-- een vaste stap verder, zo gekozen dat een volle waaier (COVER_MAX omslagen) precies tot de
+-- rechterrand reikt. Minder omslagen staan dus links bij elkaar, zonder gat. Onderaan uitgelijnd.
 local function fan(framed, stack_w, stack_h)
     local OverlapGroupW = require("ui/widget/overlapgroup")
     local n = #framed
-    local last_w = framed[n]:getSize().w
-    local span = math.max(0, stack_w - last_w)
+    local front_w = Widgets.stackCoverSize(stack_w, stack_h)
+    local last_full_w = front_w * Widgets.COVER_SHRINK ^ (Widgets.COVER_MAX - 1)
+    local step = math.max(0, (stack_w - last_full_w) / (Widgets.COVER_MAX - 1))
     local group = OverlapGroupW:new{ dimen = Geom:new{ w = stack_w, h = stack_h } }
     -- Achterste eerst tekenen.
     for k = n, 1, -1 do
         local size = framed[k]:getSize()
-        local x = n > 1 and math.floor(span * (k - 1) / (n - 1)) or 0
-        framed[k].overlap_offset = { x, stack_h - size.h }
+        framed[k].overlap_offset = { math.floor(step * (k - 1)), stack_h - size.h }
         table.insert(group, framed[k])
     end
     return group
@@ -273,6 +274,34 @@ function Widgets.header(opts)
     bar:setTitle(opts.title or "")
     bar.height = h
     return bar
+end
+
+--[[--
+Bovenkant van een pagina (Mijn boeken, Instellingen, Over Lingering, keuzelijsten): de
+statusbalk van het homescreen (ui/statusbar.lua: "Lingering", licht, wifi, batterij, tijd, met
+eventuele extra knoppen zoals sync), daaronder de titelbalk (Widgets.header: terug en titel).
+opts: width, title, on_back, show_parent, extra (acties voor de statusbalk).
+Geeft de groep; .height, .status_bar en :setTitle(tekst) zoals bij Widgets.header.
+]]
+function Widgets.pageHeader(opts)
+    local StatusBar = require("lingering.ui.statusbar")
+    local status_bar = StatusBar:new{
+        width = opts.width,
+        show_parent = opts.show_parent,
+        title = "Lingering",
+        extra = opts.extra,
+    }
+    local title_bar = Widgets.header{
+        width = opts.width,
+        title = opts.title,
+        on_back = opts.on_back,
+        show_parent = opts.show_parent,
+    }
+    local group = VerticalGroup:new{ align = "left", status_bar, title_bar }
+    group.status_bar = status_bar
+    group.height = status_bar:getSize().h + title_bar.height
+    function group.setTitle(_, text) title_bar:setTitle(text) end
+    return group
 end
 
 function Widgets.line(width)
