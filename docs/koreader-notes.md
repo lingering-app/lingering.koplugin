@@ -344,6 +344,14 @@ Taal:
 - Mapnamen uit de OPDS-catalogus (`config.collections`) worden niet vertaald: daaraan
   worden de mappen herkend.
 
+Raster:
+- `ui/grid.lua`: vaste marge aan de schermrand, vaste tussenruimte tussen kolommen, vaste
+  rijruimte; per rij 1, 2 of 4 kolommen (`Grid.rows`). Homescreen: rij 1 = boek (1 kolom) of
+  boeken (4), rij 2 = mappen (2). Mijn boeken: mappen in rijen van 2, boeken in rijen van 4;
+  met schuifbalk krijgt het raster de breedte náást de schuifbalk (marges links en rechts gelijk).
+- Mappen zijn overal `ui/folder_tile.lua`: waaier van tot 4 omslagen over de kolombreedte
+  (achterste steeds 88%), naam en grijs het aantal boeken, links uitgelijnd.
+
 Boekmenu:
 - Op het homescreen heeft elk boek (rij en grote kaart) rechts een grijze "⋮"-knop (Material more_vert) met een
   menu (`ui/popover_menu.lua`, herbruikbaar). Nu één item: Gelezen → `SyncService.markFinished`:

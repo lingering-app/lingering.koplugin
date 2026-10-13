@@ -242,12 +242,12 @@ function LibraryScreen:render(partial)
             z.book_cover_h = max_cover_h
             z.book_cover_w = math.floor(z.book_cover_h * 2 / 3)
         end
-        z.book_tile_h = z.book_cover_h + Grid.ROW_GAP
+        z.book_tile_h = z.book_cover_h
         -- Mappen: waaier zoals op het homescreen (Widgets.folderStackSize).
         z.folder_w = Grid.columnWidth(content_w, 2)
         local _
         _, _, z.stack_w, z.stack_h = Widgets.folderStackSize(z.folder_w, body_h)
-        z.folder_tile_h = FolderTile.height(z.stack_h) + Grid.ROW_GAP
+        z.folder_tile_h = FolderTile.height(z.stack_h)
         return z
     end
 
@@ -262,15 +262,17 @@ function LibraryScreen:render(partial)
         end
         table.insert(last.entries, entry)
     end
-    local function totalHeight(z)
-        local h = Grid.MARGIN
-        for _, row in ipairs(rows) do h = h + (row.kind == "folder" and z.folder_tile_h or z.book_tile_h) end
-        return h
+    local function rowHeights(z)
+        local heights = {}
+        for _, row in ipairs(rows) do
+            table.insert(heights, row.kind == "folder" and z.folder_tile_h or z.book_tile_h)
+        end
+        return heights
     end
     -- Past het niet, dan komt er rechts een schuifbalk: het raster krijgt dan de breedte náást
     -- de schuifbalk, zodat de marge rechts even groot is als links.
     local content_w = width
-    if totalHeight(sizes(width)) > body_h then
+    if Grid.rowsHeight(rowHeights(sizes(width))) > body_h then
         content_w = width - ScrollableContainer:getScrollbarWidth()
     end
     local z = sizes(content_w)
@@ -291,8 +293,7 @@ function LibraryScreen:render(partial)
     elseif #items == 0 then
         body = self:message(_("Geen boeken."), width, body_h)
     else
-        local grid = VerticalGroup:new{ align = "left", VerticalSpan:new{ width = Grid.MARGIN } }
-        local heights = {}
+        local grid_rows = {}
         for _, row in ipairs(rows) do
             local cells = {}
             for _, entry in ipairs(row.entries) do
@@ -323,10 +324,13 @@ function LibraryScreen:render(partial)
                     })
                 end
             end
-            table.insert(grid, Grid.row(content_w, row.columns, cells))
-            table.insert(heights, row.kind == "folder" and folder_tile_h or book_tile_h)
+            table.insert(grid_rows, { columns = row.columns, cells = cells })
         end
-        -- Rijen voor step_scroll_grid, aansluitend vanaf y = 0 (domain/layout.lua).
+        local grid = Grid.rows(content_w, grid_rows)
+        -- Rijen voor step_scroll_grid, aansluitend vanaf y = 0 (domain/layout.lua); elke rij
+        -- met de rijruimte eronder, zoals Grid.rows ze neerzet.
+        local heights = {}
+        for _, h in ipairs(rowHeights(z)) do table.insert(heights, h + Grid.ROW_GAP) end
         local rows_info = Layout.stackRows(heights, Grid.MARGIN)
         if grid:getSize().h <= body_h then
             -- Past alles al: geen schuifcontainer nodig.

@@ -253,22 +253,22 @@ function HomeScreen:buildStatus(width)
     return self.status_bar
 end
 
--- Rij van hooguit 4 boeken die je aan het lezen bent, op het raster (ui/grid.lua, 4 kolommen).
-function HomeScreen:buildReadingRow(width, height)
+-- Tegels voor de rij van hooguit 4 boeken die je aan het lezen bent (4 kolommen); geeft de
+-- tegels en hun hoogte.
+function HomeScreen:readingTiles(width, height)
     local Grid = require("lingering.ui.grid")
     local tile_w = Grid.columnWidth(width, 4)
     local cover_w = tile_w
     local cover_h = math.floor(cover_w * 3 / 2)
     -- Ruimte voor de twee regels onder de omslag; de omslag krimpt als het niet past.
     local text_h = Screen:scaleBySize(15 + 13) + 3 * Size.padding.default
-    local max_cover_h = height - 2 * Grid.MARGIN - text_h
-    if cover_h > max_cover_h then
-        cover_h = math.max(0, max_cover_h)
+    if cover_h > height - text_h then
+        cover_h = math.max(0, height - text_h)
         cover_w = math.floor(cover_h * 2 / 3)
     end
-    local tiles = {}
+    local tiles, tiles_h = {}, 0
     for _, book in ipairs(self.books) do
-        table.insert(tiles, ReadingTile:new{
+        local tile = ReadingTile:new{
             book = book,
             width = tile_w,
             cover_w = cover_w,
@@ -279,24 +279,30 @@ function HomeScreen:buildReadingRow(width, height)
                 Navigation.openBook(book.file)
             end,
             on_menu = function(anchor) self:showBookMenu(book, anchor) end,
-        })
+        }
+        tiles_h = math.max(tiles_h, tile:getSize().h)
+        table.insert(tiles, tile)
     end
-    return FrameContainer:new{
-        padding = 0,
-        padding_top = Grid.MARGIN,
-        padding_bottom = Grid.MARGIN,
-        bordersize = 0,
-        Grid.row(width, 4, tiles),
-    }
+    return tiles, tiles_h
 end
 
-function HomeScreen:buildBook(width, height)
-    local padding = Size.padding.large * 2
-    local inner_w = width - 2 * padding
-
+--- Rij 1 van het raster: { columns, cells } en de hoogte. Meer boeken: 4 kolommen; anders de
+--- grote kaart of de melding "nog geen boek" over 1 kolom.
+function HomeScreen:bookRow(width, height)
     if #self.books > 1 then
-        return self:buildReadingRow(width, height)
+        local tiles, h = self:readingTiles(width, height)
+        return { columns = 4, cells = tiles }, h
     end
+    local Grid = require("lingering.ui.grid")
+    local card = self:buildBook(Grid.columnWidth(width, 1), height)
+    return { columns = 1, cells = { card } }, math.min(card:getSize().h, height)
+end
+
+-- De grote kaart (of "nog geen boek") voor één kolom van width breed; de marges komen uit het
+-- raster, padding is alleen de ruimte tussen omslag en tekst.
+function HomeScreen:buildBook(width, height)
+    local padding = require("lingering.ui.grid").GUTTER
+    local inner_w = width
 
     if not self.book then
         return CenterContainer:new{
@@ -311,7 +317,7 @@ function HomeScreen:buildBook(width, height)
     end
 
     -- Omslag in de verhouding 2:3, zo groot als past.
-    local cover_h = height - 2 * padding
+    local cover_h = height
     local cover_w = math.floor(math.min(cover_h * 2 / 3, inner_w * 0.42))
     cover_h = math.floor(cover_w * 3 / 2)
     local cover
@@ -387,7 +393,7 @@ function HomeScreen:buildBook(width, height)
     })
 
     local card = FrameContainer:new{
-        padding = padding,
+        padding = 0,
         bordersize = 0,
         HorizontalGroup:new{
             align = "center",
@@ -401,48 +407,51 @@ function HomeScreen:buildBook(width, height)
     local book = self.book
     local more = moreButton(function(anchor) self:showBookMenu(book, anchor) end)
     local size = card:getSize()
-    more.overlap_offset = { size.w - padding - more.ink_right, size.h - padding - more.height }
+    more.overlap_offset = { width - more.ink_right, size.h - more.height }
     return OverlapGroup:new{
-        dimen = Geom:new{ w = size.w, h = size.h },
+        dimen = Geom:new{ w = width, h = size.h },
         card,
         more,
     }
 end
 
 function HomeScreen:build()
+    local Grid = require("lingering.ui.grid")
     local width, height = self.dimen.w, self.dimen.h
 
     local nav = Widgets.mainNav(width, self.nav, "home")
-
     local status = self:buildStatus(width)
     local status_h = status:getSize().h
     local area_h = height - status_h - nav:getSize().h
 
-    -- Blokken met mappen (stapels omslagen) onder het huidige boek, als ze passen.
-    local shelf = self:buildCollections(width, area_h)
-    local shelf_h = shelf and shelf:getSize().h or 0
-    if shelf and area_h - shelf_h < Screen:scaleBySize(240) then
-        shelf, shelf_h = nil, 0
+    -- Eén raster (ui/grid.lua): rij 1 het boek (grote kaart, 1 kolom) of de boeken (4 kolommen),
+    -- rij 2 de mappen (2 kolommen) als die passen.
+    local folders, folders_h = self:collectionRow(width, area_h)
+    folders_h = folders_h or 0
+    local book_h = area_h - Grid.rowsHeight({ 0 }) - (folders and folders_h + Grid.ROW_GAP or 0)
+    if folders and book_h < Screen:scaleBySize(240) then
+        folders, folders_h = nil, 0
+        book_h = area_h - Grid.rowsHeight({ 0 })
     end
-    local book_h = area_h - shelf_h
-    local book = self:buildBook(width, book_h)
-    local card_h = math.min(book:getSize().h, book_h)
+    local books, books_h = self:bookRow(width, book_h)
+    local rows = { books }
+    if folders then table.insert(rows, folders) end
+    local grid = Grid.rows(width, rows)
 
     self.status_dimen = Geom:new{ x = 0, y = 0, w = width, h = status_h }
-    self.book_dimen = Geom:new{ x = 0, y = status_h, w = width, h = card_h }
-    -- Mapblokken tegen de onderkant (boven de navigatiebalk): altijd op dezelfde plek, of je nu
-    -- één boek (grote kaart) of meer (rij) aan het lezen bent.
-    self.shelf_dimen = Geom:new{ x = 0, y = status_h + area_h - shelf_h, w = width, h = shelf_h }
+    self.book_dimen = Geom:new{ x = Grid.MARGIN, y = status_h + Grid.MARGIN, w = Grid.columnWidth(width, 1), h = books_h }
+    self.shelf_dimen = Geom:new{
+        x = 0, y = status_h + Grid.MARGIN + books_h + Grid.ROW_GAP, w = width, h = folders_h,
+    }
 
-    -- Statusregel boven (zonder lijn), huidig boek, ruimte, mappen, navigatiebalk onderaan.
+    -- Statusregel boven (zonder lijn), het raster, ruimte, navigatiebalk onderaan.
     self.layout_group = VerticalGroup:new{
         align = "left",
         status,
-        book,
+        grid,
+        VerticalSpan:new{ width = math.max(0, area_h - grid:getSize().h) },
+        nav,
     }
-    table.insert(self.layout_group, VerticalSpan:new{ width = math.max(0, area_h - card_h - shelf_h) })
-    if shelf then table.insert(self.layout_group, shelf) end
-    table.insert(self.layout_group, nav)
     self[1] = FrameContainer:new{
         width = width,
         height = height,
@@ -457,7 +466,8 @@ end
 Blokken naast elkaar voor de mappen uit config.collections (alleen mappen die in de
 catalogus bestaan): stapel van de eerste drie omslagen uit de cache, naam eronder.
 ]]
-function HomeScreen:buildCollections(width, area_h)
+--- Rij 2 van het raster: de mappen (2 kolommen) en hun hoogte, of nil.
+function HomeScreen:collectionRow(width, area_h)
     if not (self.library and self.collections) then return nil end
     local found = {}
     for _, title in ipairs(self.collections) do
@@ -489,12 +499,7 @@ function HomeScreen:buildCollections(width, area_h)
             end,
         })
     end
-    return FrameContainer:new{
-        padding = 0,
-        padding_bottom = Grid.MARGIN,
-        bordersize = 0,
-        Grid.row(width, 2, tiles),
-    }
+    return { columns = 2, cells = tiles }, FolderTile.height(stack_h)
 end
 
 --[[--
