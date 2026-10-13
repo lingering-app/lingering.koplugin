@@ -48,7 +48,7 @@ algemene bibliotheken; `ui/`, `app/` en `main.lua` gebruiken geen `G_reader_sett
 | `app/update_service.lua` | zelf-update: zoeken, installeren (alleen tags), restanten opruimen bij de volgende start |
 | `domain/release.lua` | versies lezen/vergelijken, nieuwste tag, welke paden bij de plugin horen |
 | `ui/*.lua` | homescreen (blokken met stapels omslagen voor de mappen in `config.collections`; tik opent die map in Mijn boeken), Mijn boeken, Instellingen, Over Lingering (met update-knop, `ui/update_flow.lua`), inlogscherm, leesscherm, actiebalk, `book_opener.lua` (openen of downloaden-en-openen), gedeelde widgets |
-| `icons/` | iconen uit [Material Symbols](https://fonts.google.com/icons) Outlined, gewicht 300 (`@material-symbols/svg-300` v0.48.0, Apache-2.0, `icons/LICENSE-material-symbols.txt`), ongewijzigd; `sync-<hoek>.svg` zijn kopieën, tegen de klok in gedraaid (zoals de pijlen van `sync`), voor de sync-animatie. Gekozen omdat het als enige open set alle iconen heeft (ook `mobile_rotate`/`mobile_rotate_lock`) |
+| `icons/` | iconen uit [Material Symbols](https://fonts.google.com/icons) Outlined, gewicht 300 (`@material-symbols/svg-300` v0.48.0, Apache-2.0, `icons/LICENSE-material-symbols.txt`), ongewijzigd (uitzondering: `more_vert.svg` uit `svg-700`, dikgedrukt); `sync-<hoek>.svg` zijn kopieën, tegen de klok in gedraaid (zoals de pijlen van `sync`), voor de sync-animatie. Gekozen omdat het als enige open set alle iconen heeft (ook `mobile_rotate`/`mobile_rotate_lock`) |
 | `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
 | `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |
 | `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
@@ -345,7 +345,7 @@ Taal:
   worden de mappen herkend.
 
 Boekmenu:
-- Op het homescreen heeft elk boek (rij en grote kaart) rechtsonder een grijze "…"-knop met een
+- Op het homescreen heeft elk boek (rij en grote kaart) rechts een grijze "⋮"-knop (Material more_vert) met een
   menu (`ui/popover_menu.lua`, herbruikbaar). Nu één item: Gelezen → `SyncService.markFinished`:
   in KOReader op uit (verdwijnt uit de rij) en, met verbinding, 100% naar de syncserver
   (nooit wifi aanzetten; 100% is nooit achteruit).

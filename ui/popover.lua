@@ -33,6 +33,7 @@ local Popover = InputContainer:extend{
     anchor = nil,
     lines = nil,
     content = nil,
+    gap = nil,          -- ruimte onder het anker; standaard vrij van de lijn onder de actiebalk
     modal = true,
 }
 Widgets.guardPaint(Popover, "popover")
@@ -64,7 +65,7 @@ function Popover:init()
     -- horizontaal gecentreerd erop, maar binnen het scherm.
     local size = self[1]:getSize()
     local margin = Size.padding.default
-    local gap = Size.padding.large + Style.line.size
+    local gap = self.gap or (Size.padding.large + Style.line.size)
     local anchor = self.anchor or Geom:new{ x = 0, y = 0, w = 0, h = 0 }
     local x = anchor.x + math.floor((anchor.w - size.w) / 2)
     x = math.max(margin, math.min(x, Screen:getWidth() - size.w - margin))

@@ -103,19 +103,24 @@ function CollectionTile:onTapTile()
     return true
 end
 
--- "…"-knop (grijs) voor het menu van een boek; on_tap(anchor) krijgt de positie van de knop.
+-- "⋮"-knop voor het menu van een boek; on_tap(anchor) krijgt de positie van de knop.
+-- ink_right: afstand van de linkerkant van de knop tot de rechterkant van de puntjes (het
+-- icoon heeft rechts 42% lege ruimte), om de puntjes tegen een rand uit te lijnen.
+-- more_vert.svg is gewicht 700 (dikgedrukt), de andere iconen 300.
 local function moreButton(on_tap)
     local Item = require("lingering.ui.actionbar").Item
-    return Item:new{
+    local icon_size = Screen:scaleBySize(20)
+    local button = Item:new{
         action = {
-            icon_file = "more_horiz.svg",
-            quiet = true,
+            icon_file = "more_vert.svg",
             tap = function(item) on_tap(item.dimen) end,
         },
-        width = Screen:scaleBySize(36),
-        height = Screen:scaleBySize(36),
-        icon_size = Screen:scaleBySize(24),
+        width = Screen:scaleBySize(32),
+        height = Screen:scaleBySize(40),
+        icon_size = icon_size,
     }
+    button.ink_right = math.floor(button.width / 2 + icon_size / 2 - icon_size * 0.42)
+    return button
 end
 
 --[[--
@@ -150,16 +155,19 @@ function ReadingTile:init()
         cover = Widgets.icon({ icon_file = "menu_book.svg" }, math.floor(self.cover_w / 2))
     end
     local BottomContainer = require("ui/widget/container/bottomcontainer")
-    -- Onder de omslag: teksten links uitgelijnd met het omslagvak, rechts de "…"-knop.
+    -- Onder de omslag: teksten links en "⋮" rechts, precies zo breed als de omslag zelf
+    -- (de omslag staat gecentreerd in de tegel).
     local more = moreButton(function(anchor) if self.on_menu then self.on_menu(anchor) end end)
-    local more_w = more.width
+    local cover_w = cover:getSize().w
+    local left = math.floor((self.width - cover_w) / 2)
+    local texts_w = cover_w - more.width
     local texts = VerticalGroup:new{
         align = "left",
         TextWidget:new{
             text = T(_("%1% gelezen"), math.floor((book.percent or 0) * 100 + 0.5)),
             face = Font:getFace("cfont", 15),
             bold = true,
-            max_width = self.cover_w - more_w,
+            max_width = texts_w,
         },
     }
     if book.stats then
@@ -167,19 +175,25 @@ function ReadingTile:init()
             text = T(_("%1 te gaan"), formatHours(book.stats.left_secs)),
             face = Font:getFace("cfont", 13),
             fgcolor = Style.text_secondary,
-            max_width = self.cover_w - more_w,
+            max_width = texts_w,
         })
     end
-    local row_h = math.max(texts:getSize().h, more.height)
+    texts.overlap_offset = { left, 0 }
+    -- ⋮ verticaal gecentreerd naast de twee regels, puntjes tegen de rechterrand van de omslag.
+    local texts_h = texts:getSize().h
+    -- Met een kleine verschuiving: iets lager en iets naar links (op het oog).
+    local more_y = math.floor((texts_h - more.height) / 2) + Screen:scaleBySize(8)
+    more.overlap_offset = { left + cover_w - more.ink_right - Screen:scaleBySize(3), more_y }
+    local row = OverlapGroup:new{
+        dimen = Geom:new{ w = self.width, h = math.max(texts_h, more.height) },
+        texts,
+        more,
+    }
     self[1] = VerticalGroup:new{
         align = "center",
         BottomContainer:new{ dimen = Geom:new{ w = self.width, h = self.cover_h }, cover },
         VerticalSpan:new{ width = Size.padding.default },
-        HorizontalGroup:new{
-            align = "center",
-            LeftContainer:new{ dimen = Geom:new{ w = self.cover_w - more_w, h = row_h }, texts },
-            more,
-        },
+        row,
     }
     self.ges_events = {
         TapTile = { GestureRange:new{ ges = "tap", range = function() return self.dimen end } },
@@ -424,11 +438,12 @@ function HomeScreen:buildBook(width, height)
             info,
         },
     }
-    -- "…"-knop rechtsonder in de kaart, voor het menu van het boek.
+    -- "⋮"-knop rechtsonder in de kaart (puntjes tegen de rechterrand van de inhoud), voor het
+    -- menu van het boek.
     local book = self.book
     local more = moreButton(function(anchor) self:showBookMenu(book, anchor) end)
     local size = card:getSize()
-    more.overlap_offset = { size.w - padding - more.width, size.h - padding - more.height }
+    more.overlap_offset = { size.w - padding - more.ink_right, size.h - padding - more.height }
     return OverlapGroup:new{
         dimen = Geom:new{ w = size.w, h = size.h },
         card,

@@ -58,6 +58,8 @@ function PopoverMenu.show(opts)
     local popover
     popover = Popover:new{
         anchor = opts.anchor,
+        -- Direct onder de knop: de knop heeft zelf al wat ruimte rond het icoon.
+        gap = 0,
         content = function()
             local group = VerticalGroup:new{ align = "left" }
             for _, item in ipairs(opts.items) do
