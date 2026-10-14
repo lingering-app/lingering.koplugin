@@ -1,7 +1,7 @@
 --[[--
-Mijn boeken: de OPDS-catalogus als raster met omslagen, in pagina's (veeg omhoog of naar
-links: volgende pagina; omlaag of naar rechts: vorige). Alleen de huidige pagina wordt
-gebouwd, ook bij een map met honderden boeken; onderaan klein het paginanummer.
+Mijn boeken: de OPDS-catalogus als raster met omslagen, in pagina's: zijwaarts vegen (naar
+links: volgende, naar rechts: vorige, zoals in een boek) of de pijltjes onderaan
+("‹ 3 / 25 ›"). Alleen de huidige pagina wordt gebouwd, ook bij een map met honderden boeken.
 
 - Toont meteen de gecachete versie (ook zonder wifi).
 - Synchroniseren alleen met de sync-knop (zet zo nodig wifi aan): de huidige map, de mappen
@@ -16,6 +16,7 @@ local Font = require("ui/font")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
+local HorizontalGroup = require("ui/widget/horizontalgroup")
 local ImageWidget = require("ui/widget/imagewidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local OverlapGroup = require("ui/widget/overlapgroup")
@@ -39,8 +40,11 @@ local Grid = require("lingering.ui.grid")
 local Layout = require("lingering.domain.layout")
 local Style = require("lingering.ui.style")
 
--- Paginanummer onderaan ("3 / 25"), klein en grijs, alleen bij meer dan één pagina.
+-- Onderaan bij meer dan één pagina: "‹ 3 / 25 ›", pijltjes om te bladeren, nummer klein en grijs.
 local PAGE_NUMBER_FACE = Font:getFace("cfont", 13)
+local PAGER_H = Screen:scaleBySize(44)
+local PAGER_BUTTON_W = Screen:scaleBySize(56)
+local PAGER_ICON = Screen:scaleBySize(24)
 
 local function loadCover(library, url, w, h)
     return Widgets.loadCover(library, url, w, h)
@@ -176,15 +180,43 @@ function LibraryScreen:init()
     self:render()
 end
 
--- Vegen: omhoog of naar links de volgende pagina, omlaag of naar rechts de vorige.
+-- Zijwaarts vegen, zoals in een boek: naar links de volgende pagina, naar rechts de vorige.
 function LibraryScreen:onSwipe(_, ges)
     local direction = ges and ges.direction
-    if direction == "north" or direction == "west" then
+    if direction == "west" then
         self:turnPage(1)
-    elseif direction == "south" or direction == "east" then
+    elseif direction == "east" then
         self:turnPage(-1)
     end
     return true
+end
+
+-- "‹ 3 / 25 ›" onderaan: pijltjes (grijs en zonder werking op de eerste/laatste pagina).
+function LibraryScreen:pager(width, page, pages)
+    local Item = require("lingering.ui.actionbar").Item
+    local function arrow(icon_file, delta, enabled)
+        return Item:new{
+            action = { name = "pagina", icon_file = icon_file, enabled = enabled },
+            on_tap = function() self:turnPage(delta) end,
+            width = PAGER_BUTTON_W,
+            height = PAGER_H,
+            icon_size = PAGER_ICON,
+            show_parent = self,
+        }
+    end
+    return CenterContainer:new{
+        dimen = Geom:new{ w = width, h = PAGER_H },
+        HorizontalGroup:new{
+            align = "center",
+            arrow("chevron_left.svg", -1, page > 1),
+            TextWidget:new{
+                text = T("%1 / %2", page, pages),
+                face = PAGE_NUMBER_FACE,
+                fgcolor = Style.text_secondary,
+            },
+            arrow("chevron_right.svg", 1, page < pages),
+        },
+    }
 end
 
 function LibraryScreen:turnPage(delta)
@@ -308,7 +340,7 @@ function LibraryScreen:render(partial)
     -- een map met 300 boeken opent even snel als een kleine. Meer dan één pagina: onderaan het
     -- paginanummer; de rijen krijgen dan die hoogte minder.
     local content_w = width
-    local number_h = TextWidget:new{ text = "0", face = PAGE_NUMBER_FACE }:getSize().h + Grid.MARGIN
+    local number_h = PAGER_H
     local pages = Layout.pages(rowHeights(sizes(width)), page_h, Grid.MARGIN, Grid.ROW_GAP)
     if #pages > 1 then
         page_h = page_h - number_h
@@ -369,14 +401,7 @@ function LibraryScreen:render(partial)
             body = VerticalGroup:new{
                 align = "center",
                 TopContainer:new{ dimen = Geom:new{ w = width, h = body_h - number_h }, body },
-                CenterContainer:new{
-                    dimen = Geom:new{ w = width, h = number_h },
-                    TextWidget:new{
-                        text = T("%1 / %2", current.page, #pages),
-                        face = PAGE_NUMBER_FACE,
-                        fgcolor = Style.text_secondary,
-                    },
-                },
+                self:pager(width, current.page, #pages),
             }
         end
     end
