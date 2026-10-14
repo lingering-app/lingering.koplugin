@@ -2,7 +2,7 @@
 Rooktest in de emulator. Wordt alleen geladen als LINGERING_TEST gezet is (zie main.lua);
 tools/smoke.sh start KOReader in een eigen testmap (KO_HOME) tegen tools/mock_server.py.
 LINGERING_TEST=setup   inloggen op de testserver (echte AccountService), daarna afsluiten
-LINGERING_TEST=reader  actiebalk → inhoudsopgave → sync-knop → springen → wegschrijven →
+LINGERING_TEST=reader  actiebalk → draaien → inhoudsopgave → sync-knop → springen → wegschrijven →
                        boek sluiten
 LINGERING_TEST=fm      homescreen → Mijn boeken → eerste map → Instellingen → Taal →
                        Woordenboek → Account → inloggen (goed/fout) → downloaden → update
@@ -432,6 +432,19 @@ function Smoke.reader(ui, show_action_bar)
             shot("5b-actionbar-battery")
             state.popover:onTapClose()
             UIManager:close(UIManager:getTopmostVisibleWidget())
+        end },
+        -- Draai (g-sensor) met de actiebalk open: de balk gaat dicht, het boek draait mee.
+        { name = "draaien met actiebalk open", wait = 2, fn = function()
+            show_action_bar()
+            state.bar = UIManager:getTopmostVisibleWidget()
+            state.rotation = require("device").screen:getRotationMode()
+            UIManager:sendEvent(require("ui/event"):new("SetRotationMode", (state.rotation + 2) % 4))
+        end },
+        { name = "boek gedraaid, actiebalk dicht", wait = 2, fn = function()
+            local Screen_ = require("device").screen
+            assert(UIManager:getTopmostVisibleWidget() ~= state.bar, "actiebalk nog open")
+            assert(Screen_:getRotationMode() == (state.rotation + 2) % 4, "boek niet gedraaid")
+            UIManager:sendEvent(require("ui/event"):new("SetRotationMode", state.rotation))
         end },
         { name = "inhoudsopgave", fn = function()
             assert(require("lingering.koreader.reader").showToc(ui), "inhoudsopgave niet geopend")

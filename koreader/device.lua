@@ -29,6 +29,21 @@ function M.rotateWithinOrientation(mode)
 end
 
 --- Heeft het apparaat voorlicht? (Device:hasFrontlight)
+--[[--
+Een draai (SetRotationMode) opnieuw versturen, na het sluiten van een overlay. UIManager:sendEvent
+geeft het event alleen aan het bovenste venster (uimanager.lua, sendEvent); een overlay zonder
+eigen afhandeling houdt het dus tegen en het boek of scherm eronder draait niet mee. In de
+volgende tik, zodat de overlay dan al dicht is.
+]]
+function M.passRotation(mode)
+    try("passRotation", function()
+        local Event = require("ui/event")
+        local UIManager = require("ui/uimanager")
+        UIManager:nextTick(function() UIManager:sendEvent(Event:new("SetRotationMode", mode)) end)
+    end)
+    return true
+end
+
 function M.hasFrontlight()
     local ok, has = try("hasFrontlight", function() return require("device"):hasFrontlight() end)
     return ok and has or false

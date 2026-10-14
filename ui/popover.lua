@@ -103,6 +103,12 @@ function Popover:onClose()
     return true
 end
 
+-- Draai (g-sensor): sluiten en de draai doorgeven aan het venster eronder.
+function Popover:onSetRotationMode(mode)
+    self:dismiss()
+    return require("lingering.koreader.device").passRotation(mode)
+end
+
 function Popover:show()
     UIManager:show(self, "ui", self.dimen, self.dimen.x, self.dimen.y)
     self.timeout = function() self:dismiss() end

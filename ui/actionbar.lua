@@ -268,6 +268,12 @@ function ActionBar:onClose()
     return true
 end
 
+-- Draai (g-sensor): de balk sluiten en de draai doorgeven aan het boek eronder.
+function ActionBar:onSetRotationMode(mode)
+    self:dismiss()
+    return require("lingering.koreader.device").passRotation(mode)
+end
+
 function ActionBar:onCloseWidget()
     -- Geplande frames stoppen; een lopende taak mag zelf afmaken.
     for _, item in ipairs(self.items) do
