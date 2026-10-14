@@ -114,3 +114,12 @@ function TestLibraryService:test_omslagen_in_de_achtergrond()
     lu.assertEquals(fetched, 1)
     lu.assertEquals(#jobs, 1)
 end
+
+function TestLibraryService:test_zoeken_in_alle_opgeslagen_mappen()
+    catalog() -- "Een" staat in twee mappen, "Twee" in één
+    local found = Library:search("een")
+    lu.assertEquals(#found, 1)
+    lu.assertEquals(found[1].title, "Een")
+    lu.assertEquals(#Library:search("twee"), 1)
+    lu.assertEquals(Library:search("drie"), {})
+end

@@ -18,6 +18,7 @@ local Books = require("lingering.koreader.books")
 local Opds = require("lingering.koreader.opds")
 local Config = require("lingering.config")
 local Catalog = require("lingering.domain.catalog")
+local Search = require("lingering.domain.search")
 
 local CACHE_DIR = DataStorage:getDataDir() .. "/cache/lingering"
 local COVER_DIR = CACHE_DIR .. "/covers"
@@ -148,6 +149,14 @@ function Library:syncFinished(done)
         done(changed)
     end
     self:sync(url, function() apply() end)
+end
+
+--- Boeken in alle opgeslagen mappen waarvan titel of auteur bij query past (domain/search.lua).
+function Library:search(query)
+    local _, feeds = self:userFeeds()
+    local lists = {}
+    for _, feed in pairs(feeds) do table.insert(lists, feed.items) end
+    return Search.books(lists, query)
 end
 
 function Library:collectionUrl(title)

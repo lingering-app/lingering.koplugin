@@ -303,7 +303,8 @@ end
 Bovenkant van een pagina (Mijn boeken, Instellingen, Over Lingering, keuzelijsten): de
 statusbalk van het homescreen (ui/statusbar.lua: "Lingering", licht, wifi, batterij, tijd, met
 eventuele extra knoppen zoals sync), daaronder de titelbalk (Widgets.header: terug en titel).
-opts: width, title, on_back, show_parent, extra (acties voor de statusbalk).
+opts: width, title, on_back, show_parent, extra (acties voor de statusbalk), right (knop rechts
+in de titelbalk, een ActionBar.Item; zie Widgets.header).
 Geeft de groep; .height, .status_bar en :setTitle(tekst) zoals bij Widgets.header.
 ]]
 function Widgets.pageHeader(opts)
@@ -320,6 +321,7 @@ function Widgets.pageHeader(opts)
         width = opts.width,
         title = opts.title,
         on_back = opts.on_back,
+        right = opts.right,
         show_parent = opts.show_parent,
     }
     local group = VerticalGroup:new{ align = "left", status_bar, title_bar }

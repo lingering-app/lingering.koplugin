@@ -4,7 +4,7 @@ tools/smoke.sh start KOReader in een eigen testmap (KO_HOME) tegen tools/mock_se
 LINGERING_TEST=setup   inloggen op de testserver (echte AccountService), daarna afsluiten
 LINGERING_TEST=reader  actiebalk → draaien → inhoudsopgave → sync-knop → springen → wegschrijven →
                        boek sluiten
-LINGERING_TEST=fm      homescreen (sync-knop) → Mijn boeken → eerste map → Instellingen → Taal →
+LINGERING_TEST=fm      homescreen (sync-knop) → Mijn boeken → eerste map (pagina's, zoeken) → Instellingen → Taal →
                        Woordenboek → Account → inloggen (goed/fout) → downloaden → update
 LINGERING_SHOTS=<map>  schermafdrukken
 Elke scène logt "Lingering: SMOKE <naam> OK"; fouten verschijnen als WARN/ERROR in de log.
@@ -257,6 +257,21 @@ function Smoke.filemanager(plugin)
             logger.info("Lingering: SMOKE pagina omslaan", state.turn_ms, "ms")
             lib:onSwipe(nil, { direction = "east" })
             assert(lib:current().page == 1, "niet terug naar pagina 1")
+        end },
+        -- Zoeken in de opgeslagen catalogus: "testboek 25" vindt 25, 125, 225 en 250–259.
+        { name = "zoeken", fn = function()
+            state.depth = #lib.stack
+            lib:showSearch("  Testboek 25 ")
+            assert(lib:current().search == "Testboek 25", "geen zoekresultaten geopend")
+            assert(#lib.entries == 13, "verwacht 13 resultaten, gevonden " .. #lib.entries)
+        end },
+        { name = "zoekresultaten getekend", wait = 1, fn = function()
+            shot("3c-search")
+            lib:showSearch("bestaat niet")
+            assert(#lib.stack == state.depth + 1, "nieuwe zoekopdracht stapelt in plaats van te vervangen")
+            assert(#lib.entries == 0, "resultaten voor iets dat niet bestaat")
+            lib:goBack()
+            assert(#lib.stack == state.depth and not lib:current().search, "terug gaat niet naar de map")
         end },
         { name = "navigatie: Mijn boeken opnieuw → begin", fn = function()
             lib:goToRoot()

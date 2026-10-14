@@ -8,6 +8,8 @@ links: volgende, naar rechts: vorige, zoals in een boek) of de pijltjes onderaan
   op deze pagina, de ontbrekende omslagen en de leestijd van alle apparaten
   (app/stats_service.lua). Verder haalt het scherm zelf niets op.
 - Mappen uit de catalogus openen met een terugknop; elke map wordt apart gecachet.
+- Zoeken (vergrootglas rechts in de titelbalk): op titel en auteur in alle opgeslagen mappen,
+  zonder wifi (Library:search); de resultaten als gewone tegels, met dezelfde pagina's.
 - Tik op een boek: staat het op het apparaat, dan openen; anders downloaden en openen.
 ]]
 local CenterContainer = require("ui/widget/container/centercontainer")
@@ -247,10 +249,20 @@ end
 -- Bovenkant: statusbalk (met de sync-knop) en titelbalk (terug, titel), Widgets.pageHeader.
 -- Eén keer gebouwd, zodat een draaiend sync-icoon blijft.
 function LibraryScreen:buildHeader()
+    local Item = require("lingering.ui.actionbar").Item
+    local bar_h = Screen:scaleBySize(Style.top_bar.height)
     self.header = Widgets.pageHeader{
         width = self.dimen.w,
         on_back = function() self:goBack() end,
         show_parent = self,
+        right = Item:new{
+            action = { name = "zoeken", icon_file = "search.svg" },
+            on_tap = function() self:askSearch() end,
+            width = bar_h,
+            height = bar_h,
+            icon_size = Screen:scaleBySize(Style.top_bar.icon_size),
+            show_parent = self,
+        },
         extra = {
             {
                 name = "mijn boeken synchroniseren",
@@ -294,8 +306,14 @@ function LibraryScreen:render(partial)
     local page_h = body_h - Grid.MARGIN
     -- Raster (ui/grid.lua): mappen in rijen van 2, boeken in rijen van 4, altijd dezelfde
     -- marges links en rechts.
-    local feed = self.library:cached(current.url)
-    local items = feed and feed.items
+    -- Zoekresultaten (current.search) of een map uit de catalogus.
+    local items
+    if current.search then
+        items = self.library:search(current.search)
+    else
+        local feed = self.library:cached(current.url)
+        items = feed and feed.items
+    end
 
     -- Maten bij een bepaalde breedte van het raster.
     local function sizes(content_w)
@@ -366,7 +384,7 @@ function LibraryScreen:render(partial)
         body = self:message(self.sync_item.busy and _("Bezig met synchroniseren…")
             or _("Nog niets gesynchroniseerd.\nZet wifi aan en tik op het sync-icoon."), width, body_h)
     elseif #items == 0 then
-        body = self:message(_("Geen boeken."), width, body_h)
+        body = self:message(current.search and _("Niets gevonden.") or _("Geen boeken."), width, body_h)
     else
         local grid_rows = {}
         for r = page.first, page.last do
@@ -480,6 +498,51 @@ function LibraryScreen:syncFolders(done)
     step()
 end
 
+--- Zoekvenster (toetsenbord van KOReader); "Zoeken" toont de resultaten.
+function LibraryScreen:askSearch()
+    local InputDialog = require("ui/widget/inputdialog")
+    local dialog
+    dialog = InputDialog:new{
+        title = _("Zoeken"),
+        input = self:current().search or "",
+        input_hint = _("Titel of auteur"),
+        buttons = { {
+            {
+                text = _("Annuleren"),
+                id = "close",
+                callback = function() UIManager:close(dialog) end,
+            },
+            {
+                text = _("Zoeken"),
+                id = "search",
+                is_enter_default = true,
+                callback = function()
+                    local query = dialog:getInputText()
+                    UIManager:close(dialog)
+                    Widgets.safeCall("zoeken", function() self:showSearch(query) end)
+                end,
+            },
+        } },
+    }
+    require("lingering.koreader.dialogs").plainDialog(dialog, "search")
+    UIManager:show(dialog)
+    dialog:onShowKeyboard()
+end
+
+--- Resultaten tonen; een nieuwe zoekopdracht vervangt de vorige (terug gaat naar waar je was).
+function LibraryScreen:showSearch(query)
+    query = (query or ""):match("^%s*(.-)%s*$")
+    if query == "" then return end
+    logger.info("Lingering: mijn boeken, zoeken")
+    local entry = { search = query, title = T(_("Zoeken: %1"), query) }
+    if self:current().search then
+        self.stack[#self.stack] = entry
+    else
+        table.insert(self.stack, entry)
+    end
+    self:render()
+end
+
 function LibraryScreen:goBack()
     if #self.stack > 1 then
         table.remove(self.stack)
@@ -510,7 +573,8 @@ end
 -- omslagen en de leestijd. Het icoon draait tot alles klaar is; of de leestijd lukt, telt niet
 -- mee voor het icoon (zonder stats-API op de server werkt Mijn boeken gewoon).
 function LibraryScreen:syncCurrent(done)
-    local url = self:current().url
+    -- In zoekresultaten: de hele catalogus vanaf het begin (daarna kloppen de resultaten weer).
+    local url = self:current().url or self.library:rootUrl()
     self.sync_status = require("lingering.ui.sync_status").new{
         anchor = function() return self.sync_item.dimen end,
         gap = self.header.status_bar.popover_gap,

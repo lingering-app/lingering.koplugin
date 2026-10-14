@@ -48,7 +48,7 @@ algemene bibliotheken; `ui/`, `app/` en `main.lua` gebruiken geen `G_reader_sett
 | `app/update_service.lua` | zelf-update: zoeken, installeren (alleen tags), restanten opruimen bij de volgende start |
 | `domain/release.lua` | versies lezen/vergelijken, nieuwste tag, welke paden bij de plugin horen |
 | `ui/*.lua` | homescreen (blokken met stapels omslagen voor de mappen in `config.collections`; tik opent die map in Mijn boeken), Mijn boeken, Instellingen, Over Lingering (met update-knop, `ui/update_flow.lua`), inlogscherm, leesscherm, actiebalk, `book_opener.lua` (openen of downloaden-en-openen), gedeelde widgets |
-| `icons/` | iconen uit [Material Symbols](https://fonts.google.com/icons) Outlined, gewicht 300 (`@material-symbols/svg-300` v0.48.0, Apache-2.0, `icons/LICENSE-material-symbols.txt`), ongewijzigd (uitzondering: `more_vert.svg` uit `svg-700`, dikgedrukt; `close.svg` toegevoegd voor een mislukte sync-stap, `keyboard_double_arrow_left/right.svg` voor « » in Mijn boeken); `sync-<hoek>.svg` zijn kopieën, tegen de klok in gedraaid (zoals de pijlen van `sync`), voor de sync-animatie. Gekozen omdat het als enige open set alle iconen heeft (ook `mobile_rotate`/`mobile_rotate_lock`) |
+| `icons/` | iconen uit [Material Symbols](https://fonts.google.com/icons) Outlined, gewicht 300 (`@material-symbols/svg-300` v0.48.0, Apache-2.0, `icons/LICENSE-material-symbols.txt`), ongewijzigd (uitzondering: `more_vert.svg` uit `svg-700`, dikgedrukt; `close.svg` toegevoegd voor een mislukte sync-stap, `keyboard_double_arrow_left/right.svg` voor « » en `search.svg` in Mijn boeken); `sync-<hoek>.svg` zijn kopieën, tegen de klok in gedraaid (zoals de pijlen van `sync`), voor de sync-animatie. Gekozen omdat het als enige open set alle iconen heeft (ook `mobile_rotate`/`mobile_rotate_lock`) |
 | `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
 | `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |
 | `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
@@ -362,6 +362,11 @@ Raster:
   pijltjes en paginanummer ("‹ 3 / 25 ›"); geen balk rechts (leek op een schuifbalk). Vroeger een
   `ScrollableContainer` die alle tegels bouwde, ook bij honderden boeken.
 - Testserver: "Al mijn boeken" heeft 300 boeken, de feed in delen van 50 (`rel="next"`).
+- Zoeken (vergrootglas rechts in de titelbalk van Mijn boeken): `InputDialog` (kaal via
+  `koreader/dialogs.plainDialog`), dan `Library:search` over alle opgeslagen mappen
+  (`domain/search.lua`: alle woorden in titel of auteur, zonder hoofdletters/accenten, elk boek
+  één keer, natuurlijke volgorde). Zonder wifi; vindt alleen wat bij de laatste sync binnenkwam.
+  Resultaten zijn een eigen stap op de stapel (terug = waar je was); sync daar = vanaf het begin.
 - Mappen zijn overal `ui/folder_tile.lua`: waaier van tot 4 omslagen over de kolombreedte
   (achterste steeds 88%), naam en grijs het aantal boeken, links uitgelijnd.
 
