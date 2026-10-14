@@ -8,6 +8,7 @@ StatsService.refresh(fm, done) → versturen wat nog niet (zeker) op de server s
     Hooguit eens per tien minuten, alleen met verbinding; een server zonder deze API (404) een
     dag niet. Mislukt er iets, dan blijft alles zoals het was (geen melding): de volgende keer
     gaan dezelfde totalen gewoon opnieuw.
+Nog nergens aangeroepen: wanneer er gesynct wordt, is nog niet gekozen.
 Bewaard in lingering.lua: lingering_stats_server (som per dag), lingering_stats_pushed (datum
 van de laatste geslaagde verzending), lingering_stats_state (pogingen).
 ]]

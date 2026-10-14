@@ -763,12 +763,6 @@ function HomeScreen:show()
     UIManager:show(self, "full")
     UIManager:scheduleIn(1, function()
         Widgets.safeCall("mappen verversen", function() self:refreshCollections() end)
-        -- Leestijd van alle apparaten: versturen en de som ophalen; anders alleen de rij opnieuw.
-        Widgets.safeCall("leestijd delen", function()
-            require("lingering.app.stats_service").refresh(self.fm, function(changed)
-                if changed then self:reloadBooks() end
-            end)
-        end)
         -- Gelezen op de website → hier ook gelezen (verdwijnt uit de rij).
         Widgets.safeCall("gelezen bijwerken", function()
             if not (self.library and self.library.syncFinished) then return end
