@@ -364,9 +364,9 @@ Sync en gelezen boeken:
   ("Gelezen"): de sync-knop van het homescreen roept `Library:syncFinished` aan; elk
   gedownload boek uit die map dat lokaal nog "aan het lezen" is, gaat op uit
   (`koreader/books.markFinished`) en verdwijnt uit de rij.
-- Sync-knop in het boek: dezelfde lijst onder de knop (Verbinden, Stand ophalen, en dan
-  "Naar x% springen", "Stand opslaan" of "Al gelijk"); stappen via `SyncService.syncNow`
-  `on_step`. Geen InfoMessage meer bij mislukken: de lijst toont de reden.
+- Sync-knop in het boek: dezelfde lijst onder de knop (Verbinden, Stand ophalen, Stand
+  bijwerken; die laatste ook als er niets veranderde: voor de gebruiker is het gewoon
+  synchroniseren); stappen via `SyncService.syncNow` `on_step`. Geen InfoMessage meer bij mislukken: de lijst toont de reden.
 - Homescreen en Mijn boeken halen zelf niets op: alleen hun sync-knop (statusbalk, zet zo nodig
   wifi aan). Homescreen: hoofdpagina + `config.collections` met eerste omslagen, "Gelezen",
   leestijd (`app/stats_service.lua`). Mijn boeken: huidige map, mappen op de pagina, omslagen,

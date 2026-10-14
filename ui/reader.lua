@@ -15,11 +15,12 @@ local Reader = {}
 
 --[[--
 Sync-knop in het boek: voortgang als lijst onder de knop (ui/sync_status.lua), zoals op het
-homescreen. Stappen uit SyncService.syncNow (on_step); de laatste regel zegt wat er gebeurde.
+homescreen. Stappen uit SyncService.syncNow (on_step). De laatste regel is altijd "Stand
+bijwerken", of er nu gesprongen, opgeslagen of niets veranderd wordt: voor de gebruiker is
+het gewoon synchroniseren.
 Geeft run(done, item) voor de taak in de actiebalk.
 ]]
 local function syncWithProgress(ui)
-    local T = require("ffi/util").template
     return function(done, item)
         local status = require("lingering.ui.sync_status").new{
             anchor = function() return item.dimen end,
@@ -28,7 +29,6 @@ local function syncWithProgress(ui)
                 { id = "fetch", label = _("Stand ophalen") },
                 { id = "apply", label = _("Stand bijwerken") },
             },
-            widest = { T(_("Naar %1% springen"), 100), _("Stand opslaan"), _("Al gelijk") },
         }
         -- Waarom het misging, naar de stap waar het misging.
         local reasons = {
@@ -37,7 +37,7 @@ local function syncWithProgress(ui)
             apply = _("Opslaan mislukt"),
         }
         local current = "connect"
-        local function on_step(step, info)
+        local function on_step(step)
             if step == "no_account" then
                 reasons.connect = _("Niet ingelogd")
                 return
@@ -46,15 +46,9 @@ local function syncWithProgress(ui)
                 status:start(step)
                 return
             end
+            -- "jump", "push" of "none": allemaal gewoon de stand bijwerken.
             current = "apply"
-            if step == "jump" then
-                local percent = math.floor((tonumber(info and info.percent) or 0) * 100 + 0.5)
-                status:start("apply", T(_("Naar %1% springen"), percent))
-            elseif step == "push" then
-                status:start("apply", _("Stand opslaan"))
-            else
-                status:start("apply", _("Al gelijk"))
-            end
+            status:start("apply")
         end
         logger.info("Lingering: actiebalk, synchroniseren")
         SyncService.syncNow(ui, function(ok)
