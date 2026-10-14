@@ -2,7 +2,8 @@
 Mijn boeken: de OPDS-catalogus als raster met omslagen, verticaal te schuiven.
 
 - Toont meteen de gecachete versie (ook zonder wifi).
-- Met wifi: synchroniseert op de achtergrond (sync-icoon draait); handmatig via het icoon.
+- Synchroniseren alleen met de sync-knop (zet zo nodig wifi aan): de huidige map, de mappen
+  op deze pagina en de ontbrekende omslagen. Verder haalt het scherm zelf niets op.
 - Mappen uit de catalogus openen met een terugknop; elke map wordt apart gecachet.
 - Tik op een boek: staat het op het apparaat, dan openen; anders downloaden en openen.
 ]]
@@ -157,7 +158,6 @@ function LibraryScreen:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = width, h = height }
     -- Start in een map (bijv. vanaf een blok op het homescreen); terug sluit dan het scherm.
     self.stack = { self.start or { url = self.library:rootUrl(), title = _("Mijn boeken") } }
-    self.synced = {}
     self.cover_failed = {}
 
     self:buildHeader()
@@ -372,35 +372,20 @@ function LibraryScreen:render(partial)
     else
         UIManager:setDirty(self, "ui")
     end
-    self:queueCovers()
-    self:prefetchFolders()
 end
 
 --[[--
-Met verbinding: mappen op dit scherm die nog niet in de cache staan op de achtergrond laden,
-plus de eerste omslagen erin, zodat de mapstapels getekend kunnen worden. Eén keer per map.
+Sync-knop, na de huidige map: de mappen op deze pagina opnieuw ophalen, plus hun eerste
+omslagen (in de achtergrond), zodat de mapstapels en aantallen kloppen. done() als het klaar is.
 ]]
-function LibraryScreen:prefetchFolders()
-    if self.closed or self.prefetching or not Network.isOnline() then return end
-    self.prefetched = self.prefetched or {}
+function LibraryScreen:syncFolders(done)
     local todo = {}
     for _, entry in ipairs(self.page_entries or {}) do
-        if entry.kind == "folder" and not self.prefetched[entry.url] then
-            table.insert(todo, entry.url)
-        end
+        if entry.kind == "folder" then table.insert(todo, entry.url) end
     end
-    if #todo == 0 then return end
-    self.prefetching = true
-    local changed = false
+    if #todo == 0 then return done() end
     local index = 0
     local wanted = {}
-    local function finish()
-        -- Omslagen van de mappen in de achtergrond; daarna één keer verversen.
-        self.library:fetchCoversAsync(wanted, function(fetched)
-            self.prefetching = false
-            if (changed or fetched > 0) and not self.closed then self:render(true) end
-        end)
-    end
     local function covers_of(url)
         local feed = self.library:cached(url)
         local count = 0
@@ -413,25 +398,22 @@ function LibraryScreen:prefetchFolders()
         end
     end
     local function step()
-        if self.closed then self.prefetching = false return end
+        if self.closed then return done() end
         index = index + 1
         local url = todo[index]
-        if not url then return finish() end
-        self.prefetched[url] = true
-        if self.library:cached(url) then
-            covers_of(url)
-            UIManager:scheduleIn(0.05, step)
-        else
-            self.library:sync(url, function(ok)
-                if ok then
-                    changed = true
-                    covers_of(url)
-                end
-                UIManager:scheduleIn(0.05, step)
+        if not url then
+            -- Omslagen van de mappen in de achtergrond; daarna één keer verversen.
+            return self.library:fetchCoversAsync(wanted, function()
+                if not self.closed then self:render(true) end
+                done()
             end)
         end
+        self.library:sync(url, function()
+            covers_of(url)
+            UIManager:scheduleIn(0.05, step)
+        end)
     end
-    UIManager:scheduleIn(0.2, step)
+    step()
 end
 
 function LibraryScreen:goBack()
@@ -447,7 +429,6 @@ function LibraryScreen:openEntry(entry)
     if entry.kind == "folder" then
         table.insert(self.stack, { url = entry.url, title = entry.title })
         self:render()
-        self:autoSync()
     else
         BookOpener.open(self.library, entry, function(path) self:openBook(path) end)
     end
@@ -461,14 +442,18 @@ function LibraryScreen:openBook(path)
     end
 end
 
--- Synchroniseert de huidige map. Wordt aangeroepen door de sync-taak (draaiend icoon).
+-- Sync-knop (draaiend icoon): de huidige map, dan de mappen op deze pagina, dan de ontbrekende
+-- omslagen. Het icoon draait tot alles klaar is.
 function LibraryScreen:syncCurrent(done)
     local url = self:current().url
     local started = Network.turnOnWifiThen(function()
         self.library:sync(url, function(ok)
-            if ok then self.synced[url] = true end
-            if not self.closed then self:render(true) end
-            done(ok)
+            if self.closed then return done(ok) end
+            self:render(true)
+            if not ok then return done(false) end
+            self:syncFolders(function()
+                self:queueCovers(function() done(true) end)
+            end)
         end)
     end)
     if not started then done(false) end
@@ -477,25 +462,10 @@ function LibraryScreen:syncCurrent(done)
     end
 end
 
--- Met wifi aan: deze map één keer per bezoek aan het scherm op de achtergrond verversen.
--- Hoe oud de cache van een map mag zijn voordat openen hem opnieuw ophaalt (seconden). De
--- sync-knop haalt altijd op.
-local AUTO_SYNC_AFTER = 3600
-
-function LibraryScreen:autoSync()
-    local url = self:current().url
-    local feed = self.library:cached(url)
-    local fresh = feed and feed.fetched and os.time() - feed.fetched < AUTO_SYNC_AFTER
-    if not self.synced[url] and not fresh and Network.isOnline() then
-        self.sync_item:startTask()
-    end
-end
-
--- Ontbrekende omslagen ophalen, één per tik; per zes (en aan het eind) één verversing.
--- Ontbrekende omslagen van deze pagina in de achtergrond ophalen (subproces, zie
--- Library:fetchCoversAsync); als ze binnen zijn één keer het raster verversen.
-function LibraryScreen:queueCovers()
-    if self.closed or self.covers_loading or not Network.isOnline() then return end
+-- Sync-knop: ontbrekende omslagen van deze pagina in de achtergrond ophalen (subproces, zie
+-- Library:fetchCoversAsync); als ze binnen zijn één keer het raster verversen. done() daarna.
+function LibraryScreen:queueCovers(done)
+    if self.closed or self.covers_loading then return done() end
     local missing = {}
     for _, entry in ipairs(self.page_entries or {}) do
         local url = entry.thumbnail
@@ -503,7 +473,7 @@ function LibraryScreen:queueCovers()
             table.insert(missing, url)
         end
     end
-    if #missing == 0 then return end
+    if #missing == 0 then return done() end
     self.covers_loading = true
     self.library:fetchCoversAsync(missing, function(fetched)
         self.covers_loading = false
@@ -512,6 +482,7 @@ function LibraryScreen:queueCovers()
             if not self.library:hasCover(url) then self.cover_failed[url] = true end
         end
         if fetched > 0 and not self.closed then self:render(true) end
+        done()
     end)
 end
 
@@ -526,9 +497,6 @@ end
 
 function LibraryScreen:show()
     UIManager:show(self, "full")
-    UIManager:scheduleIn(0.5, function()
-        Widgets.safeCall("automatisch synchroniseren", function() self:autoSync() end)
-    end)
 end
 
 function LibraryScreen:close()

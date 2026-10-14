@@ -172,6 +172,19 @@ function Smoke.filemanager(plugin)
         end },
         { name = "mijn boeken getekend", wait = 2, fn = function()
             assert(lib.page_entries and #lib.page_entries > 0, "geen items in Mijn boeken")
+            -- Synchroniseren alleen met de knop: het scherm haalt zelf niets op.
+            assert(not lib.sync_item.busy, "Mijn boeken synchroniseert uit zichzelf")
+            lib.sync_item:startTask()
+            assert(lib.sync_item.busy, "sync-knop start niet")
+        end },
+        { name = "mijn boeken gesynchroniseerd", wait = 6, fn = function()
+            assert(not lib.sync_item.busy, "sync-knop nog bezig")
+            local Library = require("lingering.app.library_service")
+            for _, entry in ipairs(lib.page_entries) do
+                if entry.kind == "folder" then
+                    assert(Library:cached(entry.url), "map niet opgehaald: " .. tostring(entry.title))
+                end
+            end
             shot("2-library")
         end },
         { name = "stapel omslagen", fn = function()
@@ -606,13 +619,18 @@ function Smoke.shotsHome(plugin)
                 state.menu:dismiss()
             end
         end },
-        { name = "mijn boeken", fn = function() plugin:nav().library() end },
+        { name = "mijn boeken", fn = function()
+            plugin:nav().library()
+            plugin.screens[1].sync_item:startTask()
+        end },
         { name = "mijn boeken vastgelegd", wait = 10, fn = function()
             shot("mijn-boeken")
             local lib = plugin.screens[1]
             for _, entry in ipairs(lib.page_entries or {}) do
                 if entry.kind == "folder" and entry.title == "Al mijn boeken" then
                     lib:openEntry(entry)
+                    -- Omslagen komen alleen met de sync-knop.
+                    lib.sync_item:startTask()
                     break
                 end
             end

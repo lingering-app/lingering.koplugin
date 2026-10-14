@@ -376,11 +376,11 @@ Snelheid van Mijn boeken:
 - Omslagen worden in de achtergrond gedownload: `koreader/opds.fetchCoversInBackground`
   (subproces via `ffi/util` `runInSubProcess`, zoals CoverBrowser; het hoofdproces kijkt elke
   0,5 s met `isSubProcessDone`, stopt na 120 s). `Library:fetchCoversAsync` gebruikt dat voor
-  Mijn boeken (zichtbare omslagen en mappen vooraf) en de mapblokken op het homescreen;
+  Mijn boeken (na de sync-knop) en de mapblokken op het homescreen;
   lukt starten niet, dan één voor één.
-- Openen haalt een map pas opnieuw op als de cache ouder is dan een uur (`AUTO_SYNC_AFTER`);
-  de sync-knop haalt altijd op. KOReaders OPDS-functies blokkeren het scherm tijdens het
-  ophalen, dus minder ophalen = minder "bevroren" momenten.
+- Mijn boeken haalt zelf niets op: alleen de sync-knop (zet zo nodig wifi aan) haalt de huidige
+  map, de mappen op de pagina en de ontbrekende omslagen op; het icoon draait tot alles klaar is.
+  KOReaders OPDS-functies blokkeren het scherm tijdens het ophalen.
 
 Boekmenu:
 - Op het homescreen heeft elk boek (rij en grote kaart) rechts een grijze "⋮"-knop (Material more_vert) met een
@@ -499,7 +499,7 @@ Getest tegen een echte server: gelijk → niets; 5 pagina's verder → wegschrij
   zonder omslag), collecties in 2 kolommen met naam, getekend als stapel van tot drie
   omslagen uit die map (`Widgets.coverStack`, herbruikbaar; `Widgets.stackSize` /
   `stackCoverSize`). Ongeladen mappen worden met wifi op de achtergrond geladen
-  (`LibraryScreen:prefetchFolders`, één keer per map); lege mappen: klein mapicoon.
+  (`LibraryScreen:syncFolders`, alleen met de sync-knop); lege mappen: klein mapicoon.
 
 ## Tekenen en vangnetten
 
