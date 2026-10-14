@@ -55,7 +55,8 @@ function StatsService.refresh(fm, done)
     end
     Session:save("lingering_stats_pushed", today)
 
-    local code, days = Kosync.fetchStats()
+    local code, body = Kosync.fetchStats()
+    local days = code == 200 and StatsSync.parseSummary(body) or nil
     Session:save("lingering_stats_state", StatsSync.afterTry(now, code))
     if code ~= 200 or not days then
         logger.info("Lingering: leestijd ophalen mislukt, status", tostring(code))

@@ -10,6 +10,8 @@ StatsSync.pending(days, since) → { { date, seconds }, ... }, nieuwste eerst
     verzending (die dag zelf gaat opnieuw mee, want hij kan sindsdien gegroeid zijn) of nil (alles).
 StatsSync.chunks(list, size) → lijst van lijsten van hooguit size (de server neemt er 20 per keer)
 StatsSync.merge(local_days, server_days) → per dag het hoogste van de twee
+StatsSync.parseSummary(body) → { ["2026-10-14"] = seconden } uit het antwoord van de server, of nil
+    als het geen bruikbaar antwoord is; rijen met een ongeldige datum of seconden vallen weg.
 StatsSync.shouldTry(now, state) → true als er weer geprobeerd mag worden
     state: { last_try, blocked_until } (seconden)
 StatsSync.afterTry(now, status) → nieuwe state na een poging (status: HTTP-code of nil)
@@ -51,6 +53,19 @@ function StatsSync.merge(local_days, server_days)
         if seconds > (merged[date] or 0) then merged[date] = seconds end
     end
     return merged
+end
+
+function StatsSync.parseSummary(body)
+    if type(body) ~= "table" or type(body.daily) ~= "table" then return nil end
+    local days = {}
+    for _, row in ipairs(body.daily) do
+        local seconds = type(row) == "table" and tonumber(row.seconds)
+        if seconds and seconds >= 0 and type(row.date) == "string"
+                and row.date:match("^%d%d%d%d%-%d%d%-%d%d$") then
+            days[row.date] = seconds
+        end
+    end
+    return days
 end
 
 function StatsSync.shouldTry(now, state)

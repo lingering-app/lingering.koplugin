@@ -114,7 +114,13 @@ end
 function Fakes.kosync.fetchStats()
     Fakes.calls.fetches = (Fakes.calls.fetches or 0) + 1
     local code = Fakes.state.fetch_code
-    return code, code == 200 and Fakes.state.server_days or nil
+    if code ~= 200 then return code end
+    if Fakes.state.summary_body then return code, Fakes.state.summary_body end
+    local daily = {}
+    for date, seconds in pairs(Fakes.state.server_days or {}) do
+        table.insert(daily, { date = date, seconds = seconds })
+    end
+    return code, { daily = daily }
 end
 
 function Fakes.reset()

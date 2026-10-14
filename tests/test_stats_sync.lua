@@ -47,3 +47,29 @@ function TestStatsSync:test_onbereikbaar_gewoon_na_interval()
     local state = StatsSync.afterTry(1000, nil)
     lu.assertTrue(StatsSync.shouldTry(1000 + StatsSync.INTERVAL, state))
 end
+
+function TestStatsSync:test_antwoord_omzetten()
+    local days = StatsSync.parseSummary({ daily = {
+        { date = "2026-10-13", seconds = 1080, minutes = 18 },
+        { date = "2026-10-14", seconds = 960.5 },
+    } })
+    lu.assertEquals(days, { ["2026-10-13"] = 1080, ["2026-10-14"] = 960.5 })
+end
+
+function TestStatsSync:test_antwoord_ongeldige_rijen_vallen_weg()
+    local days = StatsSync.parseSummary({ daily = {
+        { date = "14-10-2026", seconds = 60 },
+        { date = "2026-10-14", seconds = "veel" },
+        { date = "2026-10-12", seconds = -5 },
+        "geen rij",
+        { date = "2026-10-11", seconds = 30 },
+    } })
+    lu.assertEquals(days, { ["2026-10-11"] = 30 })
+end
+
+function TestStatsSync:test_antwoord_onbruikbaar()
+    lu.assertNil(StatsSync.parseSummary(nil))
+    lu.assertNil(StatsSync.parseSummary({}))
+    lu.assertNil(StatsSync.parseSummary({ daily = "geen lijst" }))
+    lu.assertEquals(StatsSync.parseSummary({ daily = {} }), {})
+end

@@ -108,3 +108,10 @@ function TestStatsService:test_reset_na_ander_account()
     lu.assertNil(Session:read("lingering_stats_server"))
     lu.assertNil(Session:read("lingering_stats_pushed"))
 end
+
+function TestStatsService:test_onbruikbaar_antwoord_houdt_oude_som()
+    Session:save("lingering_stats_server", { [TODAY] = 600 })
+    Fakes.state.summary_body = { iets = "anders" }
+    lu.assertFalse(refresh())
+    lu.assertEquals(Session:read("lingering_stats_server"), { [TODAY] = 600 })
+end

@@ -300,20 +300,14 @@ end
 
 --[[--
 Leestijd van alle apparaten samen: GET /api/v1/stats/summary → { daily = { { date, seconds } } }.
-Geeft de HTTP-code (of nil) en { ["2026-10-14"] = seconden, ... } bij 200.
+Geeft de HTTP-code (of nil) en bij 200 het gedecodeerde antwoord (of nil als het geen JSON
+was); controleren en omzetten: StatsSync.parseSummary.
 ]]
 function M.fetchStats()
     local ok, code, days = try("fetchStats", function()
         local code, body = statsRequest("GET", "/api/v1/stats/summary")
-        if code ~= 200 or not body then return code end
-        local days = {}
-        for _, row in ipairs(type(body.daily) == "table" and body.daily or {}) do
-            local seconds = tonumber(row.seconds)
-            if type(row.date) == "string" and row.date:match("^%d%d%d%d%-%d%d%-%d%d$") and seconds then
-                days[row.date] = seconds
-            end
-        end
-        return code, days
+        if code ~= 200 then return code end
+        return code, body
     end)
     if not ok then return nil end
     return code, days
