@@ -377,6 +377,8 @@ function HomeScreen:buildStatus(width)
         width = width,
         show_parent = self,
         title = "Lingering",
+        -- Geen lijn onder de balk (anders dan in het boek): kaders direct eronder.
+        popover_gap = -Size.padding.large,
         extra = {
             {
                 name = "homescreen synchroniseren",
@@ -713,7 +715,8 @@ opnieuw opgebouwd (dat maakt ook de statusbalk, en dus het draaiende icoon, opni
 Of de leestijd lukt, telt niet mee (zonder stats-API op de server werkt de rest gewoon).
 ]]
 function HomeScreen:syncAll(done)
-    local progress = require("lingering.ui.sync_status").new(function() return self.sync_item.dimen end)
+    local progress = require("lingering.ui.sync_status").new(function() return self.sync_item.dimen end,
+        self.status_bar.popover_gap)
     self.sync_status = progress
     local function show(...)
         if not self.closed then progress:show(...) end

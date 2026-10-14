@@ -10,6 +10,9 @@ StatusBar:new{
     title = "Lingering",          -- of nil
     left = { actie, ... },        -- in plaats van de titel (optioneel)
     extra = { actie, ... },       -- rechts vóór licht en wifi (optioneel)
+    popover_gap = 0,              -- ruimte tussen balk en kaders (batterij, licht, sync);
+                                  -- nil = standaard van ui/popover.lua (in het boek, vrij van
+                                  -- de lijn onder de actiebalk)
 }
 Acties zoals ActionBar.Item ze kent (knop met callback, schakelaar, taak).
 Werkt zichzelf bij op Resume, netwerk-events, Charging/NotCharging en FrontlightStateChanged.
@@ -44,6 +47,7 @@ Batterij-icoon met een eigen tikvlak: een tik toont het percentage (en "Laadt op
 klein kader eronder (ui/popover.lua).
 ]]
 local BatteryButton = InputContainer:extend{
+    popover_gap = nil,
     percent = nil,
     charging = nil,
     width = nil,
@@ -68,7 +72,7 @@ function BatteryButton:onTapBattery()
         table.insert(lines, { text = _("Laadt op"), gray = true })
     end
     Widgets.safeCall("batterij", function()
-        require("lingering.ui.popover"):new{ anchor = self.dimen, lines = lines }:show()
+        require("lingering.ui.popover"):new{ anchor = self.dimen, lines = lines, gap = self.popover_gap }:show()
     end)
     return true
 end
@@ -79,6 +83,7 @@ local StatusBar = WidgetContainer:extend{
     title = nil,
     left = nil,
     extra = nil,
+    popover_gap = nil,
 }
 
 function StatusBar:init()
@@ -186,6 +191,7 @@ function StatusBar:showBrightness(light_item)
     logger.info("Lingering: statusbalk, helderheid")
     require("lingering.ui.popover"):new{
         anchor = light_item.dimen,
+        gap = self.popover_gap,
         content = function(popover)
             return require("lingering.ui.slider"):new{
                 width = Screen:scaleBySize(280),
@@ -209,6 +215,7 @@ function StatusBar:updateTexts()
     -- Alleen het icoon (9 standen, zie Widgets.battery), geen percentage.
     if battery then
         self.right[s + 1] = BatteryButton:new{
+            popover_gap = self.popover_gap,
             percent = battery,
             charging = DeviceAdapter.isCharging(),
             width = self.item_w,

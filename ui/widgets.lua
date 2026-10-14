@@ -313,6 +313,8 @@ function Widgets.pageHeader(opts)
         show_parent = opts.show_parent,
         title = "Lingering",
         extra = opts.extra,
+        -- Geen lijn onder de balk (anders dan in het boek): kaders direct eronder.
+        popover_gap = -Size.padding.large,
     }
     local title_bar = Widgets.header{
         width = opts.width,

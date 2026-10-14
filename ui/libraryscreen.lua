@@ -456,7 +456,8 @@ end
 -- mee voor het icoon (zonder stats-API op de server werkt Mijn boeken gewoon).
 function LibraryScreen:syncCurrent(done)
     local url = self:current().url
-    self.sync_status = require("lingering.ui.sync_status").new(function() return self.sync_item.dimen end)
+    self.sync_status = require("lingering.ui.sync_status").new(function() return self.sync_item.dimen end,
+        self.header.status_bar.popover_gap)
     local function finish(ok, reason)
         if ok then
             self:syncStatus(_("Klaar"), nil, true)

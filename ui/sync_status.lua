@@ -2,7 +2,7 @@
 Voortgang van een sync-knop in een kader eronder (ui/popover.lua), zoals het batterij-kader:
 tekst vet, detail grijs eronder. Gebruikt door Mijn boeken en het homescreen.
 
-local status = SyncStatus.new(function() return sync_item.dimen end)
+local status = SyncStatus.new(function() return sync_item.dimen end, gap)  -- gap: zie Popover
 status:show(_("Boeken ophalen…"))
 status:show(_("Synchroniseren mislukt"), _("Geen verbinding"), true) -- finished: sluit na 3 s
 Sloot je het kader met een tik, dan komt het tijdens deze sync niet terug (de sync loopt door).
@@ -12,8 +12,8 @@ SyncStatus.__index = SyncStatus
 
 local CLOSE_AFTER = 3
 
-function SyncStatus.new(anchor)
-    return setmetatable({ anchor = anchor }, SyncStatus)
+function SyncStatus.new(anchor, gap)
+    return setmetatable({ anchor = anchor, gap = gap }, SyncStatus)
 end
 
 function SyncStatus:show(text, detail, finished)
@@ -24,7 +24,9 @@ function SyncStatus:show(text, detail, finished)
     if popover then
         popover:setLines(lines)
     else
-        popover = require("lingering.ui.popover"):new{ anchor = self.anchor(), lines = lines, stay = true }
+        popover = require("lingering.ui.popover"):new{
+            anchor = self.anchor(), gap = self.gap, lines = lines, stay = true,
+        }
         popover:show()
         self.popover = popover
     end
