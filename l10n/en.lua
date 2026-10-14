@@ -35,10 +35,9 @@ return {
     -- Mijn boeken
     ["Bezig met synchroniseren…"] = "Syncing…",
     ["Verbinden…"] = "Connecting…",
-    ["Map ophalen…"] = "Fetching folder…",
-    ["Mappen ophalen (%1 van %2)…"] = "Fetching folders (%1 of %2)…",
+    ["Boeken ophalen…"] = "Fetching books…",
+    ["Boeken ophalen (%1 van %2)…"] = "Fetching books (%1 of %2)…",
     ["Omslagen ophalen…"] = "Fetching covers…",
-    ["Mappen ophalen…"] = "Fetching folders…",
     ["Gelezen bijwerken…"] = "Updating finished books…",
     ["Leestijd delen…"] = "Sharing reading time…",
     ["Klaar"] = "Done",

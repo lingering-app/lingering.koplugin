@@ -3,7 +3,7 @@ Voortgang van een sync-knop in een kader eronder (ui/popover.lua), zoals het bat
 tekst vet, detail grijs eronder. Gebruikt door Mijn boeken en het homescreen.
 
 local status = SyncStatus.new(function() return sync_item.dimen end)
-status:show(_("Map ophalen…"))
+status:show(_("Boeken ophalen…"))
 status:show(_("Synchroniseren mislukt"), _("Geen verbinding"), true) -- finished: sluit na 3 s
 Sloot je het kader met een tik, dan komt het tijdens deze sync niet terug (de sync loopt door).
 ]]

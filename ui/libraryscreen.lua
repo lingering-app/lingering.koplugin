@@ -412,7 +412,7 @@ function LibraryScreen:syncFolders(done)
                 done()
             end)
         end
-        self:syncStatus(T(_("Mappen ophalen (%1 van %2)…"), index, #todo))
+        self:syncStatus(T(_("Boeken ophalen (%1 van %2)…"), index, #todo))
         -- Eerst het kader tekenen: ophalen blokkeert het scherm.
         UIManager:scheduleIn(0.05, function()
             if self.closed then return done() end
@@ -467,7 +467,7 @@ function LibraryScreen:syncCurrent(done)
     end
     self:syncStatus(_("Verbinden…"))
     local started = Network.turnOnWifiThen(function()
-        self:syncStatus(_("Map ophalen…"))
+        self:syncStatus(_("Boeken ophalen…"))
         -- Eerst het kader tekenen: ophalen blokkeert het scherm.
         UIManager:scheduleIn(0.05, function()
             self.library:sync(url, function(ok)

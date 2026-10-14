@@ -732,7 +732,7 @@ function HomeScreen:syncAll(done)
     end
     show(_("Verbinden…"))
     local started = Network.turnOnWifiThen(function()
-        show(_("Mappen ophalen…"))
+        show(_("Boeken ophalen…"))
         after_paint(function()
             if not (self.library and self.collections) then return finish(true) end
             self.library:refreshCollections(self.collections, function()
