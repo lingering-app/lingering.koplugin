@@ -13,15 +13,24 @@ de invoervelden houden hun rand. Leunt op MultiInputDialog:init
 (frontend/ui/widget/multiinputdialog.lua): dialog_frame (FrameContainer) met als eerste
 element een VerticalGroup waarvan [1] de title_bar is. Faalt het, dan blijft het venster
 zoals KOReader het maakt.
+opts.border = { size, color, radius }: wel een rand om het venster (bijv. het zoekvenster, dat
+anders los in het scherm hangt).
 ]]
-function M.plainDialog(dialog, framed_button_id)
+function M.plainDialog(dialog, framed_button_id, opts)
     return try("plainDialog", function()
         local Blitbuffer = require("ffi/blitbuffer")
         local Size = require("ui/size")
         local frame = assert(dialog.dialog_frame, "dialog_frame ontbreekt")
         local group = assert(frame[1], "inhoud ontbreekt")
-        frame.bordersize = 0
-        frame.radius = 0
+        local border = opts and opts.border
+        if border then
+            frame.bordersize = border.size
+            frame.color = border.color
+            frame.radius = border.radius or 0
+        else
+            frame.bordersize = 0
+            frame.radius = 0
+        end
         if group[1] == dialog.title_bar then
             table.remove(group, 1)
         end
