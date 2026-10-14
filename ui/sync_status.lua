@@ -1,7 +1,9 @@
 --[[--
 Voortgang van een sync-knop als lijst in een kader eronder (ui/popover.lua): alle stappen staan
-er vanaf het begin, dus het kader springt niet. Klaar: vinkje en lichtgrijs; bezig: pijltje,
-donker, met "…"; nog te doen: grijs zonder teken; mislukt: kruisje, met de reden eronder.
+er vanaf het begin, dus het kader springt niet. Klaar: vinkje, donker; bezig: pijltje, donker,
+met "…"; nog te doen: grijs zonder teken; mislukt: kruisje, met de reden eronder.
+Elke wijziging wordt meteen getekend (forceRePaint): stappen kunnen direct na elkaar lopen
+zonder dat KOReader ertussen tekent (bijv. kosync in het boek, synchroon).
 Klein lettertype (Style.popoverSmallFace). Gebruikt door Mijn boeken en het homescreen.
 
 local status = SyncStatus.new{
@@ -90,8 +92,8 @@ function SyncStatus:content()
         local state = self.state[id]
         local text = self.labels[id]
         if state == "current" then text = text .. ELLIPSIS end
-        -- Alleen de stap die bezig is (of mislukte) is donker; de rest grijs.
-        table.insert(group, self:row(state, text, state ~= "current" and state ~= "failed"))
+        -- Nog te doen grijs; bezig, klaar en mislukt donker.
+        table.insert(group, self:row(state, text, state == nil))
         if state == "failed" and self.reason then
             table.insert(group, self:row(nil, self.reason, true))
         end
@@ -116,6 +118,7 @@ function SyncStatus:render(finished)
         self.popover = popover
     end
     if finished then popover:closeIn(CLOSE_AFTER) end
+    require("ui/uimanager"):forceRePaint()
 end
 
 --- Stap id begint (eerdere stappen zijn klaar); label: andere tekst voor deze stap (teller).

@@ -371,8 +371,9 @@ Sync en gelezen boeken:
   wifi aan). Homescreen: hoofdpagina + `config.collections` met eerste omslagen, "Gelezen",
   leestijd (`app/stats_service.lua`). Mijn boeken: huidige map, mappen op de pagina, omslagen,
   leestijd. Voortgang als lijst van alle stappen in een kader onder de knop (vaste breedte;
-  klaar = `check.svg`, bezig = `chevron_right.svg`, mislukt = `close.svg` met reden; klein en
-  grijs) (`ui/sync_status.lua`, `Popover` met `stay`, `content_taps = false`, `refresh`, `closeIn`; `Popover:paintTo` tekent op `self.dimen`, omdat UIManager de plek
+  klaar = `check.svg`, bezig = `chevron_right.svg`, mislukt = `close.svg` met reden, donker;
+  nog te doen grijs; klein; na elke stap `UIManager:forceRePaint`, want kosync in het boek loopt
+  synchroon en zonder tekenen ertussen zie je alleen de eindstand) (`ui/sync_status.lua`, `Popover` met `stay`, `content_taps = false`, `refresh`, `closeIn`; `Popover:paintTo` tekent op `self.dimen`, omdat UIManager de plek
   van `show` onthoudt en het kader na `setLines` anders van het icoon wegschuift).
 - Staat een boek op de server op gelezen (≥ 99,5%) en de Kobo eronder, dan springt de Kobo
   niet (de positie bij "gelezen" is vaak niet het einde). Alleen openen schrijft niets weg;
