@@ -177,6 +177,10 @@ function Smoke.filemanager(plugin)
             lib.sync_item:startTask()
             assert(lib.sync_item.busy, "sync-knop start niet")
         end },
+        { name = "sync-kader", wait = 1, fn = function()
+            assert(lib.sync_popover and not lib.sync_popover.closed, "geen kader met voortgang")
+            shot("2c-library-sync-progress")
+        end },
         { name = "mijn boeken gesynchroniseerd", wait = 6, fn = function()
             assert(not lib.sync_item.busy, "sync-knop nog bezig")
             local Library = require("lingering.app.library_service")
@@ -185,6 +189,15 @@ function Smoke.filemanager(plugin)
                     assert(Library:cached(entry.url), "map niet opgehaald: " .. tostring(entry.title))
                 end
             end
+            assert(lib.sync_popover.closed, "kader niet gesloten na de sync")
+            -- Leestijd van alle apparaten: een ander apparaat las vandaag 30 min op de testserver.
+            local server = require("lingering.app.session"):read("lingering_stats_server")
+            local today = os.date("%Y-%m-%d")
+            assert(server and (server[today] or 0) >= 1800, "leestijd niet gesynchroniseerd")
+            -- Leestijd van alle apparaten: een ander apparaat las vandaag 30 min op de testserver.
+            local server = require("lingering.app.session"):read("lingering_stats_server")
+            local today = os.date("%Y-%m-%d")
+            assert(server and (server[today] or 0) >= 1800, "leestijd niet gesynchroniseerd")
             shot("2-library")
         end },
         { name = "stapel omslagen", fn = function()

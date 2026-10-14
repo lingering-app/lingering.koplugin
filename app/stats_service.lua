@@ -3,12 +3,12 @@ Leestijd per dag delen tussen apparaten (stats-API naast kosync, zie domain/stat
 StatsService.days(fm) → { ["2026-10-14"] = seconden } voor het homescreen: per dag het hoogste
     van dit apparaat (statistics-plugin) en de laatst opgehaalde som van de server; nil als er
     niets is.
-StatsService.refresh(fm, done) → versturen wat nog niet (zeker) op de server staat en de som
+StatsService.refresh(fm, done, opts) → versturen wat nog niet (zeker) op de server staat en de som
     ophalen; done(changed) met changed = true als de som van de server anders is.
-    Hooguit eens per tien minuten, alleen met verbinding; een server zonder deze API (404) een
-    dag niet. Mislukt er iets, dan blijft alles zoals het was (geen melding): de volgende keer
+    Alleen met verbinding. Automatisch (opts.manual niet gezet): hooguit eens per tien minuten,
+    en een server zonder deze API (404) een dag niet; met opts.manual (sync-knop) altijd. Mislukt er iets, dan blijft alles zoals het was (geen melding): de volgende keer
     gaan dezelfde totalen gewoon opnieuw.
-Nog nergens aangeroepen: wanneer er gesynct wordt, is nog niet gekozen.
+Aangeroepen door de sync-knop van Mijn boeken (ui/libraryscreen.lua), met opts.manual.
 Bewaard in lingering.lua: lingering_stats_server (som per dag), lingering_stats_pushed (datum
 van de laatste geslaagde verzending), lingering_stats_state (pogingen).
 ]]
@@ -39,9 +39,11 @@ end
 
 local function ok(code) return code and code >= 200 and code < 300 end
 
-function StatsService.refresh(fm, done)
+function StatsService.refresh(fm, done, opts)
     local now = os.time()
-    if not Network.isOnline() or not StatsSync.shouldTry(now, Session:read("lingering_stats_state")) then
+    local manual = opts and opts.manual
+    if not Network.isOnline()
+            or (not manual and not StatsSync.shouldTry(now, Session:read("lingering_stats_state"))) then
         return done(false)
     end
     local today = os.date("%Y-%m-%d", now)

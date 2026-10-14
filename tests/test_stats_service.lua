@@ -115,3 +115,23 @@ function TestStatsService:test_onbruikbaar_antwoord_houdt_oude_som()
     lu.assertFalse(refresh())
     lu.assertEquals(Session:read("lingering_stats_server"), { [TODAY] = 600 })
 end
+
+function TestStatsService:test_sync_knop_altijd()
+    Fakes.state.local_days = { [TODAY] = 60 }
+    refresh()
+    local changed
+    StatsService.refresh(nil, function(c) changed = c end, { manual = true })
+    lu.assertEquals(#Fakes.calls.pushes, 2)
+    lu.assertEquals(Fakes.calls.fetches, 2)
+    lu.assertFalse(changed) -- zelfde som als de eerste keer
+end
+
+function TestStatsService:test_sync_knop_ook_na_404()
+    Fakes.state.local_days = { [TODAY] = 60 }
+    Fakes.state.push_code = 404
+    refresh()
+    Fakes.state.push_code = 200
+    StatsService.refresh(nil, function() end, { manual = true })
+    lu.assertEquals(#Fakes.calls.pushes, 2)
+    lu.assertEquals(Fakes.calls.fetches, 1)
+end

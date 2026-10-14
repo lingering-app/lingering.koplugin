@@ -3,7 +3,8 @@ Mijn boeken: de OPDS-catalogus als raster met omslagen, verticaal te schuiven.
 
 - Toont meteen de gecachete versie (ook zonder wifi).
 - Synchroniseren alleen met de sync-knop (zet zo nodig wifi aan): de huidige map, de mappen
-  op deze pagina en de ontbrekende omslagen. Verder haalt het scherm zelf niets op.
+  op deze pagina, de ontbrekende omslagen en de leestijd van alle apparaten
+  (app/stats_service.lua). Verder haalt het scherm zelf niets op.
 - Mappen uit de catalogus openen met een terugknop; elke map wordt apart gecachet.
 - Tik op een boek: staat het op het apparaat, dan openen; anders downloaden en openen.
 ]]
@@ -27,6 +28,7 @@ local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local logger = require("logger")
 local _ = require("lingering.l10n.gettext")
+local T = require("ffi/util").template
 local Screen = Device.screen
 
 local Network = require("lingering.koreader.network")
@@ -143,6 +145,7 @@ function GridTile:onTapTile()
 end
 
 local LibraryScreen = InputContainer:extend{
+    fm = nil,               -- FileManager-instantie (voor de leestijd, app/stats_service.lua)
     library = nil,
     on_open_book = nil,     -- function(path)
     start = nil,            -- optioneel { url, title }: in deze map beginnen
@@ -403,14 +406,20 @@ function LibraryScreen:syncFolders(done)
         local url = todo[index]
         if not url then
             -- Omslagen van de mappen in de achtergrond; daarna één keer verversen.
+            self:syncStatus(_("Omslagen ophalen…"))
             return self.library:fetchCoversAsync(wanted, function()
                 if not self.closed then self:render(true) end
                 done()
             end)
         end
-        self.library:sync(url, function()
-            covers_of(url)
-            UIManager:scheduleIn(0.05, step)
+        self:syncStatus(T(_("Mappen ophalen (%1 van %2)…"), index, #todo))
+        -- Eerst het kader tekenen: ophalen blokkeert het scherm.
+        UIManager:scheduleIn(0.05, function()
+            if self.closed then return done() end
+            self.library:sync(url, function()
+                covers_of(url)
+                UIManager:scheduleIn(0.05, step)
+            end)
         end)
     end
     step()
@@ -442,24 +451,70 @@ function LibraryScreen:openBook(path)
     end
 end
 
--- Sync-knop (draaiend icoon): de huidige map, dan de mappen op deze pagina, dan de ontbrekende
--- omslagen. Het icoon draait tot alles klaar is.
+-- Sync-knop (draaiend icoon): de huidige map, dan de mappen op deze pagina, de ontbrekende
+-- omslagen en de leestijd. Het icoon draait tot alles klaar is; of de leestijd lukt, telt niet
+-- mee voor het icoon (zonder stats-API op de server werkt Mijn boeken gewoon).
 function LibraryScreen:syncCurrent(done)
     local url = self:current().url
+    self.sync_popover = nil
+    local function finish(ok, reason)
+        if ok then
+            self:syncStatus(_("Klaar"), nil, true)
+        else
+            self:syncStatus(_("Synchroniseren mislukt"), reason, true)
+        end
+        done(ok)
+    end
+    self:syncStatus(_("Verbinden…"))
     local started = Network.turnOnWifiThen(function()
-        self.library:sync(url, function(ok)
-            if self.closed then return done(ok) end
-            self:render(true)
-            if not ok then return done(false) end
-            self:syncFolders(function()
-                self:queueCovers(function() done(true) end)
+        self:syncStatus(_("Map ophalen…"))
+        -- Eerst het kader tekenen: ophalen blokkeert het scherm.
+        UIManager:scheduleIn(0.05, function()
+            self.library:sync(url, function(ok)
+                if self.closed then return done(ok) end
+                self:render(true)
+                if not ok then return finish(false, _("Server niet bereikbaar")) end
+                self:syncFolders(function()
+                    self:queueCovers(function()
+                        self:syncStatus(_("Leestijd delen…"))
+                        UIManager:scheduleIn(0.05, function()
+                            Widgets.safeCall("leestijd delen", function()
+                                require("lingering.app.stats_service").refresh(self.fm, function() end, { manual = true })
+                            end)
+                            finish(true)
+                        end)
+                    end)
+                end)
             end)
         end)
     end)
-    if not started then done(false) end
+    if not started then finish(false, _("Geen verbinding")) end
     if not self.library:cached(url) and not self.closed then
         self:render() -- toont "Bezig met synchroniseren…"
     end
+end
+
+--[[--
+Voortgang van de sync-knop in een kader eronder (ui/popover.lua), zoals het batterij-kader:
+text vet, detail grijs eronder. finished: na een paar seconden sluiten. Sloot je het kader
+met een tik, dan komt het tijdens deze sync niet terug (de sync loopt gewoon door).
+]]
+function LibraryScreen:syncStatus(text, detail, finished)
+    if self.closed then return end
+    local lines = { { text = text, bold = true } }
+    if detail then table.insert(lines, { text = detail, gray = true }) end
+    local popover = self.sync_popover
+    if popover and popover.closed then return end
+    if popover then
+        popover:setLines(lines)
+    else
+        popover = require("lingering.ui.popover"):new{
+            anchor = self.sync_item.dimen, lines = lines, stay = true,
+        }
+        popover:show()
+        self.sync_popover = popover
+    end
+    if finished then popover:closeIn(3) end
 end
 
 -- Sync-knop: ontbrekende omslagen van deze pagina in de achtergrond ophalen (subproces, zie
@@ -474,6 +529,7 @@ function LibraryScreen:queueCovers(done)
         end
     end
     if #missing == 0 then return done() end
+    self:syncStatus(_("Omslagen ophalen…"))
     self.covers_loading = true
     self.library:fetchCoversAsync(missing, function(fetched)
         self.covers_loading = false

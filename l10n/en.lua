@@ -34,6 +34,15 @@ return {
 
     -- Mijn boeken
     ["Bezig met synchroniseren…"] = "Syncing…",
+    ["Verbinden…"] = "Connecting…",
+    ["Map ophalen…"] = "Fetching folder…",
+    ["Mappen ophalen (%1 van %2)…"] = "Fetching folders (%1 of %2)…",
+    ["Omslagen ophalen…"] = "Fetching covers…",
+    ["Leestijd delen…"] = "Sharing reading time…",
+    ["Klaar"] = "Done",
+    ["Synchroniseren mislukt"] = "Sync failed",
+    ["Server niet bereikbaar"] = "Server unreachable",
+    ["Geen verbinding"] = "No connection",
     ["Nog niets gesynchroniseerd.\nZet wifi aan en tik op het sync-icoon."] = "Nothing synced yet.\nTurn on Wi-Fi and tap the sync icon.",
     ["Geen boeken."] = "No books.",
     ["Downloaden…\n%1"] = "Downloading…\n%1",

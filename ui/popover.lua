@@ -9,6 +9,8 @@ Popover:new{
 Of met eigen inhoud: content = function(popover) return widget end. Een tik binnen het
 kader sluit het dan niet (de inhoud handelt hem af); popover:keepAlive() schuift het
 automatisch sluiten op zolang je ermee bezig bent.
+Voortgang (bijv. synchroniseren): stay = true sluit niet vanzelf; popover:setLines(lines) zet
+nieuwe regels, popover:closeIn(seconden) sluit hem daarna alsnog.
 Modal, zodat hij ook boven de (modale) actiebalk in het boek komt.
 ]]
 local Device = require("device")
@@ -35,6 +37,7 @@ local Popover = InputContainer:extend{
     content = nil,
     gap = nil,          -- ruimte onder het anker; standaard vrij van de lijn onder de actiebalk
     compact = false,    -- kleinere binnenmarge (menu's: de rijen hebben zelf ruimte)
+    stay = false,       -- niet vanzelf sluiten (voortgang); zie closeIn
     modal = true,
 }
 Widgets.guardPaint(Popover, "popover")
@@ -112,7 +115,25 @@ end
 function Popover:show()
     UIManager:show(self, "ui", self.dimen, self.dimen.x, self.dimen.y)
     self.timeout = function() self:dismiss() end
-    UIManager:scheduleIn(self.content and CONTENT_TIMEOUT or TIMEOUT, self.timeout)
+    if not self.stay then
+        UIManager:scheduleIn(self.content and CONTENT_TIMEOUT or TIMEOUT, self.timeout)
+    end
+end
+
+--- Nieuwe regels tonen; het kader past zich aan (alles eronder in dat stukje opnieuw getekend).
+function Popover:setLines(lines)
+    if self.closed then return end
+    local old = self.dimen
+    self.lines = lines
+    self:init()
+    UIManager:setDirty("all", "ui", old:combine(self.dimen))
+end
+
+--- Over seconds seconden sluiten (ook met stay).
+function Popover:closeIn(seconds)
+    if self.closed then return end
+    UIManager:unschedule(self.timeout)
+    UIManager:scheduleIn(seconds, self.timeout)
 end
 
 function Popover:dismiss()

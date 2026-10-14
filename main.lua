@@ -158,6 +158,7 @@ function Lingering:showLibrary(start)
     local LibraryScreen = require("lingering.ui.libraryscreen")
     self:track(LibraryScreen:new{
         start = start,
+        fm = self.ui,
         library = require("lingering.app.library_service"),
         nav = self:nav(),
         on_open_book = function(path)
