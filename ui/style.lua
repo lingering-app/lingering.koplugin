@@ -33,11 +33,18 @@ local Style = {
     -- Bovenbalk (homescreen, titelbalken, actiebalk in het boek). item_width: tikvlak per
     -- icoon, smaller dan de hoogte zodat er in het boek extra knoppen passen.
     top_bar = { height = 60, font_size = 16, icon_size = 30, item_width = 48 },
+    -- Kleinere, rustige tekst in kaders (voortgang van de sync-knop).
+    popover_small_font_size = 13,
 }
 
 --- Lettertype van de bovenbalk (ook voor kaders die erbij horen).
 function Style.topBarFace()
     return Font:getFace("cfont", Style.top_bar.font_size)
+end
+
+--- Kleiner lettertype voor rustige tekst in kaders.
+function Style.popoverSmallFace()
+    return Font:getFace("cfont", Style.popover_small_font_size)
 end
 
 return Style

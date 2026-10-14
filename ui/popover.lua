@@ -5,6 +5,7 @@ ook; die tik doet verder niets) of na een paar seconden. Alleen dat stukje scher
 Popover:new{
     anchor = Geom (schermpositie van het icoon, bijv. item.dimen),
     lines = { { text = "62%", bold = true }, { text = "Laadt op", gray = true } },
+    (per regel ook small = true: kleiner lettertype, Style.popoverSmallFace)
 }:show()
 Of met eigen inhoud: content = function(popover) return widget end. Een tik binnen het
 kader sluit het dan niet (de inhoud handelt hem af); popover:keepAlive() schuift het
@@ -54,7 +55,7 @@ function Popover:init()
     for _, line in ipairs(self.lines or {}) do
         table.insert(group, TextWidget:new{
             text = line.text,
-            face = Style.topBarFace(),
+            face = line.small and Style.popoverSmallFace() or Style.topBarFace(),
             bold = line.bold,
             fgcolor = line.gray and Style.text_secondary or nil,
         })

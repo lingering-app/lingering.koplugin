@@ -1,6 +1,6 @@
 --[[--
-Voortgang van een sync-knop in een kader eronder (ui/popover.lua), zoals het batterij-kader:
-tekst vet, detail grijs eronder. Gebruikt door Mijn boeken en het homescreen.
+Voortgang van een sync-knop in een kader eronder (ui/popover.lua), zoals het batterij-kader,
+maar rustiger: klein en grijs (tekst, met het detail eronder). Gebruikt door Mijn boeken en het homescreen.
 
 local status = SyncStatus.new(function() return sync_item.dimen end, gap)  -- gap: zie Popover
 status:show(_("Boeken ophalen…"))
@@ -17,8 +17,8 @@ function SyncStatus.new(anchor, gap)
 end
 
 function SyncStatus:show(text, detail, finished)
-    local lines = { { text = text, bold = true } }
-    if detail then table.insert(lines, { text = detail, gray = true }) end
+    local lines = { { text = text, gray = true, small = true } }
+    if detail then table.insert(lines, { text = detail, gray = true, small = true }) end
     local popover = self.popover
     if popover and popover.closed then return end
     if popover then
