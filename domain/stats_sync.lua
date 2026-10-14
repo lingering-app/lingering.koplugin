@@ -9,7 +9,14 @@ StatsSync.pending(days, since) → { { date, seconds }, ... }, nieuwste eerst
     days: { ["2026-10-14"] = seconden } van dit apparaat; since: datum van de laatste geslaagde
     verzending (die dag zelf gaat opnieuw mee, want hij kan sindsdien gegroeid zijn) of nil (alles).
 StatsSync.chunks(list, size) → lijst van lijsten van hooguit size (de server neemt er 20 per keer)
-StatsSync.merge(local_days, server_days) → per dag het hoogste van de twee
+StatsSync.combine(local_days, server_days, local_at_sync) → leestijd per dag om te tonen:
+    som van de server − eigen deel bij de laatste sync + eigen tijd nu. Zo telt lezen ná de
+    sync meteen op bij de andere apparaten, zonder opnieuw te syncen. Nooit minder dan de som
+    van de server of de eigen tijd (bijv. als de eigen statistieken gewist zijn).
+    local_at_sync: de eigen leestijd per dag op het moment van de laatste geslaagde sync (een dag
+    die er niet in staat: toen nog niet gelezen). nil = nooit zo gesynchroniseerd (bijv. net
+    bijgewerkt van een oudere versie): dan per dag het hoogste van server en eigen tijd, want
+    welk deel van de som van dit apparaat is, is onbekend.
 StatsSync.parseSummary(body) → { ["2026-10-14"] = seconden } uit het antwoord van de server, of nil
     als het geen bruikbaar antwoord is; rijen met een ongeldige datum of seconden vallen weg.
 StatsSync.shouldTry(now, state) → true als er weer geprobeerd mag worden
@@ -46,13 +53,22 @@ function StatsSync.chunks(list, size)
     return result
 end
 
-function StatsSync.merge(local_days, server_days)
-    local merged = {}
-    for date, seconds in pairs(server_days or {}) do merged[date] = seconds end
-    for date, seconds in pairs(local_days or {}) do
-        if seconds > (merged[date] or 0) then merged[date] = seconds end
+function StatsSync.combine(local_days, server_days, local_at_sync)
+    local_days, server_days = local_days or {}, server_days or {}
+    local combined = {}
+    for date, server in pairs(server_days) do
+        local own_now = local_days[date] or 0
+        if local_at_sync then
+            local others = server - (local_at_sync[date] or 0)
+            combined[date] = math.max(others + own_now, server, own_now)
+        else
+            combined[date] = math.max(server, own_now)
+        end
     end
-    return merged
+    for date, seconds in pairs(local_days) do
+        if combined[date] == nil then combined[date] = seconds end
+    end
+    return combined
 end
 
 function StatsSync.parseSummary(body)

@@ -29,7 +29,7 @@ function TestStatsService:test_verstuurt_en_haalt_som_op()
     lu.assertEquals(Session:read("lingering_stats_pushed"), TODAY)
 end
 
-function TestStatsService:test_tonen_hoogste_van_server_en_lokaal()
+function TestStatsService:test_zonder_momentopname_hoogste_van_server_en_lokaal()
     Session:save("lingering_stats_server", { [TODAY] = 600, ["2026-10-01"] = 300 })
     Fakes.state.local_days = { [TODAY] = 900 }
     lu.assertEquals(StatsService.days(nil), { [TODAY] = 900, ["2026-10-01"] = 300 })
@@ -134,4 +134,38 @@ function TestStatsService:test_sync_knop_ook_na_404()
     StatsService.refresh(nil, function() end, { manual = true })
     lu.assertEquals(#Fakes.calls.pushes, 2)
     lu.assertEquals(Fakes.calls.fetches, 1)
+end
+
+function TestStatsService:test_eigen_deel_bij_sync_bewaard()
+    Fakes.state.local_days = { [TODAY] = 600 }
+    Fakes.state.server_days = { [TODAY] = 1800 } -- 600 van dit apparaat + 1200 van een ander
+    lu.assertTrue(refresh())
+    lu.assertEquals(Session:read("lingering_stats_local_at_sync"), { [TODAY] = 600 })
+end
+
+function TestStatsService:test_lezen_na_sync_telt_meteen_mee()
+    Fakes.state.local_days = { [TODAY] = 600 }
+    Fakes.state.server_days = { [TODAY] = 1800 }
+    refresh()
+    -- Daarna een kwartier verder gelezen op dit apparaat, zonder opnieuw te syncen.
+    Fakes.state.local_days = { [TODAY] = 1500 }
+    lu.assertEquals(StatsService.days(nil)[TODAY], 1800 - 600 + 1500)
+end
+
+function TestStatsService:test_mislukte_sync_houdt_oude_momentopname()
+    Fakes.state.local_days = { [TODAY] = 600 }
+    Fakes.state.server_days = { [TODAY] = 1800 }
+    refresh()
+    Fakes.state.local_days = { [TODAY] = 1500 }
+    Fakes.state.fetch_code = 500
+    StatsService.refresh(nil, function() end, { manual = true })
+    -- Som en eigen deel horen bij elkaar: allebei van de vorige, geslaagde sync.
+    lu.assertEquals(Session:read("lingering_stats_local_at_sync"), { [TODAY] = 600 })
+    lu.assertEquals(StatsService.days(nil)[TODAY], 2700)
+end
+
+function TestStatsService:test_reset_wist_ook_momentopname()
+    Session:save("lingering_stats_local_at_sync", { [TODAY] = 600 })
+    StatsService.reset()
+    lu.assertNil(Session:read("lingering_stats_local_at_sync"))
 end
