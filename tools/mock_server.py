@@ -19,6 +19,11 @@ Paden:
   /kosync/users/auth         GET, 200 of 401
   /kosync/syncs/progress     PUT, stand wegschrijven
   /kosync/syncs/progress/<d> GET, stand ophalen ({} als er nog niets is)
+  /kosync/api/v1/stats/global  PUT, leestijd per dag van één apparaat (zoals crosspoint-sync):
+                             { device_id, device, daily: [{date, seconds}] }, hooguit 20 dagen;
+                             per apparaat en dag blijft het hoogste getal
+  /kosync/api/v1/stats/summary GET, { daily: [{date, seconds, minutes}] }, opgeteld over de
+                             apparaten; er staat al een "ander apparaat" met 30 min vandaag
   /dict/test-nl.zip          klein StarDict-woordenboek (voor de woordenboektest)
 """
 import argparse
@@ -26,6 +31,7 @@ import base64
 import hashlib
 import io
 import json
+import re
 import struct
 import time
 import zipfile
@@ -149,6 +155,9 @@ COVERS = {book_id: make_png(300, 450, color) for book_id, _, _, color in BOOKS}
 EPUBS = {book_id: make_epub(book_id, title, author, COVERS[book_id]) for book_id, title, author, _ in BOOKS}
 DICTIONARY = make_dictionary()
 PROGRESS = {}  # document → { percentage, progress, device, device_id, timestamp }
+# (device_id, datum) → seconden; een ander apparaat las vandaag al 30 minuten.
+STATS = {("ander-apparaat", time.strftime("%Y-%m-%d")): 1800}
+DATE = re.compile(r"^20\d\d-\d\d-\d\d$")
 
 ATOM = "application/atom+xml;profile=opds-catalog"
 
@@ -239,6 +248,14 @@ class Handler(BaseHTTPRequestHandler):
             document = path.rsplit("/", 1)[1]
             record = PROGRESS.get(document)
             return self.send(200, json.dumps(dict(record, document=document) if record else {}))
+        if path == "/kosync/api/v1/stats/summary":
+            if not self.kosync_authorized():
+                return self.send(401, json.dumps({"message": "Unauthorized"}))
+            totals = {}
+            for (_, date), seconds in STATS.items():
+                totals[date] = totals.get(date, 0) + seconds
+            daily = [{"date": d, "seconds": s, "minutes": s / 60} for d, s in sorted(totals.items())]
+            return self.send(200, json.dumps({"daily": daily}))
         if path == "/dict/test-nl.zip":
             return self.send(200, DICTIONARY, "application/zip")
         return self.send(404)
@@ -256,6 +273,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_PUT(self):
+        if self.path.rstrip("/") == "/kosync/api/v1/stats/global":
+            return self.put_stats()
         if self.path.rstrip("/") != "/kosync/syncs/progress":
             return self.send(404)
         if not self.kosync_authorized():
@@ -274,6 +293,24 @@ class Handler(BaseHTTPRequestHandler):
             "timestamp": timestamp,
         }
         return self.send(200, json.dumps({"document": document, "timestamp": timestamp}))
+
+
+    def put_stats(self):
+        if not self.kosync_authorized():
+            return self.send(401, json.dumps({"message": "Unauthorized"}))
+        length = int(self.headers.get("Content-Length") or 0)
+        body = json.loads(self.rfile.read(length) or b"{}")
+        device_id, daily = body.get("device_id"), body.get("daily")
+        if not device_id or not isinstance(daily, list) or len(daily) > 20:
+            return self.send(400, json.dumps({"message": "device_id of daily ongeldig"}))
+        for row in daily:
+            date, seconds = row.get("date"), row.get("seconds")
+            if not (isinstance(date, str) and DATE.match(date)) or not isinstance(seconds, int) or seconds < 0:
+                return self.send(400, json.dumps({"message": "ongeldige dag"}))
+        for row in daily:
+            key = (device_id, row["date"])
+            STATS[key] = max(STATS.get(key, 0), row["seconds"])
+        return self.send(200, json.dumps({"until": int(time.time()), "accepted_daily": len(daily)}))
 
 
 def main():

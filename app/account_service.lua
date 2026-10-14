@@ -35,6 +35,7 @@ function AccountService.save(username, password, fm)
         and Kosync.writeAccount(Config.sync_url, username, password)
     if not written then return false end
     GlobalSettings.ensureAutoWifi()
+    require("lingering.app.stats_service").reset()
     Session:save("lingering_setup_done", true)
     logger.info("Lingering: setup voltooid")
     return true

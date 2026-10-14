@@ -104,6 +104,19 @@ function Fakes.kosync.storeFinished(position, done)
     done(true)
 end
 
+-- Leestijd per dag (app/stats_service): lokaal en de stats-API van de server.
+function Fakes.books.readingDays() return Fakes.state.local_days end
+function Fakes.kosync.pushStats(daily)
+    Fakes.calls.pushes = Fakes.calls.pushes or {}
+    table.insert(Fakes.calls.pushes, daily)
+    return Fakes.state.push_code
+end
+function Fakes.kosync.fetchStats()
+    Fakes.calls.fetches = (Fakes.calls.fetches or 0) + 1
+    local code = Fakes.state.fetch_code
+    return code, code == 200 and Fakes.state.server_days or nil
+end
+
 function Fakes.reset()
     Fakes.scheduled = {}
     Fakes.now = 1000
@@ -113,6 +126,7 @@ function Fakes.reset()
         logged_in = true, local_percent = 0.5,
         fetch_ok = true, record = nil, store_ok = true,
         files = {},
+        local_days = nil, push_code = 200, fetch_code = 200, server_days = {},
     }
     Fakes.store = newStore()
 end

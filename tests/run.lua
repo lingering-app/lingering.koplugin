@@ -25,7 +25,7 @@ require("fakes").install()
 for _, test in ipairs({
     "test_sync_rules", "test_catalog", "test_reading_time", "test_layout",
     "test_sync_service", "test_try", "test_release", "test_catalog_shelf", "test_library_service",
-    "test_l10n", "test_reading_stats",
+    "test_l10n", "test_reading_stats", "test_stats_sync", "test_stats_service",
 }) do
     require(test)
 end

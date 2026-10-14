@@ -240,6 +240,86 @@ function M.storeFinished(position, done)
 end
 
 --[[--
+Leestijd per dag delen via de stats-API naast kosync (zoals crosspoint-sync), op dezelfde server
+en met dezelfde inlog: headers x-auth-user en x-auth-key (md5 van het wachtwoord), uit
+kosync.lua. Korte timeouts zoals KOSyncClient (PROGRESS_TIMEOUTS); synchroon.
+Geeft de HTTP-code (of nil zonder antwoord/niet ingelogd) en de gedecodeerde JSON.
+]]
+local STATS_TIMEOUTS = { 2, 5 }
+
+local function statsRequest(method, path, body)
+    local settings = accountClient()
+    if not (settings and settings.custom_server) then return nil end
+    local http = require("socket.http")
+    local ltn12 = require("ltn12")
+    local socket = require("socket")
+    local socketutil = require("socketutil")
+    local JSON = require("json")
+    local payload = body and JSON.encode(body) or nil
+    local sink = {}
+    socketutil:set_timeout(STATS_TIMEOUTS[1], STATS_TIMEOUTS[2])
+    local code = socket.skip(1, http.request{
+        url = settings.custom_server:gsub("/+$", "") .. path,
+        method = method,
+        headers = {
+            ["Accept"] = "application/json",
+            ["Accept-Encoding"] = "identity",
+            ["Content-Type"] = payload and "application/json" or nil,
+            ["Content-Length"] = payload and tostring(#payload) or nil,
+            ["x-auth-user"] = settings.username,
+            ["x-auth-key"] = settings.userkey,
+        },
+        source = payload and ltn12.source.string(payload) or nil,
+        sink = ltn12.sink.table(sink),
+    })
+    socketutil:reset_timeout()
+    if type(code) ~= "number" then return nil end
+    local ok, decoded = pcall(JSON.decode, table.concat(sink))
+    return code, ok and type(decoded) == "table" and decoded or nil
+end
+
+--[[--
+Leestijd van dit apparaat versturen: PUT /api/v1/stats/global met
+{ device_id, device, daily = { { date, seconds }, ... } } (hooguit 20 dagen per keer).
+device_id en device zoals kosync ze stuurt (G_reader_settings "device_id", kosync_hostname of
+Device.model). Geeft de HTTP-code of nil.
+]]
+function M.pushStats(daily)
+    local ok, code = try("pushStats", function()
+        local Device = require("device")
+        local settings = accountClient()
+        if not settings then return nil end
+        return (statsRequest("PUT", "/api/v1/stats/global", {
+            device_id = G_reader_settings:readSetting("device_id"),
+            device = settings.kosync_hostname or Device.model,
+            daily = daily,
+        }))
+    end)
+    return ok and code or nil
+end
+
+--[[--
+Leestijd van alle apparaten samen: GET /api/v1/stats/summary → { daily = { { date, seconds } } }.
+Geeft de HTTP-code (of nil) en { ["2026-10-14"] = seconden, ... } bij 200.
+]]
+function M.fetchStats()
+    local ok, code, days = try("fetchStats", function()
+        local code, body = statsRequest("GET", "/api/v1/stats/summary")
+        if code ~= 200 or not body then return code end
+        local days = {}
+        for _, row in ipairs(type(body.daily) == "table" and body.daily or {}) do
+            local seconds = tonumber(row.seconds)
+            if type(row.date) == "string" and row.date:match("^%d%d%d%d%-%d%d%-%d%d$") and seconds then
+                days[row.date] = seconds
+            end
+        end
+        return code, days
+    end)
+    if not ok then return nil end
+    return code, days
+end
+
+--[[--
 Schrijft de kosync-instellingen in <settings>/kosync.lua (sleutel "settings"):
 custom_server, username, userkey = md5(wachtwoord), auto_sync aan,
 sync_forward = SILENT (2), sync_backward = PROMPT (1) (SYNC_STRATEGY in kosync main.lua),

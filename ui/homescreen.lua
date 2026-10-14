@@ -310,9 +310,10 @@ function HomeScreen:loadBooks()
         book.stats = ReadingTime.estimate(Books.stats(self.fm, book.file), book.percent)
     end
     self.book = #self.books == 1 and self.books[1] or nil
-    -- Leesstatistieken (alleen met de statistics-plugin aan en als er al iets gelezen is).
-    local days = Books.readingDays(self.fm)
-    self.reading = days and next(days) and ReadingStats.summary(days, os.time()) or nil
+    -- Leesstatistieken: dit apparaat en de som van alle apparaten (app/stats_service.lua);
+    -- alleen als er al iets gelezen is.
+    local days = require("lingering.app.stats_service").days(self.fm)
+    self.reading = days and ReadingStats.summary(days, os.time()) or nil
 end
 
 local function freeCovers(books)
@@ -762,6 +763,12 @@ function HomeScreen:show()
     UIManager:show(self, "full")
     UIManager:scheduleIn(1, function()
         Widgets.safeCall("mappen verversen", function() self:refreshCollections() end)
+        -- Leestijd van alle apparaten: versturen en de som ophalen; anders alleen de rij opnieuw.
+        Widgets.safeCall("leestijd delen", function()
+            require("lingering.app.stats_service").refresh(self.fm, function(changed)
+                if changed then self:reloadBooks() end
+            end)
+        end)
         -- Gelezen op de website → hier ook gelezen (verdwijnt uit de rij).
         Widgets.safeCall("gelezen bijwerken", function()
             if not (self.library and self.library.syncFinished) then return end

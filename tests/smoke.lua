@@ -4,7 +4,7 @@ tools/smoke.sh start KOReader in een eigen testmap (KO_HOME) tegen tools/mock_se
 LINGERING_TEST=setup   inloggen op de testserver (echte AccountService), daarna afsluiten
 LINGERING_TEST=reader  actiebalk → draaien → inhoudsopgave → sync-knop → springen → wegschrijven →
                        boek sluiten
-LINGERING_TEST=fm      homescreen → Mijn boeken → eerste map → Instellingen → Taal →
+LINGERING_TEST=fm      homescreen → leestijd delen → Mijn boeken → eerste map → Instellingen → Taal →
                        Woordenboek → Account → inloggen (goed/fout) → downloaden → update
 LINGERING_SHOTS=<map>  schermafdrukken
 Elke scène logt "Lingering: SMOKE <naam> OK"; fouten verschijnen als WARN/ERROR in de log.
@@ -87,6 +87,18 @@ function Smoke.filemanager(plugin)
         { name = "mappen op het homescreen", fn = function()
             assert(plugin.home.shelf_dimen and plugin.home.shelf_dimen.h > 0, "geen mapblokken getoond")
             shot("1b-home-collections")
+        end },
+        -- Leestijd van alle apparaten (stats-API op de testserver): een ander apparaat las vandaag
+        -- al 30 minuten, dus de rij telt dat mee.
+        { name = "leestijd van alle apparaten", wait = 2, fn = function()
+            local server = require("lingering.app.session"):read("lingering_stats_server")
+            local today = os.date("%Y-%m-%d")
+            assert(server and (server[today] or 0) >= 1800, "geen som van de server: " .. tostring(server and server[today]))
+            assert(require("lingering.app.session"):read("lingering_stats_pushed") == today, "leestijd niet verstuurd")
+            local own = require("lingering.koreader.books").readingDays(plugin.ui)
+            logger.info("Lingering: SMOKE leestijd dit apparaat vandaag", own and own[today], "som", server[today])
+            assert(plugin.home.reading and plugin.home.reading.today >= 1800, "rij telt de server niet mee")
+            shot("1e-home-stats-shared")
         end },
         { name = "halve kaarten (2 boeken)", fn = function()
             state.grid_home = homeWithBooks(2)
