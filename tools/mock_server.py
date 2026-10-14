@@ -20,9 +20,10 @@ Paden:
   /kosync/users/auth         GET, 200 of 401
   /kosync/syncs/progress     PUT, stand wegschrijven
   /kosync/syncs/progress/<d> GET, stand ophalen ({} als er nog niets is)
-  /kosync/api/v1/stats/global  PUT, leestijd per dag van één apparaat (zoals crosspoint-sync):
-                             { device_id, device, daily: [{date, seconds}] }, hooguit 20 dagen;
-                             per apparaat en dag blijft het hoogste getal
+  /kosync/api/v1/stats/global  PUT, momentopname + leestijd per dag van één apparaat, gecontroleerd
+                             zoals crosspoint-sync (parseGlobalStats): v, sessions, seconds,
+                             pages, completed, tod[4], dow[7], anchor_day, history_b64 (≤ 92
+                             bytes), streak verplicht; daily optioneel (≤ 20 dagen); anders 400
   /kosync/api/v1/stats/summary GET, { daily: [{date, seconds, minutes}] }, opgeteld over de
                              apparaten; er staat al een "ander apparaat" met 30 min vandaag
   /dict/test-nl.zip          klein StarDict-woordenboek (voor de woordenboektest)
@@ -184,6 +185,31 @@ PROGRESS = {}  # document → { percentage, progress, device, device_id, timesta
 # (device_id, datum) → seconden; een ander apparaat las vandaag al 30 minuten.
 STATS = {("ander-apparaat", time.strftime("%Y-%m-%d")): 1800}
 DATE = re.compile(r"^20\d\d-\d\d-\d\d$")
+SNAPSHOTS = {}  # device_id → momentopname
+SNAPSHOT_FIELDS = ("v", "sessions", "seconds", "pages", "completed", "tod", "dow",
+                   "anchor_day", "history_b64", "streak")
+
+
+def is_count(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def valid_snapshot(body):
+    """Zoals parseGlobalStats in crosspoint-sync (src/models/stats.ts)."""
+    if not all(is_count(body.get(k)) for k in ("v", "sessions", "seconds", "pages", "completed",
+                                                   "anchor_day", "streak")):
+        return False
+    for key, size in (("tod", 4), ("dow", 7)):
+        value = body.get(key)
+        if not (isinstance(value, list) and len(value) == size and all(is_count(x) for x in value)):
+            return False
+    history = body.get("history_b64")
+    if not isinstance(history, str):
+        return False
+    try:
+        return len(base64.b64decode(history, validate=True)) <= 92
+    except ValueError:
+        return False
 
 ATOM = "application/atom+xml;profile=opds-catalog"
 
@@ -289,7 +315,15 @@ class Handler(BaseHTTPRequestHandler):
             for (_, date), seconds in STATS.items():
                 totals[date] = totals.get(date, 0) + seconds
             daily = [{"date": d, "seconds": s, "minutes": s / 60} for d, s in sorted(totals.items())]
-            return self.send(200, json.dumps({"daily": daily}))
+            summary = {"sessions": 0, "seconds": 0, "pages": 0, "completed": 0,
+                       "tod": [0] * 4, "dow": [0] * 7}
+            for snap in SNAPSHOTS.values():
+                for key in ("sessions", "seconds", "pages", "completed"):
+                    summary[key] += snap[key]
+                summary["tod"] = [a + b for a, b in zip(summary["tod"], snap["tod"])]
+                summary["dow"] = [a + b for a, b in zip(summary["dow"], snap["dow"])]
+            summary["daily"] = daily
+            return self.send(200, json.dumps(summary))
         if path == "/dict/test-nl.zip":
             return self.send(200, DICTIONARY, "application/zip")
         return self.send(404)
@@ -334,17 +368,27 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(401, json.dumps({"message": "Unauthorized"}))
         length = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(length) or b"{}")
-        device_id, daily = body.get("device_id"), body.get("daily")
-        if not device_id or not isinstance(daily, list) or len(daily) > 20:
-            return self.send(400, json.dumps({"message": "device_id of daily ongeldig"}))
+        invalid = self.send_invalid
+        if not valid_snapshot(body):
+            return invalid()
+        device_id, daily = body.get("device_id"), body.get("daily", [])
+        if not isinstance(device_id, str) or not 1 <= len(device_id) <= 128:
+            return invalid()
+        if not isinstance(daily, list) or len(daily) > 20:
+            return invalid()
         for row in daily:
             date, seconds = row.get("date"), row.get("seconds")
-            if not (isinstance(date, str) and DATE.match(date)) or not isinstance(seconds, int) or seconds < 0:
-                return self.send(400, json.dumps({"message": "ongeldige dag"}))
+            if not (isinstance(date, str) and DATE.match(date)) or not is_count(seconds):
+                return invalid()
         for row in daily:
             key = (device_id, row["date"])
             STATS[key] = max(STATS.get(key, 0), row["seconds"])
+        SNAPSHOTS[device_id] = {k: body[k] for k in SNAPSHOT_FIELDS}
         return self.send(200, json.dumps({"until": int(time.time()), "accepted_daily": len(daily)}))
+
+    def send_invalid(self):
+        # Zoals crosspoint-sync: KOSync-foutcode 2003.
+        return self.send(400, json.dumps({"code": 2003, "message": "Invalid request"}))
 
 
 def main():

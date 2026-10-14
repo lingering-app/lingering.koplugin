@@ -169,3 +169,32 @@ function TestStatsService:test_reset_wist_ook_momentopname()
     StatsService.reset()
     lu.assertNil(Session:read("lingering_stats_local_at_sync"))
 end
+
+function TestStatsService:test_momentopname_bij_elk_verzoek()
+    Fakes.state.local_days = { [TODAY] = 600 }
+    Fakes.state.stats_data = { starts = { os.time() - 600 }, durations = { 600 }, pages = 3, completed = 1 }
+    refresh()
+    local snapshot = Fakes.calls.snapshot
+    lu.assertEquals(snapshot.v, 5)
+    lu.assertEquals(snapshot.seconds, 600)
+    lu.assertEquals(snapshot.pages, 3)
+    lu.assertEquals(snapshot.completed, 1)
+    lu.assertEquals(#snapshot.tod, 4)
+    lu.assertEquals(#snapshot.dow, 7)
+end
+
+function TestStatsService:test_zonder_nieuwe_dagen_toch_een_keer_de_momentopname()
+    Session:save("lingering_stats_pushed", TODAY)
+    Fakes.state.local_days = {} -- niets gelezen sinds de laatste verzending
+    refresh()
+    lu.assertEquals(#Fakes.calls.pushes, 1)
+    lu.assertEquals(Fakes.calls.pushes[1], {})
+    lu.assertNotNil(Fakes.calls.snapshot)
+end
+
+function TestStatsService:test_zonder_statistieken_lege_momentopname()
+    Fakes.state.stats_data = nil -- statistics-plugin uit
+    refresh()
+    lu.assertEquals(Fakes.calls.snapshot.seconds, 0)
+    lu.assertEquals(Fakes.calls.snapshot.anchor_day, 0)
+end

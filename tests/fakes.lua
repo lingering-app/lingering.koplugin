@@ -106,9 +106,11 @@ end
 
 -- Leestijd per dag (app/stats_service): lokaal en de stats-API van de server.
 function Fakes.books.readingDays() return Fakes.state.local_days end
-function Fakes.kosync.pushStats(daily)
+function Fakes.books.statsData() return Fakes.state.stats_data end
+function Fakes.kosync.pushStats(daily, snapshot)
     Fakes.calls.pushes = Fakes.calls.pushes or {}
     table.insert(Fakes.calls.pushes, daily)
+    Fakes.calls.snapshot = snapshot
     return Fakes.state.push_code
 end
 function Fakes.kosync.fetchStats()

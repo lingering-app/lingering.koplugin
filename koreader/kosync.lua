@@ -279,21 +279,23 @@ local function statsRequest(method, path, body)
 end
 
 --[[--
-Leestijd van dit apparaat versturen: PUT /api/v1/stats/global met
-{ device_id, device, daily = { { date, seconds }, ... } } (hooguit 20 dagen per keer).
-device_id en device zoals kosync ze stuurt (G_reader_settings "device_id", kosync_hostname of
-Device.model). Geeft de HTTP-code of nil.
+Leestijd van dit apparaat versturen: PUT /api/v1/stats/global met de momentopname
+(snapshot: v, sessions, seconds, pages, completed, tod, dow, anchor_day, history_b64, streak;
+verplicht volgens crosspoint-sync) plus device_id, device en daily = { { date, seconds }, ... }
+(hooguit 20 dagen per keer; weggelaten als leeg). device_id en device zoals kosync ze stuurt
+(G_reader_settings "device_id", kosync_hostname of Device.model). Geeft de HTTP-code of nil.
 ]]
-function M.pushStats(daily)
+function M.pushStats(daily, snapshot)
     local ok, code = try("pushStats", function()
         local Device = require("device")
         local settings = accountClient()
         if not settings then return nil end
-        return (statsRequest("PUT", "/api/v1/stats/global", {
-            device_id = G_reader_settings:readSetting("device_id"),
-            device = settings.kosync_hostname or Device.model,
-            daily = daily,
-        }))
+        local body = {}
+        for key, value in pairs(snapshot or {}) do body[key] = value end
+        body.device_id = G_reader_settings:readSetting("device_id")
+        body.device = settings.kosync_hostname or Device.model
+        if daily and #daily > 0 then body.daily = daily end
+        return (statsRequest("PUT", "/api/v1/stats/global", body))
     end)
     return ok and code or nil
 end

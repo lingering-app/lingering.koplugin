@@ -242,6 +242,49 @@ function M.readingDays(fm)
     return ok and days or nil
 end
 
+--[[--
+Ruwe gegevens voor de momentopname van de stats-API (domain/stats_snapshot.lua), uit dezelfde
+database en onder dezelfde voorwaarde als readingDays:
+{ starts = {...}, durations = {...}, pages = n, completed = n } of nil.
+- starts/durations: elke rij van page_stat_data (begin, duur afgekapt op max_sec), op volgorde;
+- pages: verschillende gelezen pagina's over alle boeken (zoals read_pages per boek);
+- completed: boeken in de leesgeschiedenis met status "complete" (sidecar summary.status).
+]]
+function M.statsData(fm)
+    local ok, data = try("statsData", function()
+        local statistics = fm and fm.statistics
+        if not (statistics and statistics.settings and statistics.settings.is_enabled) then
+            return nil
+        end
+        local DataStorage = require("datastorage")
+        local SQ3 = require("lua-ljsqlite3/init")
+        local lfs = require("libs/libkoreader-lfs")
+        local db = DataStorage:getSettingsDir() .. "/statistics.sqlite3"
+        if lfs.attributes(db, "mode") ~= "file" then return nil end
+
+        local max_sec = tonumber(statistics.settings.max_sec) or 120
+        local conn = SQ3.open(db)
+        local rows = conn:exec(string.format([[
+            SELECT start_time, min(duration, %d) FROM page_stat_data ORDER BY start_time;
+        ]], max_sec))
+        local pages = conn:rowexec("SELECT count(*) FROM (SELECT DISTINCT id_book, page FROM page_stat_data);")
+        conn:close()
+        local starts, durations = {}, {}
+        if rows then
+            for i, start in ipairs(rows[1]) do
+                starts[i] = tonumber(start) or 0
+                durations[i] = tonumber(rows[2][i]) or 0
+            end
+        end
+        local completed = 0
+        for _, file in ipairs(historyFiles()) do
+            if M.status(file) == "complete" then completed = completed + 1 end
+        end
+        return { starts = starts, durations = durations, pages = tonumber(pages) or 0, completed = completed }
+    end)
+    return ok and data or nil
+end
+
 --- Thuismap van KOReader (filemanagerutil.getHomeFolder).
 function M.homeFolder()
     local ok, dir = try("getHomeFolder", function()

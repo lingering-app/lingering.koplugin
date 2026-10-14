@@ -19,6 +19,7 @@ local Books = require("lingering.koreader.books")
 local Kosync = require("lingering.koreader.kosync")
 local Network = require("lingering.koreader.network")
 local Session = require("lingering.app.session")
+local StatsSnapshot = require("lingering.domain.stats_snapshot")
 local StatsSync = require("lingering.domain.stats_sync")
 
 local StatsService = {}
@@ -52,8 +53,13 @@ function StatsService.refresh(fm, done, opts)
     -- Eén momentopname: wat nu verstuurd wordt, is het eigen deel in de som die daarna komt.
     local local_days = Books.readingDays(fm) or {}
     local pending = StatsSync.pending(local_days, Session:read("lingering_stats_pushed"))
-    for _, chunk in ipairs(StatsSync.chunks(pending, StatsSync.CHUNK)) do
-        local code = Kosync.pushStats(chunk)
+    -- De momentopname (totalen van dit apparaat) is verplicht bij elk verzoek; ook zonder
+    -- nieuwe dagen één keer versturen.
+    local snapshot = StatsSnapshot.build(Books.statsData(fm) or {})
+    local chunks = StatsSync.chunks(pending, StatsSync.CHUNK)
+    if #chunks == 0 then chunks = { {} } end
+    for _, chunk in ipairs(chunks) do
+        local code = Kosync.pushStats(chunk, snapshot)
         if not ok(code) then
             logger.info("Lingering: leestijd versturen mislukt, status", tostring(code))
             Session:save("lingering_stats_state", StatsSync.afterTry(now, code))
