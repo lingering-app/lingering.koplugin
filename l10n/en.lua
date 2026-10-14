@@ -30,7 +30,6 @@ return {
     -- Statusbalk en lezen
     ["%1%"] = "%1%",
     ["Laadt op"] = "Charging",
-    ["Synchroniseren mislukt."] = "Sync failed.",
 
     -- Mijn boeken
     ["Bezig met synchroniseren…"] = "Syncing…",
@@ -40,6 +39,13 @@ return {
     ["Omslagen ophalen"] = "Fetching covers",
     ["Gelezen bijwerken"] = "Updating finished books",
     ["Leestijd delen"] = "Sharing reading time",
+    ["Stand ophalen"] = "Fetching position",
+    ["Stand bijwerken"] = "Updating position",
+    ["Naar %1% springen"] = "Jumping to %1%",
+    ["Stand opslaan"] = "Saving position",
+    ["Al gelijk"] = "Already in sync",
+    ["Opslaan mislukt"] = "Saving failed",
+    ["Niet ingelogd"] = "Not logged in",
     ["Server niet bereikbaar"] = "Server unreachable",
     ["Geen verbinding"] = "No connection",
     ["Nog niets gesynchroniseerd.\nZet wifi aan en tik op het sync-icoon."] = "Nothing synced yet.\nTurn on Wi-Fi and tap the sync icon.",

@@ -137,9 +137,15 @@ end
 
 --- De huidige stap is mislukt (reden eronder); het kader sluit na een paar seconden.
 function SyncStatus:fail(reason)
+    local failed = false
     for _, step in ipairs(self.steps) do
-        if self.state[step] == "current" then self.state[step] = "failed" end
+        if self.state[step] == "current" then
+            self.state[step] = "failed"
+            failed = true
+        end
     end
+    -- Mislukt voordat er een stap begon (bijv. niet ingelogd): de eerste stap.
+    if not failed then self.state[self.steps[1]] = "failed" end
     self.reason = reason
     self:render(true)
 end

@@ -2,8 +2,6 @@
 Leesscherm: tikzones (terug, sluiten, verder), bovenmenu dicht.
 Wordt aangeroepen vanuit main.lua als de plugin in een ReaderUI draait.
 ]]
-local InfoMessage = require("ui/widget/infomessage")
-local UIManager = require("ui/uimanager")
 local logger = require("logger")
 local _ = require("lingering.l10n.gettext")
 
@@ -14,6 +12,57 @@ local ReaderControl = require("lingering.koreader.reader")
 local Settings = require("lingering.app.session")
 
 local Reader = {}
+
+--[[--
+Sync-knop in het boek: voortgang als lijst onder de knop (ui/sync_status.lua), zoals op het
+homescreen. Stappen uit SyncService.syncNow (on_step); de laatste regel zegt wat er gebeurde.
+Geeft run(done, item) voor de taak in de actiebalk.
+]]
+local function syncWithProgress(ui)
+    local T = require("ffi/util").template
+    return function(done, item)
+        local status = require("lingering.ui.sync_status").new{
+            anchor = function() return item.dimen end,
+            steps = {
+                { id = "connect", label = _("Verbinden") },
+                { id = "fetch", label = _("Stand ophalen") },
+                { id = "apply", label = _("Stand bijwerken") },
+            },
+            widest = { T(_("Naar %1% springen"), 100), _("Stand opslaan"), _("Al gelijk") },
+        }
+        -- Waarom het misging, naar de stap waar het misging.
+        local reasons = {
+            connect = _("Geen verbinding"),
+            fetch = _("Server niet bereikbaar"),
+            apply = _("Opslaan mislukt"),
+        }
+        local current = "connect"
+        local function on_step(step, info)
+            if step == "no_account" then
+                reasons.connect = _("Niet ingelogd")
+                return
+            elseif step == "connect" or step == "fetch" then
+                current = step
+                status:start(step)
+                return
+            end
+            current = "apply"
+            if step == "jump" then
+                local percent = math.floor((tonumber(info and info.percent) or 0) * 100 + 0.5)
+                status:start("apply", T(_("Naar %1% springen"), percent))
+            elseif step == "push" then
+                status:start("apply", _("Stand opslaan"))
+            else
+                status:start("apply", _("Al gelijk"))
+            end
+        end
+        logger.info("Lingering: actiebalk, synchroniseren")
+        SyncService.syncNow(ui, function(ok)
+            if ok then status:finish() else status:fail(reasons[current]) end
+            done(ok)
+        end, on_step)
+    end
+end
 
 local function showActionBar(ui)
     local ActionBar = require("lingering.ui.actionbar")
@@ -43,18 +92,7 @@ local function showActionBar(ui)
                 task = true,
                 icon_file = "sync.svg",
                 frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
-                run = function(done)
-                    logger.info("Lingering: actiebalk, synchroniseren")
-                    SyncService.syncNow(ui, done)
-                end,
-                on_done = function(ok)
-                    if not ok then
-                        UIManager:show(InfoMessage:new{
-                            text = _("Synchroniseren mislukt."),
-                            timeout = 3,
-                        })
-                    end
-                end,
+                run = syncWithProgress(ui),
             },
             {
                 name = "automatisch draaien",

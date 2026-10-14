@@ -7,7 +7,7 @@ Soorten acties:
 - knop:        { icon | icon_file, callback = fn }                 (balk sluit)
 - schakelaar:  { switch = true, icon_on, icon_off, state, on_toggle = fn(state) }
                Met tap = fn(item) doet een tik dat in plaats van schakelen (icoon volgt de stand).
-- taak:        { task = true, icon_file, frames = {...}, run = fn(done) }
+- taak:        { task = true, icon_file, frames = {...}, run = fn(done, item) }
                Grijs als hij niets doet; tijdens de taak wisselt het icoon (zwart) door de
                frames; done(ok) stopt dat.
 ]]
@@ -153,7 +153,7 @@ function Item:startTask()
 
     -- In de volgende tik beginnen, na het tekenen van het eerste frame.
     UIManager:nextTick(function()
-        if not safeCall("taak", self.action.run, done) then
+        if not safeCall("taak", self.action.run, done, self) then
             done(false)
         end
     end)

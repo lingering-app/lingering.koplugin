@@ -171,3 +171,55 @@ function TestSyncService:test_gelezen_boek_opnieuw_lezen_schrijft_weg()
     lu.assertNotNil(Fakes.calls.store)
     lu.assertNil(Fakes.calls.jump)
 end
+
+-- Stappen voor de voortgang van de sync-knop (on_step).
+local function syncSteps()
+    local steps, result = {}, "nog niet"
+    SyncService.syncNow({ kosync = handle }, function(ok) result = ok end, function(step, info)
+        table.insert(steps, info and info.percent and (step .. " " .. info.percent) or step)
+    end)
+    return steps, result
+end
+
+function TestSyncService:test_stappen_springen()
+    Fakes.state.local_percent = 0.1
+    Fakes.state.record = { percent = 0.3, progress = "server-pos" }
+    local steps, result = syncSteps()
+    lu.assertEquals(steps, { "connect", "fetch", "jump 0.3" })
+    lu.assertTrue(result)
+end
+
+function TestSyncService:test_stappen_wegschrijven()
+    Fakes.state.local_percent = 0.6
+    Fakes.state.record = { percent = 0.3 }
+    local steps = syncSteps()
+    lu.assertEquals(steps, { "connect", "fetch", "push 0.3" })
+end
+
+function TestSyncService:test_stappen_al_gelijk()
+    Fakes.state.local_percent = 0.5
+    Fakes.state.record = { percent = 0.5 }
+    local steps = syncSteps()
+    lu.assertEquals(steps, { "connect", "fetch", "none 0.5" })
+end
+
+function TestSyncService:test_stappen_ophalen_mislukt()
+    Fakes.state.fetch_ok = false
+    local steps, result = syncSteps()
+    lu.assertEquals(steps, { "connect", "fetch" })
+    lu.assertFalse(result)
+end
+
+function TestSyncService:test_stappen_niet_ingelogd()
+    Fakes.state.logged_in = false
+    local steps, result = syncSteps()
+    lu.assertEquals(steps, { "no_account" })
+    lu.assertFalse(result)
+end
+
+function TestSyncService:test_stappen_geen_verbinding()
+    Fakes.state.online, Fakes.state.wifi_on, Fakes.state.wifi_fails = false, false, true
+    local steps, result = syncSteps()
+    lu.assertEquals(steps, { "connect" })
+    lu.assertFalse(result)
+end

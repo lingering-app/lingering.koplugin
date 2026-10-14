@@ -3,7 +3,10 @@ Voortgangssync: de afloop en het beleid. Beslissing in domain/sync_rules.lua, KO
 aanroepen in koreader/kosync.lua en koreader/network.lua.
 
 - reconcile(kosync, opts, done): momentopname → ophalen → besluiten → springen/wegschrijven.
-- syncNow(ui, done): sync-knop; wifi aan zonder te vragen, daarna weer uit als hij uit stond.
+  opts.on_step(stap, info): "jump" ({ percent }), "push" of "none" zodra besloten is.
+- syncNow(ui, done, on_step): sync-knop; wifi aan zonder te vragen, daarna weer uit als hij uit
+  stond. on_step(stap, info) voor de voortgang: "no_account", "connect", "fetch", dan zoals
+  reconcile ("jump", "push", "none").
 - markFinished(file, done): boek op uit en, met verbinding, 100% naar de server.
 - policy: wanneer kosync automatisch synchroniseert (zie koreader/kosync.lua installRules):
   alleen met verbinding, nooit wifi aanzetten; bij openen één nieuwe poging na 3 s.
@@ -46,6 +49,9 @@ function SyncService.reconcile(kosync, opts, done)
             local action = SyncRules.decide(snap.percent, { ok = fetched_ok, record = record }, opts.jump,
                 read_since_open)
             logger.info("Lingering: voortgang", action, "(server", tostring(record and record.percent), "hier", snap.percent .. ")")
+            if opts.on_step and action ~= "fail" then
+                opts.on_step(action, { percent = record and record.percent })
+            end
             if action == "jump" then
                 local jumped = pcall(session.jump, session, record.progress)
                 finish(jumped)
@@ -66,10 +72,12 @@ function SyncService.reconcile(kosync, opts, done)
     end
 end
 
-function SyncService.syncNow(ui, done)
+function SyncService.syncNow(ui, done, on_step)
+    local step = on_step or function() end
     local kosync = ui.kosync
     if not Kosync.session(kosync) then
         logger.warn("Lingering: synchroniseren niet mogelijk, kosync niet ingelogd of niet geladen")
+        step("no_account")
         done(false)
         return
     end
@@ -89,8 +97,10 @@ function SyncService.syncNow(ui, done)
     end
     -- Ook vóór de verbinding er is: kosync's pull bij NetworkConnected mag niet tegelijk.
     Kosync.markActivity(kosync)
+    step("connect")
     local started = Network.turnOnWifiThen(function()
-        SyncService.reconcile(kosync, { jump = true }, finish)
+        step("fetch")
+        SyncService.reconcile(kosync, { jump = true, on_step = step }, finish)
     end)
     if not started then finish(false) end
 end
