@@ -187,7 +187,7 @@ function Smoke.filemanager(plugin)
             assert(lib and lib.stack, "Mijn boeken niet geopend")
         end },
         { name = "mijn boeken getekend", wait = 2, fn = function()
-            assert(lib.page_entries and #lib.page_entries > 0, "geen items in Mijn boeken")
+            assert(lib.entries and #lib.entries > 0, "geen items in Mijn boeken")
             -- Synchroniseren alleen met de knop: het scherm haalt zelf niets op.
             assert(not lib.sync_item.busy, "Mijn boeken synchroniseert uit zichzelf")
             lib.sync_item:startTask()
@@ -200,16 +200,12 @@ function Smoke.filemanager(plugin)
         { name = "mijn boeken gesynchroniseerd", wait = 6, fn = function()
             assert(not lib.sync_item.busy, "sync-knop nog bezig")
             local Library = require("lingering.app.library_service")
-            for _, entry in ipairs(lib.page_entries) do
+            for _, entry in ipairs(lib.entries) do
                 if entry.kind == "folder" then
                     assert(Library:cached(entry.url), "map niet opgehaald: " .. tostring(entry.title))
                 end
             end
             assert(not lib.sync_status:isOpen(), "kader niet gesloten na de sync")
-            -- Leestijd van alle apparaten: een ander apparaat las vandaag 30 min op de testserver.
-            local server = require("lingering.app.session"):read("lingering_stats_server")
-            local today = os.date("%Y-%m-%d")
-            assert(server and (server[today] or 0) >= 1800, "leestijd niet gesynchroniseerd")
             -- Leestijd van alle apparaten: een ander apparaat las vandaag 30 min op de testserver.
             local server = require("lingering.app.session"):read("lingering_stats_server")
             local today = os.date("%Y-%m-%d")
@@ -240,11 +236,27 @@ function Smoke.filemanager(plugin)
             UIManager:close(state.stack_window)
         end },
         { name = "eerste map", fn = function()
-            lib:openEntry(lib.page_entries[1])
+            -- "Al mijn boeken": 300 boeken op de testserver, in pagina's.
+            local started = os.clock()
+            lib:openEntry(lib.entries[1])
+            state.open_ms = math.floor((os.clock() - started) * 1000)
         end },
         { name = "eerste map getekend", wait = 2, fn = function()
             shot("3-folder")
             assert(lib.nav_bar, "geen navigatiebalk in Mijn boeken")
+            assert(#lib.entries == 300, "niet alle 300 boeken opgehaald: " .. #lib.entries)
+            assert(lib.page_count and lib.page_count > 1, "geen pagina's")
+            logger.info("Lingering: SMOKE map met", #lib.entries, "boeken,", lib.page_count, "pagina's, openen", state.open_ms, "ms")
+            local started = os.clock()
+            lib:onSwipe(nil, { direction = "north" })
+            state.turn_ms = math.floor((os.clock() - started) * 1000)
+            assert(lib:current().page == 2, "niet naar pagina 2")
+        end },
+        { name = "pagina 2 getekend", wait = 1, fn = function()
+            shot("3b-folder-page-2")
+            logger.info("Lingering: SMOKE pagina omslaan", state.turn_ms, "ms")
+            lib:onSwipe(nil, { direction = "south" })
+            assert(lib:current().page == 1, "niet terug naar pagina 1")
         end },
         { name = "navigatie: Mijn boeken opnieuw → begin", fn = function()
             lib:goToRoot()
@@ -656,7 +668,7 @@ function Smoke.shotsHome(plugin)
         { name = "mijn boeken vastgelegd", wait = 10, fn = function()
             shot("mijn-boeken")
             local lib = plugin.screens[1]
-            for _, entry in ipairs(lib.page_entries or {}) do
+            for _, entry in ipairs(lib.entries or {}) do
                 if entry.kind == "folder" and entry.title == "Al mijn boeken" then
                     lib:openEntry(entry)
                     -- Omslagen komen alleen met de sync-knop.

@@ -355,7 +355,12 @@ Raster:
 - `ui/grid.lua`: vaste marge aan de schermrand, vaste tussenruimte tussen kolommen, vaste
   rijruimte; per rij 1, 2 of 4 kolommen (`Grid.rows`). Homescreen: rij 1 = boek (1 kolom) of
   boeken (4), rij 2 = mappen (2). Mijn boeken: mappen in rijen van 2, boeken in rijen van 4;
-  met schuifbalk krijgt het raster de breedte náást de schuifbalk (marges links en rechts gelijk).
+  in pagina's (`Layout.pages`; veeg omhoog/links = volgende, omlaag/rechts = vorige), alleen de
+  huidige pagina wordt gebouwd (300 boeken: openen ~10 ms in de emulator). Past er bijna een rij
+  bij, dan krimpen de omslagen (`Layout.fitRows`). Met meer pagina's rechts een smalle
+  paginabalk; het raster krijgt de breedte ernaast (marges links en rechts gelijk). Vroeger een
+  `ScrollableContainer` die alle tegels bouwde, ook bij honderden boeken.
+- Testserver: "Al mijn boeken" heeft 300 boeken, de feed in delen van 50 (`rel="next"`).
 - Mappen zijn overal `ui/folder_tile.lua`: waaier van tot 4 omslagen over de kolombreedte
   (achterste steeds 88%), naam en grijs het aantal boeken, links uitgelijnd.
 

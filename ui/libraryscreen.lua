@@ -1,5 +1,7 @@
 --[[--
-Mijn boeken: de OPDS-catalogus als raster met omslagen, verticaal te schuiven.
+Mijn boeken: de OPDS-catalogus als raster met omslagen, in pagina's (veeg omhoog of naar
+links: volgende pagina; omlaag of naar rechts: vorige). Alleen de huidige pagina wordt
+gebouwd, ook bij een map met honderden boeken; rechts een smalle paginabalk.
 
 - Toont meteen de gecachete versie (ook zonder wifi).
 - Synchroniseren alleen met de sync-knop (zet zo nodig wifi aan): de huidige map, de mappen
@@ -19,13 +21,13 @@ local HorizontalSpan = require("ui/widget/horizontalspan")
 local ImageWidget = require("ui/widget/imagewidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local OverlapGroup = require("ui/widget/overlapgroup")
-local ScrollableContainer = require("ui/widget/container/scrollablecontainer")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
 local TopContainer = require("ui/widget/container/topcontainer")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
+local Widget = require("ui/widget/widget")
 local logger = require("logger")
 local _ = require("lingering.l10n.gettext")
 local T = require("ffi/util").template
@@ -38,6 +40,36 @@ local FolderTile = require("lingering.ui.folder_tile")
 local Grid = require("lingering.ui.grid")
 local Layout = require("lingering.domain.layout")
 local Style = require("lingering.ui.style")
+
+-- Breedte van de paginabalk rechts (alleen bij meer dan één pagina).
+local PAGE_BAR_W = Screen:scaleBySize(14)
+
+--[[--
+Paginabalk: een dunne lijn over de hoogte, met een dikker stuk voor de huidige pagina
+(zoals een schuifbalk, maar per pagina).
+]]
+local PageBar = Widget:extend{
+    width = nil,
+    height = nil,
+    page = 1,
+    pages = 1,
+}
+
+function PageBar:getSize()
+    return Geom:new{ w = self.width, h = self.height }
+end
+
+function PageBar:paintTo(bb, x, y)
+    local top = y + Grid.MARGIN
+    local h = self.height - 2 * Grid.MARGIN
+    local track_w = math.max(1, Screen:scaleBySize(1))
+    local thumb_w = Screen:scaleBySize(4)
+    local cx = x + math.floor(self.width / 2)
+    bb:paintRect(cx - math.floor(track_w / 2), top, track_w, h, Style.progress.track)
+    local part = h / self.pages
+    bb:paintRect(cx - math.floor(thumb_w / 2), top + math.floor((self.page - 1) * part),
+        thumb_w, math.max(thumb_w, math.floor(part)), Style.progress.fill)
+end
 
 local function loadCover(library, url, w, h)
     return Widgets.loadCover(library, url, w, h)
@@ -167,7 +199,29 @@ function LibraryScreen:init()
     -- Navigatiebalk: Mijn boeken staat vet; een tik erop gaat terug naar het begin.
     self.nav_bar = Widgets.mainNav(width, self.nav, "library", function() self:goToRoot() end)
     self.nav_h = self.nav_bar:getSize().h
+    self.ges_events = {
+        Swipe = { GestureRange:new{ ges = "swipe", range = function() return self.body_dimen end } },
+    }
     self:render()
+end
+
+-- Vegen: omhoog of naar links de volgende pagina, omlaag of naar rechts de vorige.
+function LibraryScreen:onSwipe(_, ges)
+    local direction = ges and ges.direction
+    if direction == "north" or direction == "west" then
+        self:turnPage(1)
+    elseif direction == "south" or direction == "east" then
+        self:turnPage(-1)
+    end
+    return true
+end
+
+function LibraryScreen:turnPage(delta)
+    local current = self:current()
+    local page = math.max(1, math.min((current.page or 1) + delta, self.page_count or 1))
+    if page == (current.page or 1) then return end
+    current.page = page
+    self:render(true)
 end
 
 function LibraryScreen:goToRoot()
@@ -227,6 +281,8 @@ function LibraryScreen:render(partial)
     self:setTitle(current.title)
 
     local body_h = height - self.header_h - self.nav_h
+    -- Ruimte voor rijen op een pagina: onderaan dezelfde marge als bovenaan.
+    local page_h = body_h - Grid.MARGIN
     -- Raster (ui/grid.lua): mappen in rijen van 2, boeken in rijen van 4, altijd dezelfde
     -- marges links en rechts.
     local feed = self.library:cached(current.url)
@@ -243,6 +299,12 @@ function LibraryScreen:render(partial)
         if z.book_cover_h > max_cover_h then
             z.book_cover_h = max_cover_h
             z.book_cover_w = math.floor(z.book_cover_h * 2 / 3)
+        end
+        -- Past er bijna een rij bij, dan de omslagen iets kleiner (geen half lege pagina).
+        local _, fitted_h = Layout.fitRows(page_h, z.book_cover_h, Grid.ROW_GAP, Grid.MARGIN)
+        if fitted_h < z.book_cover_h then
+            z.book_cover_h = fitted_h
+            z.book_cover_w = math.floor(fitted_h * 2 / 3)
         end
         z.book_tile_h = z.book_cover_h
         -- Mappen: waaier zoals op het homescreen (Widgets.folderStackSize).
@@ -271,24 +333,28 @@ function LibraryScreen:render(partial)
         end
         return heights
     end
-    -- Past het niet, dan komt er rechts een schuifbalk: het raster krijgt dan de breedte náást
-    -- de schuifbalk, zodat de marge rechts even groot is als links.
+    -- Pagina's (domain/layout.lua): alleen de rijen van de huidige pagina worden gebouwd, dus
+    -- een map met 300 boeken opent even snel als een kleine. Meer dan één pagina: rechts een
+    -- smalle paginabalk; het raster krijgt de breedte ernaast, zodat de marges gelijk blijven.
+    local function pagesAt(content_w)
+        return Layout.pages(rowHeights(sizes(content_w)), page_h, Grid.MARGIN, Grid.ROW_GAP)
+    end
     local content_w = width
-    if Grid.rowsHeight(rowHeights(sizes(width))) > body_h then
-        content_w = width - ScrollableContainer:getScrollbarWidth()
+    local pages = pagesAt(width)
+    if #pages > 1 then
+        content_w = width - PAGE_BAR_W
+        pages = pagesAt(content_w)
     end
     local z = sizes(content_w)
     local book_w, book_cover_w, book_cover_h, book_tile_h = z.book_w, z.book_cover_w, z.book_cover_h, z.book_tile_h
     local folder_w, stack_w, stack_h, folder_tile_h = z.folder_w, z.stack_w, z.stack_h, z.folder_tile_h
-
-    -- Schuifpositie bewaren bij opnieuw opbouwen (omslagen binnen, na sync).
-    if self.scroll and self.scroll_url == current.url then
-        current.offset = self.scroll:getScrolledOffset()
-    end
+    current.page = math.max(1, math.min(current.page or 1, #pages))
+    self.page_count = #pages
+    local page = pages[current.page]
 
     local body
-    self.page_entries = items or {}
-    self.scroll, self.cropping_widget = nil, nil
+    self.entries = items or {}
+    self.body_dimen = Geom:new{ x = 0, y = self.header_h, w = width, h = body_h }
     if not items then
         body = self:message(self.sync_item.busy and _("Bezig met synchroniseren…")
             or _("Nog niets gesynchroniseerd.\nZet wifi aan en tik op het sync-icoon."), width, body_h)
@@ -296,7 +362,8 @@ function LibraryScreen:render(partial)
         body = self:message(_("Geen boeken."), width, body_h)
     else
         local grid_rows = {}
-        for _, row in ipairs(rows) do
+        for r = page.first, page.last do
+            local row = rows[r]
             local cells = {}
             for _, entry in ipairs(row.entries) do
                 if entry.kind == "folder" then
@@ -328,28 +395,13 @@ function LibraryScreen:render(partial)
             end
             table.insert(grid_rows, { columns = row.columns, cells = cells })
         end
-        local grid = Grid.rows(content_w, grid_rows)
-        -- Rijen voor step_scroll_grid, aansluitend vanaf y = 0 (domain/layout.lua); elke rij
-        -- met de rijruimte eronder, zoals Grid.rows ze neerzet.
-        local heights = {}
-        for _, h in ipairs(rowHeights(z)) do table.insert(heights, h + Grid.ROW_GAP) end
-        local rows_info = Layout.stackRows(heights, Grid.MARGIN)
-        if grid:getSize().h <= body_h then
-            -- Past alles al: geen schuifcontainer nodig.
-            body = grid
-        else
-            -- Verticaal schuiven (ScrollableContainer van KOReader); een veeg schuift een
-            -- schermhoogte en lijnt uit op een rij tegels.
-            self.scroll = ScrollableContainer:new{
-                dimen = Geom:new{ w = width, h = body_h },
-                show_parent = self,
-                step_scroll_grid = rows_info,
-                grid,
+        body = Grid.rows(content_w, grid_rows)
+        if #pages > 1 then
+            body = HorizontalGroup:new{
+                align = "top",
+                body,
+                PageBar:new{ width = PAGE_BAR_W, height = body_h, page = current.page, pages = #pages },
             }
-            self.scroll_url = current.url
-            -- UIManager gebruikt cropping_widget om verversingen tot het schuifgebied te beperken.
-            self.cropping_widget = self.scroll
-            body = self.scroll
         end
     end
 
@@ -366,10 +418,6 @@ function LibraryScreen:render(partial)
             self.nav_bar,
         },
     }
-    if self.scroll and current.offset then
-        self.scroll:initState()
-        self.scroll:setScrolledOffset(current.offset)
-    end
     if partial then
         UIManager:setDirty(self, "ui", Geom:new{ x = 0, y = self.header_h, w = width, h = body_h })
     else
@@ -383,7 +431,7 @@ omslagen (in de achtergrond), zodat de mapstapels en aantallen kloppen. done() a
 ]]
 function LibraryScreen:syncFolders(done)
     local todo = {}
-    for _, entry in ipairs(self.page_entries or {}) do
+    for _, entry in ipairs(self.entries or {}) do
         if entry.kind == "folder" then table.insert(todo, entry.url) end
     end
     if #todo == 0 then return done() end
@@ -514,7 +562,7 @@ end
 function LibraryScreen:queueCovers(done)
     if self.closed or self.covers_loading then return done() end
     local missing = {}
-    for _, entry in ipairs(self.page_entries or {}) do
+    for _, entry in ipairs(self.entries or {}) do
         local url = entry.thumbnail
         if url and not self.cover_failed[url] and not self.library:hasCover(url) then
             table.insert(missing, url)

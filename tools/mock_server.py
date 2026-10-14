@@ -13,7 +13,8 @@ Account: gebruiker "test", wachtwoord "test" (OPDS: Basic auth; kosync: x-auth-k
 
 Paden:
   /opds                      hoofdcatalogus (navigatie naar de mappen)
-  /opds/folder/<id>          map met boeken (acquisitiefeed)
+  /opds/folder/<id>          map met boeken (acquisitiefeed), in delen van 50 (?page=N, rel="next");
+                             "Al mijn boeken" heeft 300 boeken
   /opds/book/<id>.epub       boek
   /opds/cover/<id>.png       omslag (ook als thumbnail)
   /kosync/users/auth         GET, 200 of 401
@@ -51,9 +52,16 @@ BOOKS = [
     ("5", "De Laatste Trein", "Eva Visser", (110, 50, 140)),
     ("6", "Licht in de Winter", "Frank Mulder", (60, 60, 60)),
 ]
+# Tot 300 boeken in "Al mijn boeken", om grote mappen te testen (pagina's in Mijn boeken,
+# een feed in delen met rel="next").
+COLORS = [(30, 90, 160), (180, 60, 40), (40, 140, 80), (200, 160, 30), (110, 50, 140), (60, 60, 60)]
+for n in range(7, 301):
+    BOOKS.append((str(n), "Testboek %d" % n, "Auteur %d" % (n % 23 + 1), COLORS[n % len(COLORS)]))
+BOOK_INFO = {book_id: (title, author, color) for book_id, title, author, color in BOOKS}
+PAGE_SIZE = 50  # boeken per deel van een feed
 FOLDERS = [
     # id, titel, boeken
-    ("all", "Al mijn boeken", ["1", "2", "3", "4", "5", "6"]),
+    ("all", "Al mijn boeken", [book_id for book_id, _, _, _ in BOOKS]),
     ("reading", "Aan het lezen", ["1", "2"]),
     ("toread", "Wil ik lezen", ["3", "4", "5"]),
     ("read", "Gelezen", ["6"]),
@@ -151,8 +159,26 @@ def make_dictionary():
     return buf.getvalue()
 
 
-COVERS = {book_id: make_png(300, 450, color) for book_id, _, _, color in BOOKS}
-EPUBS = {book_id: make_epub(book_id, title, author, COVERS[book_id]) for book_id, title, author, _ in BOOKS}
+# Omslagen en boeken pas maken als erom gevraagd wordt (300 boeken).
+COVERS, EPUBS = {}, {}
+
+
+def cover(book_id):
+    if book_id not in BOOK_INFO:
+        return None
+    if book_id not in COVERS:
+        COVERS[book_id] = make_png(300, 450, BOOK_INFO[book_id][2])
+    return COVERS[book_id]
+
+
+def epub(book_id):
+    if book_id not in BOOK_INFO:
+        return None
+    if book_id not in EPUBS:
+        title, author, _ = BOOK_INFO[book_id]
+        EPUBS[book_id] = make_epub(book_id, title, author, cover(book_id))
+    return EPUBS[book_id]
+
 DICTIONARY = make_dictionary()
 PROGRESS = {}  # document → { percentage, progress, device, device_id, timestamp }
 # (device_id, datum) → seconden; een ander apparaat las vandaag al 30 minuten.
@@ -162,12 +188,13 @@ DATE = re.compile(r"^20\d\d-\d\d-\d\d$")
 ATOM = "application/atom+xml;profile=opds-catalog"
 
 
-def feed(base, feed_id, title, entries):
+def feed(base, feed_id, title, entries, next_href=None):
+    next_link = '<link rel="next" href="%s" type="%s"/>' % (escape(next_href), ATOM) if next_href else ""
     return ('<?xml version="1.0" encoding="utf-8"?>'
             '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2010/catalog">'
             '<id>%s</id><title>%s</title><updated>2026-01-01T00:00:00Z</updated>'
-            '<link rel="self" href="%s/opds" type="%s"/>%s</feed>'
-            % (feed_id, escape(title), base, ATOM, "".join(entries)))
+            '<link rel="self" href="%s/opds" type="%s"/>%s%s</feed>'
+            % (feed_id, escape(title), base, ATOM, next_link, "".join(entries)))
 
 
 def root_feed(base):
@@ -177,20 +204,25 @@ def root_feed(base):
     return feed(base, "root", "Lingering test", entries)
 
 
-def folder_feed(base, folder_id):
+def folder_feed(base, folder_id, page=1):
+    """Map als feed, in delen van PAGE_SIZE boeken; een volgend deel via rel="next"."""
     for fid, title, ids in FOLDERS:
         if fid == folder_id:
             entries = []
-            for book_id, btitle, author, _ in BOOKS:
-                if book_id in ids:
-                    entries.append(
-                        '<entry><id>book-%s</id><title>%s</title><author><name>%s</name></author>'
-                        '<updated>2026-01-01T00:00:00Z</updated>'
-                        '<link rel="http://opds-spec.org/acquisition" href="%s/opds/book/%s.epub" type="application/epub+zip"/>'
-                        '<link rel="http://opds-spec.org/image" href="%s/opds/cover/%s.png" type="image/png"/>'
-                        '<link rel="http://opds-spec.org/image/thumbnail" href="%s/opds/cover/%s.png" type="image/png"/>'
-                        '</entry>' % (book_id, escape(btitle), escape(author), base, book_id, base, book_id, base, book_id))
-            return feed(base, "folder-" + fid, title, entries)
+            part = ids[(page - 1) * PAGE_SIZE:page * PAGE_SIZE]
+            next_href = None
+            if page * PAGE_SIZE < len(ids):
+                next_href = "%s/opds/folder/%s?page=%d" % (base, fid, page + 1)
+            for book_id in part:
+                btitle, author, _ = BOOK_INFO[book_id]
+                entries.append(
+                    '<entry><id>book-%s</id><title>%s</title><author><name>%s</name></author>'
+                    '<updated>2026-01-01T00:00:00Z</updated>'
+                    '<link rel="http://opds-spec.org/acquisition" href="%s/opds/book/%s.epub" type="application/epub+zip"/>'
+                    '<link rel="http://opds-spec.org/image" href="%s/opds/cover/%s.png" type="image/png"/>'
+                    '<link rel="http://opds-spec.org/image/thumbnail" href="%s/opds/cover/%s.png" type="image/png"/>'
+                    '</entry>' % (book_id, escape(btitle), escape(author), base, book_id, base, book_id, base, book_id))
+            return feed(base, "folder-" + fid, title, entries, next_href)
     return None
 
 
@@ -229,14 +261,16 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/opds":
                 return self.send(200, root_feed(self.base()), ATOM)
             if path.startswith("/opds/folder/"):
-                body = folder_feed(self.base(), path.rsplit("/", 1)[1])
+                query = self.path.split("?", 1)[1] if "?" in self.path else ""
+                page = int(re.search(r"page=(\d+)", query).group(1)) if "page=" in query else 1
+                body = folder_feed(self.base(), path.rsplit("/", 1)[1], page)
                 return self.send(200, body, ATOM) if body else self.send(404)
             if path.startswith("/opds/book/"):
-                book = EPUBS.get(path.rsplit("/", 1)[1].replace(".epub", ""))
+                book = epub(path.rsplit("/", 1)[1].replace(".epub", ""))
                 return self.send(200, book, "application/epub+zip") if book else self.send(404)
             if path.startswith("/opds/cover/"):
-                cover = COVERS.get(path.rsplit("/", 1)[1].replace(".png", ""))
-                return self.send(200, cover, "image/png") if cover else self.send(404)
+                image = cover(path.rsplit("/", 1)[1].replace(".png", ""))
+                return self.send(200, image, "image/png") if image else self.send(404)
             return self.send(404)
         if path == "/kosync/users/auth":
             if self.kosync_authorized():
