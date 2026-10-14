@@ -361,9 +361,15 @@ Raster:
 
 Sync en gelezen boeken:
 - Gelezen op de website → gelezen op de e-reader via de OPDS-map `config.finished_collection`
-  ("Gelezen"): het homescreen roept `Library:syncFinished` aan (hooguit eens per 10 minuten
-  ophalen, alleen met verbinding); elk gedownload boek uit die map dat lokaal nog "aan het
-  lezen" is, gaat op uit (`koreader/books.markFinished`) en verdwijnt uit de rij.
+  ("Gelezen"): de sync-knop van het homescreen roept `Library:syncFinished` aan; elk
+  gedownload boek uit die map dat lokaal nog "aan het lezen" is, gaat op uit
+  (`koreader/books.markFinished`) en verdwijnt uit de rij.
+- Homescreen en Mijn boeken halen zelf niets op: alleen hun sync-knop (statusbalk, zet zo nodig
+  wifi aan). Homescreen: hoofdpagina + `config.collections` met eerste omslagen, "Gelezen",
+  leestijd (`app/stats_service.lua`). Mijn boeken: huidige map, mappen op de pagina, omslagen,
+  leestijd. Voortgang in een kader onder de knop (`ui/sync_status.lua`, `Popover` met `stay`,
+  `setLines`, `closeIn`; `Popover:paintTo` tekent op `self.dimen`, omdat UIManager de plek
+  van `show` onthoudt en het kader na `setLines` anders van het icoon wegschuift).
 - Staat een boek op de server op gelezen (≥ 99,5%) en de Kobo eronder, dan springt de Kobo
   niet (de positie bij "gelezen" is vaak niet het einde). Alleen openen schrijft niets weg;
   heb je sinds het openen verder gelezen, dan gaat je stand naar de server (opnieuw lezen;

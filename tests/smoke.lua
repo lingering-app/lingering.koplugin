@@ -4,7 +4,7 @@ tools/smoke.sh start KOReader in een eigen testmap (KO_HOME) tegen tools/mock_se
 LINGERING_TEST=setup   inloggen op de testserver (echte AccountService), daarna afsluiten
 LINGERING_TEST=reader  actiebalk → draaien → inhoudsopgave → sync-knop → springen → wegschrijven →
                        boek sluiten
-LINGERING_TEST=fm      homescreen → Mijn boeken → eerste map → Instellingen → Taal →
+LINGERING_TEST=fm      homescreen (sync-knop) → Mijn boeken → eerste map → Instellingen → Taal →
                        Woordenboek → Account → inloggen (goed/fout) → downloaden → update
 LINGERING_SHOTS=<map>  schermafdrukken
 Elke scène logt "Lingering: SMOKE <naam> OK"; fouten verschijnen als WARN/ERROR in de log.
@@ -82,6 +82,22 @@ function Smoke.filemanager(plugin)
     run{
         { name = "homescreen", wait = 2, fn = function()
             assert(plugin.home, "geen homescreen")
+            -- Synchroniseren alleen met de knop: het homescreen haalt zelf niets op.
+            assert(plugin.home.sync_item and not plugin.home.sync_item.busy, "homescreen synchroniseert uit zichzelf")
+            plugin.home.sync_item:startTask()
+        end },
+        { name = "sync-kader homescreen", wait = 1, fn = function()
+            assert(plugin.home.sync_status and plugin.home.sync_status:isOpen(), "geen kader met voortgang")
+            shot("1-home-sync-progress")
+        end },
+        { name = "homescreen gesynchroniseerd", wait = 6, fn = function()
+            assert(not plugin.home.sync_item.busy, "sync-knop homescreen nog bezig")
+            assert(not plugin.home.sync_status:isOpen(), "kader niet gesloten na de sync")
+            -- Leestijd van alle apparaten: een ander apparaat las vandaag 30 min op de testserver.
+            local server = require("lingering.app.session"):read("lingering_stats_server")
+            local today = os.date("%Y-%m-%d")
+            assert(server and (server[today] or 0) >= 1800, "leestijd niet gesynchroniseerd")
+            assert(plugin.home.reading and plugin.home.reading.today >= 1800, "rij telt de server niet mee")
             shot("1-home")
         end },
         { name = "mappen op het homescreen", fn = function()
@@ -178,7 +194,7 @@ function Smoke.filemanager(plugin)
             assert(lib.sync_item.busy, "sync-knop start niet")
         end },
         { name = "sync-kader", wait = 1, fn = function()
-            assert(lib.sync_popover and not lib.sync_popover.closed, "geen kader met voortgang")
+            assert(lib.sync_status and lib.sync_status:isOpen(), "geen kader met voortgang")
             shot("2c-library-sync-progress")
         end },
         { name = "mijn boeken gesynchroniseerd", wait = 6, fn = function()
@@ -189,7 +205,7 @@ function Smoke.filemanager(plugin)
                     assert(Library:cached(entry.url), "map niet opgehaald: " .. tostring(entry.title))
                 end
             end
-            assert(lib.sync_popover.closed, "kader niet gesloten na de sync")
+            assert(not lib.sync_status:isOpen(), "kader niet gesloten na de sync")
             -- Leestijd van alle apparaten: een ander apparaat las vandaag 30 min op de testserver.
             local server = require("lingering.app.session"):read("lingering_stats_server")
             local today = os.date("%Y-%m-%d")
@@ -610,7 +626,8 @@ end
 function Smoke.shotsHome(plugin)
     local state = {}
     run{
-        { name = "homescreen", wait = 5, fn = function() shot("home") end },
+        { name = "homescreen synchroniseren", wait = 2, fn = function() plugin.home.sync_item:startTask() end },
+        { name = "homescreen", wait = 15, fn = function() shot("home") end },
         { name = "boekmenu", fn = function()
             -- ⋮ van het eerste boek in de rij (zelfde maten als HomeScreen:readingTiles).
             local Geom = require("ui/geometry")

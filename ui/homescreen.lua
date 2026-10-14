@@ -370,14 +370,25 @@ function HomeScreen:init()
     }
 end
 
--- Statusregel bovenaan (ui/statusbar.lua): "Lingering", licht, wifi, tijd, batterij;
+-- Statusregel bovenaan (ui/statusbar.lua): "Lingering", sync-knop, licht, wifi, tijd, batterij;
 -- werkt zichzelf bij.
 function HomeScreen:buildStatus(width)
     self.status_bar = require("lingering.ui.statusbar"):new{
         width = width,
         show_parent = self,
         title = "Lingering",
+        extra = {
+            {
+                name = "homescreen synchroniseren",
+                task = true,
+                icon_file = "sync.svg",
+                frames = { "sync-45.svg", "sync-90.svg", "sync-135.svg", "sync.svg" },
+                run = function(done) self:syncAll(done) end,
+            },
+        },
     }
+    -- De sync-knop is het eerste icoon van de statusbalk.
+    self.sync_item = self.status_bar.items[1]
     return self.status_bar
 end
 
@@ -695,18 +706,52 @@ function HomeScreen:collectionRow(width, area_h)
 end
 
 --[[--
-Met verbinding: mappen verversen (hooguit eens per tien minuten) en hun eerste omslagen
-ophalen; daarna alleen het deel onder het huidige boek opnieuw tekenen.
+Sync-knop (draaiend icoon, voortgang in een kader eronder, ui/sync_status.lua): zo nodig wifi
+aan, dan de mappen van het homescreen met hun eerste omslagen, de map "Gelezen" (gelezen op de
+website → hier gelezen) en de leestijd van alle apparaten. Pas aan het eind wordt het scherm
+opnieuw opgebouwd (dat maakt ook de statusbalk, en dus het draaiende icoon, opnieuw).
+Of de leestijd lukt, telt niet mee (zonder stats-API op de server werkt de rest gewoon).
 ]]
-function HomeScreen:refreshCollections()
-    if self.closed or not (self.library and self.collections) or not Network.isOnline() then return end
-    self.library:refreshCollections(self.collections, function(changed)
-        if self.closed or not changed then return end
-        self:build()
-        UIManager:setDirty(self, "ui", Geom:new{
-            x = 0, y = self.book_dimen.y, w = self.dimen.w, h = self.dimen.h - self.book_dimen.y,
-        })
+function HomeScreen:syncAll(done)
+    local progress = require("lingering.ui.sync_status").new(function() return self.sync_item.dimen end)
+    self.sync_status = progress
+    local function show(...)
+        if not self.closed then progress:show(...) end
+    end
+    -- Eerst het kader tekenen, dan de volgende stap: ophalen blokkeert het scherm.
+    local function after_paint(fn)
+        UIManager:scheduleIn(0.05, function()
+            if self.closed then return done(false) end
+            fn()
+        end)
+    end
+    local function finish(ok, reason)
+        if ok then show(_("Klaar"), nil, true) else show(_("Synchroniseren mislukt"), reason, true) end
+        done(ok)
+        if ok and not self.closed then self:reloadBooks() end
+    end
+    show(_("Verbinden…"))
+    local started = Network.turnOnWifiThen(function()
+        show(_("Mappen ophalen…"))
+        after_paint(function()
+            if not (self.library and self.collections) then return finish(true) end
+            self.library:refreshCollections(self.collections, function()
+                show(_("Gelezen bijwerken…"))
+                after_paint(function()
+                    self.library:syncFinished(function()
+                        show(_("Leestijd delen…"))
+                        after_paint(function()
+                            Widgets.safeCall("leestijd delen", function()
+                                require("lingering.app.stats_service").refresh(self.fm, function() end, { manual = true })
+                            end)
+                            finish(true)
+                        end)
+                    end)
+                end)
+            end)
+        end)
     end)
+    if not started then finish(false, _("Geen verbinding")) end
 end
 
 function HomeScreen:onTapBook()
@@ -754,6 +799,7 @@ function HomeScreen:onCloseWidget()
         self.emergency_task = nil
     end
     freeCovers(self.books)
+    if self.sync_status then self.sync_status:close() end
     if self.on_closed then
         Widgets.safeCall("homescreen gesloten", self.on_closed)
     end
@@ -761,16 +807,6 @@ end
 
 function HomeScreen:show()
     UIManager:show(self, "full")
-    UIManager:scheduleIn(1, function()
-        Widgets.safeCall("mappen verversen", function() self:refreshCollections() end)
-        -- Gelezen op de website → hier ook gelezen (verdwijnt uit de rij).
-        Widgets.safeCall("gelezen bijwerken", function()
-            if not (self.library and self.library.syncFinished) then return end
-            self.library:syncFinished(function(changed)
-                if changed then self:reloadBooks() end
-            end)
-        end)
-    end)
 end
 
 function HomeScreen:close()

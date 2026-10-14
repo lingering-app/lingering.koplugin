@@ -40,6 +40,11 @@ local Popover = InputContainer:extend{
     stay = false,       -- niet vanzelf sluiten (voortgang); zie closeIn
     modal = true,
 }
+-- Altijd op de eigen plek (self.dimen) tekenen, niet op de plek van UIManager:show: na
+-- setLines kan het kader breder of smaller zijn en moet het gecentreerd onder het icoon blijven.
+function Popover:paintTo(bb)
+    InputContainer.paintTo(self, bb, self.dimen.x, self.dimen.y)
+end
 Widgets.guardPaint(Popover, "popover")
 Widgets.guardEvents(Popover, "popover")
 

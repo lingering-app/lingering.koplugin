@@ -38,6 +38,8 @@ return {
     ["Map ophalen…"] = "Fetching folder…",
     ["Mappen ophalen (%1 van %2)…"] = "Fetching folders (%1 of %2)…",
     ["Omslagen ophalen…"] = "Fetching covers…",
+    ["Mappen ophalen…"] = "Fetching folders…",
+    ["Gelezen bijwerken…"] = "Updating finished books…",
     ["Leestijd delen…"] = "Sharing reading time…",
     ["Klaar"] = "Done",
     ["Synchroniseren mislukt"] = "Sync failed",

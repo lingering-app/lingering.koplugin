@@ -44,30 +44,20 @@ function TestLibraryService:test_boeken_uit_map_zonder_submappen()
     lu.assertEquals(Library:collectionBooks("Bestaat niet"), {})
 end
 
-function TestLibraryService:test_verse_cache_wordt_niet_opnieuw_opgehaald()
-    catalog()
-    Fakes.state.covers_fail = true
-    local changed
-    Library:refreshCollections({ "Aan het lezen", "Al mijn boeken" }, function(c) changed = c end)
-    Fakes.runScheduled()
-    Fakes.runScheduled()
-    Fakes.runScheduled()
-    lu.assertEquals(self.synced, {})
-    lu.assertFalse(changed)
-end
-
-function TestLibraryService:test_verouderde_mappen_worden_ververst()
-    catalog()
-    -- Cache tien minuten en een seconde oud maken.
-    local all = Library.store:readSetting("feeds")
-    for _, feeds in pairs(all) do
-        for _, feed in pairs(feeds) do feed.fetched = os.time() - 601 end
-    end
+function TestLibraryService:test_sync_knop_haalt_hoofdpagina_en_mappen_altijd_op()
+    catalog() -- verse cache: toch opnieuw ophalen (alleen de knop roept dit aan)
     local changed
     Library:refreshCollections({ "Aan het lezen", "Al mijn boeken" }, function(c) changed = c end)
     for _ = 1, 5 do Fakes.runScheduled() end
     lu.assertEquals(self.synced, { ROOT, "lezen", "alles" })
     lu.assertTrue(changed)
+end
+
+function TestLibraryService:test_onbekende_map_wordt_overgeslagen()
+    catalog()
+    Library:refreshCollections({ "Bestaat niet", "Al mijn boeken" }, function() end)
+    for _ = 1, 5 do Fakes.runScheduled() end
+    lu.assertEquals(self.synced, { ROOT, "alles" })
 end
 
 function TestLibraryService:test_gelezen_op_website_wordt_hier_gelezen()
@@ -80,6 +70,19 @@ function TestLibraryService:test_gelezen_op_website_wordt_hier_gelezen()
     Library:syncFinished(function(c) changed = c end)
     lu.assertTrue(changed)
     lu.assertEquals(Fakes.calls.finished, een)
+    lu.assertEquals(self.synced, { "gelezen" })
+end
+
+function TestLibraryService:test_gelezen_ophalen_mislukt_gebruikt_cache()
+    Library:saveFeed(ROOT, { { kind = "folder", title = "Gelezen", url = "gelezen" } })
+    Library:saveFeed("gelezen", { book("Een") })
+    local een = Library:bookPath(book("Een"))
+    Fakes.state.files = { [een] = true }
+    Fakes.state.statuses = { [een] = "reading" }
+    Library.sync = function(_, _, done) done(false) end
+    local changed
+    Library:syncFinished(function(c) changed = c end)
+    lu.assertTrue(changed)
 end
 
 function TestLibraryService:test_gelezen_niet_gedownload_doet_niets()

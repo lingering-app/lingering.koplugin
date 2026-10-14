@@ -456,7 +456,7 @@ end
 -- mee voor het icoon (zonder stats-API op de server werkt Mijn boeken gewoon).
 function LibraryScreen:syncCurrent(done)
     local url = self:current().url
-    self.sync_popover = nil
+    self.sync_status = require("lingering.ui.sync_status").new(function() return self.sync_item.dimen end)
     local function finish(ok, reason)
         if ok then
             self:syncStatus(_("Klaar"), nil, true)
@@ -494,27 +494,10 @@ function LibraryScreen:syncCurrent(done)
     end
 end
 
---[[--
-Voortgang van de sync-knop in een kader eronder (ui/popover.lua), zoals het batterij-kader:
-text vet, detail grijs eronder. finished: na een paar seconden sluiten. Sloot je het kader
-met een tik, dan komt het tijdens deze sync niet terug (de sync loopt gewoon door).
-]]
+-- Voortgang van de sync-knop in een kader eronder (ui/sync_status.lua).
 function LibraryScreen:syncStatus(text, detail, finished)
-    if self.closed then return end
-    local lines = { { text = text, bold = true } }
-    if detail then table.insert(lines, { text = detail, gray = true }) end
-    local popover = self.sync_popover
-    if popover and popover.closed then return end
-    if popover then
-        popover:setLines(lines)
-    else
-        popover = require("lingering.ui.popover"):new{
-            anchor = self.sync_item.dimen, lines = lines, stay = true,
-        }
-        popover:show()
-        self.sync_popover = popover
-    end
-    if finished then popover:closeIn(3) end
+    if self.closed or not self.sync_status then return end
+    self.sync_status:show(text, detail, finished)
 end
 
 -- Sync-knop: ontbrekende omslagen van deze pagina in de achtergrond ophalen (subproces, zie
