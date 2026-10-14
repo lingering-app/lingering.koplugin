@@ -1,7 +1,7 @@
 --[[--
 Mijn boeken: de OPDS-catalogus als raster met omslagen, in pagina's (veeg omhoog of naar
 links: volgende pagina; omlaag of naar rechts: vorige). Alleen de huidige pagina wordt
-gebouwd, ook bij een map met honderden boeken; rechts een smalle paginabalk.
+gebouwd, ook bij een map met honderden boeken; onderaan klein het paginanummer.
 
 - Toont meteen de gecachete versie (ook zonder wifi).
 - Synchroniseren alleen met de sync-knop (zet zo nodig wifi aan): de huidige map, de mappen
@@ -16,18 +16,16 @@ local Font = require("ui/font")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
 local GestureRange = require("ui/gesturerange")
-local HorizontalGroup = require("ui/widget/horizontalgroup")
-local HorizontalSpan = require("ui/widget/horizontalspan")
 local ImageWidget = require("ui/widget/imagewidget")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local OverlapGroup = require("ui/widget/overlapgroup")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
+local TextWidget = require("ui/widget/textwidget")
 local TopContainer = require("ui/widget/container/topcontainer")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
-local Widget = require("ui/widget/widget")
 local logger = require("logger")
 local _ = require("lingering.l10n.gettext")
 local T = require("ffi/util").template
@@ -41,35 +39,8 @@ local Grid = require("lingering.ui.grid")
 local Layout = require("lingering.domain.layout")
 local Style = require("lingering.ui.style")
 
--- Breedte van de paginabalk rechts (alleen bij meer dan één pagina).
-local PAGE_BAR_W = Screen:scaleBySize(14)
-
---[[--
-Paginabalk: een dunne lijn over de hoogte, met een dikker stuk voor de huidige pagina
-(zoals een schuifbalk, maar per pagina).
-]]
-local PageBar = Widget:extend{
-    width = nil,
-    height = nil,
-    page = 1,
-    pages = 1,
-}
-
-function PageBar:getSize()
-    return Geom:new{ w = self.width, h = self.height }
-end
-
-function PageBar:paintTo(bb, x, y)
-    local top = y + Grid.MARGIN
-    local h = self.height - 2 * Grid.MARGIN
-    local track_w = math.max(1, Screen:scaleBySize(1))
-    local thumb_w = Screen:scaleBySize(4)
-    local cx = x + math.floor(self.width / 2)
-    bb:paintRect(cx - math.floor(track_w / 2), top, track_w, h, Style.progress.track)
-    local part = h / self.pages
-    bb:paintRect(cx - math.floor(thumb_w / 2), top + math.floor((self.page - 1) * part),
-        thumb_w, math.max(thumb_w, math.floor(part)), Style.progress.fill)
-end
+-- Paginanummer onderaan ("3 / 25"), klein en grijs, alleen bij meer dan één pagina.
+local PAGE_NUMBER_FACE = Font:getFace("cfont", 13)
 
 local function loadCover(library, url, w, h)
     return Widgets.loadCover(library, url, w, h)
@@ -334,16 +305,14 @@ function LibraryScreen:render(partial)
         return heights
     end
     -- Pagina's (domain/layout.lua): alleen de rijen van de huidige pagina worden gebouwd, dus
-    -- een map met 300 boeken opent even snel als een kleine. Meer dan één pagina: rechts een
-    -- smalle paginabalk; het raster krijgt de breedte ernaast, zodat de marges gelijk blijven.
-    local function pagesAt(content_w)
-        return Layout.pages(rowHeights(sizes(content_w)), page_h, Grid.MARGIN, Grid.ROW_GAP)
-    end
+    -- een map met 300 boeken opent even snel als een kleine. Meer dan één pagina: onderaan het
+    -- paginanummer; de rijen krijgen dan die hoogte minder.
     local content_w = width
-    local pages = pagesAt(width)
+    local number_h = TextWidget:new{ text = "0", face = PAGE_NUMBER_FACE }:getSize().h + Grid.MARGIN
+    local pages = Layout.pages(rowHeights(sizes(width)), page_h, Grid.MARGIN, Grid.ROW_GAP)
     if #pages > 1 then
-        content_w = width - PAGE_BAR_W
-        pages = pagesAt(content_w)
+        page_h = page_h - number_h
+        pages = Layout.pages(rowHeights(sizes(width)), page_h, Grid.MARGIN, Grid.ROW_GAP)
     end
     local z = sizes(content_w)
     local book_w, book_cover_w, book_cover_h, book_tile_h = z.book_w, z.book_cover_w, z.book_cover_h, z.book_tile_h
@@ -397,10 +366,17 @@ function LibraryScreen:render(partial)
         end
         body = Grid.rows(content_w, grid_rows)
         if #pages > 1 then
-            body = HorizontalGroup:new{
-                align = "top",
-                body,
-                PageBar:new{ width = PAGE_BAR_W, height = body_h, page = current.page, pages = #pages },
+            body = VerticalGroup:new{
+                align = "center",
+                TopContainer:new{ dimen = Geom:new{ w = width, h = body_h - number_h }, body },
+                CenterContainer:new{
+                    dimen = Geom:new{ w = width, h = number_h },
+                    TextWidget:new{
+                        text = T("%1 / %2", current.page, #pages),
+                        face = PAGE_NUMBER_FACE,
+                        fgcolor = Style.text_secondary,
+                    },
+                },
             }
         end
     end
