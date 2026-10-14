@@ -525,7 +525,10 @@ function LibraryScreen:askSearch()
         } },
     }
     require("lingering.koreader.dialogs").plainDialog(dialog, "search", {
-        border = { size = Style.line.size, color = Style.line.color, radius = Style.radius },
+        border = {
+            size = Style.line.size, color = Style.line.color, radius = Style.radius,
+            padding = Size.padding.large,
+        },
     })
     UIManager:show(dialog)
     dialog:onShowKeyboard()
