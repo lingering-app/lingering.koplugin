@@ -48,7 +48,7 @@ algemene bibliotheken; `ui/`, `app/` en `main.lua` gebruiken geen `G_reader_sett
 | `app/update_service.lua` | zelf-update: zoeken, installeren (alleen tags), restanten opruimen bij de volgende start |
 | `domain/release.lua` | versies lezen/vergelijken, nieuwste tag, welke paden bij de plugin horen |
 | `ui/*.lua` | homescreen (blokken met stapels omslagen voor de mappen in `config.collections`; tik opent die map in Mijn boeken), Mijn boeken, Instellingen, Over Lingering (met update-knop, `ui/update_flow.lua`), inlogscherm, leesscherm, actiebalk, `book_opener.lua` (openen of downloaden-en-openen), gedeelde widgets |
-| `icons/` | iconen uit [Material Symbols](https://fonts.google.com/icons) Outlined, gewicht 300 (`@material-symbols/svg-300` v0.48.0, Apache-2.0, `icons/LICENSE-material-symbols.txt`), ongewijzigd (uitzondering: `more_vert.svg` uit `svg-700`, dikgedrukt); `sync-<hoek>.svg` zijn kopieën, tegen de klok in gedraaid (zoals de pijlen van `sync`), voor de sync-animatie. Gekozen omdat het als enige open set alle iconen heeft (ook `mobile_rotate`/`mobile_rotate_lock`) |
+| `icons/` | iconen uit [Material Symbols](https://fonts.google.com/icons) Outlined, gewicht 300 (`@material-symbols/svg-300` v0.48.0, Apache-2.0, `icons/LICENSE-material-symbols.txt`), ongewijzigd (uitzondering: `more_vert.svg` uit `svg-700`, dikgedrukt; `close.svg` toegevoegd voor een mislukte sync-stap); `sync-<hoek>.svg` zijn kopieën, tegen de klok in gedraaid (zoals de pijlen van `sync`), voor de sync-animatie. Gekozen omdat het als enige open set alle iconen heeft (ook `mobile_rotate`/`mobile_rotate_lock`) |
 | `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
 | `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |
 | `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
@@ -367,8 +367,9 @@ Sync en gelezen boeken:
 - Homescreen en Mijn boeken halen zelf niets op: alleen hun sync-knop (statusbalk, zet zo nodig
   wifi aan). Homescreen: hoofdpagina + `config.collections` met eerste omslagen, "Gelezen",
   leestijd (`app/stats_service.lua`). Mijn boeken: huidige map, mappen op de pagina, omslagen,
-  leestijd. Voortgang in een kader onder de knop (`ui/sync_status.lua`, `Popover` met `stay`,
-  `setLines`, `closeIn`; `Popover:paintTo` tekent op `self.dimen`, omdat UIManager de plek
+  leestijd. Voortgang als lijst van alle stappen in een kader onder de knop (vaste breedte;
+  klaar = `check.svg`, bezig = `chevron_right.svg`, mislukt = `close.svg` met reden; klein en
+  grijs) (`ui/sync_status.lua`, `Popover` met `stay`, `content_taps = false`, `refresh`, `closeIn`; `Popover:paintTo` tekent op `self.dimen`, omdat UIManager de plek
   van `show` onthoudt en het kader na `setLines` anders van het icoon wegschuift).
 - Staat een boek op de server op gelezen (≥ 99,5%) en de Kobo eronder, dan springt de Kobo
   niet (de positie bij "gelezen" is vaak niet het einde). Alleen openen schrijft niets weg;

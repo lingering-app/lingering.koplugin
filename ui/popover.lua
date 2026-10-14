@@ -11,7 +11,9 @@ Of met eigen inhoud: content = function(popover) return widget end. Een tik binn
 kader sluit het dan niet (de inhoud handelt hem af); popover:keepAlive() schuift het
 automatisch sluiten op zolang je ermee bezig bent.
 Voortgang (bijv. synchroniseren): stay = true sluit niet vanzelf; popover:setLines(lines) zet
-nieuwe regels, popover:closeIn(seconden) sluit hem daarna alsnog.
+nieuwe regels, popover:refresh() bouwt eigen inhoud opnieuw op, popover:closeIn(seconden)
+sluit hem daarna alsnog. content_taps = false: eigen inhoud zonder knoppen, een tik erin
+sluit het kader dan ook.
 Modal, zodat hij ook boven de (modale) actiebalk in het boek komt.
 ]]
 local Device = require("device")
@@ -39,6 +41,7 @@ local Popover = InputContainer:extend{
     gap = nil,          -- ruimte onder het anker; standaard vrij van de lijn onder de actiebalk
     compact = false,    -- kleinere binnenmarge (menu's: de rijen hebben zelf ruimte)
     stay = false,       -- niet vanzelf sluiten (voortgang); zie closeIn
+    content_taps = true, -- eigen inhoud handelt tikken erin af (anders sluit een tik het kader)
     modal = true,
 }
 -- Altijd op de eigen plek (self.dimen) tekenen, niet op de plek van UIManager:show: na
@@ -93,7 +96,7 @@ end
 
 function Popover:onTapClose(_, ges)
     -- Met eigen inhoud blijft het kader open bij een tik erin (naast een knop bijv.).
-    if self.content and ges and ges.pos and ges.pos:intersectWith(self.dimen) then
+    if self.content and self.content_taps and ges and ges.pos and ges.pos:intersectWith(self.dimen) then
         return true
     end
     self:dismiss()
@@ -128,9 +131,14 @@ end
 
 --- Nieuwe regels tonen; het kader past zich aan (alles eronder in dat stukje opnieuw getekend).
 function Popover:setLines(lines)
+    self.lines = lines
+    self:refresh()
+end
+
+--- Opnieuw opbouwen (eigen inhoud of regels gewijzigd) en dat stukje scherm verversen.
+function Popover:refresh()
     if self.closed then return end
     local old = self.dimen
-    self.lines = lines
     self:init()
     UIManager:setDirty("all", "ui", old:combine(self.dimen))
 end

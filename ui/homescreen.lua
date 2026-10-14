@@ -715,11 +715,19 @@ opnieuw opgebouwd (dat maakt ook de statusbalk, en dus het draaiende icoon, opni
 Of de leestijd lukt, telt niet mee (zonder stats-API op de server werkt de rest gewoon).
 ]]
 function HomeScreen:syncAll(done)
-    local progress = require("lingering.ui.sync_status").new(function() return self.sync_item.dimen end,
-        self.status_bar.popover_gap)
+    local progress = require("lingering.ui.sync_status").new{
+        anchor = function() return self.sync_item.dimen end,
+        gap = self.status_bar.popover_gap,
+        steps = {
+            { id = "connect", label = _("Verbinden") },
+            { id = "books", label = _("Boeken ophalen") },
+            { id = "finished", label = _("Gelezen bijwerken") },
+            { id = "stats", label = _("Leestijd delen") },
+        },
+    }
     self.sync_status = progress
-    local function show(...)
-        if not self.closed then progress:show(...) end
+    local function step(id)
+        if not self.closed then progress:start(id) end
     end
     -- Eerst het kader tekenen, dan de volgende stap: ophalen blokkeert het scherm.
     local function after_paint(fn)
@@ -729,20 +737,22 @@ function HomeScreen:syncAll(done)
         end)
     end
     local function finish(ok, reason)
-        if ok then show(_("Klaar"), nil, true) else show(_("Synchroniseren mislukt"), reason, true) end
+        if not self.closed then
+            if ok then progress:finish() else progress:fail(reason) end
+        end
         done(ok)
         if ok and not self.closed then self:reloadBooks() end
     end
-    show(_("Verbinden…"))
+    step("connect")
     local started = Network.turnOnWifiThen(function()
-        show(_("Boeken ophalen…"))
+        step("books")
         after_paint(function()
             if not (self.library and self.collections) then return finish(true) end
             self.library:refreshCollections(self.collections, function()
-                show(_("Gelezen bijwerken…"))
+                step("finished")
                 after_paint(function()
                     self.library:syncFinished(function()
-                        show(_("Leestijd delen…"))
+                        step("stats")
                         after_paint(function()
                             Widgets.safeCall("leestijd delen", function()
                                 require("lingering.app.stats_service").refresh(self.fm, function() end, { manual = true })
