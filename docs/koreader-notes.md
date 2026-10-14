@@ -48,7 +48,7 @@ algemene bibliotheken; `ui/`, `app/` en `main.lua` gebruiken geen `G_reader_sett
 | `app/update_service.lua` | zelf-update: zoeken, installeren (alleen tags), restanten opruimen bij de volgende start |
 | `domain/release.lua` | versies lezen/vergelijken, nieuwste tag, welke paden bij de plugin horen |
 | `ui/*.lua` | homescreen (blokken met stapels omslagen voor de mappen in `config.collections`; tik opent die map in Mijn boeken), Mijn boeken, Instellingen, Over Lingering (met update-knop, `ui/update_flow.lua`), inlogscherm, leesscherm, actiebalk, `book_opener.lua` (openen of downloaden-en-openen), gedeelde widgets |
-| `icons/` | iconen uit [Material Symbols](https://fonts.google.com/icons) Outlined, gewicht 300 (`@material-symbols/svg-300` v0.48.0, Apache-2.0, `icons/LICENSE-material-symbols.txt`), ongewijzigd (uitzondering: `more_vert.svg` uit `svg-700`, dikgedrukt; `close.svg` toegevoegd voor een mislukte sync-stap); `sync-<hoek>.svg` zijn kopieën, tegen de klok in gedraaid (zoals de pijlen van `sync`), voor de sync-animatie. Gekozen omdat het als enige open set alle iconen heeft (ook `mobile_rotate`/`mobile_rotate_lock`) |
+| `icons/` | iconen uit [Material Symbols](https://fonts.google.com/icons) Outlined, gewicht 300 (`@material-symbols/svg-300` v0.48.0, Apache-2.0, `icons/LICENSE-material-symbols.txt`), ongewijzigd (uitzondering: `more_vert.svg` uit `svg-700`, dikgedrukt; `close.svg` toegevoegd voor een mislukte sync-stap, `keyboard_double_arrow_left/right.svg` voor « » in Mijn boeken); `sync-<hoek>.svg` zijn kopieën, tegen de klok in gedraaid (zoals de pijlen van `sync`), voor de sync-animatie. Gekozen omdat het als enige open set alle iconen heeft (ook `mobile_rotate`/`mobile_rotate_lock`) |
 | `tests/` | unit tests (luaunit, `tests/vendor/`), nep-adapters (`fakes.lua`), rooktest (`smoke.lua`) |
 | `tools/check.sh` | syntax, verwijzingen (bestaat elke aangeroepen functie?), laagregels |
 | `tools/test.sh` | unit tests met de LuaJIT uit de Flatpak (zonder KOReader) |
@@ -356,7 +356,7 @@ Raster:
   rijruimte; per rij 1, 2 of 4 kolommen (`Grid.rows`). Homescreen: rij 1 = boek (1 kolom) of
   boeken (4), rij 2 = mappen (2). Mijn boeken: mappen in rijen van 2, boeken in rijen van 4;
   in pagina's (`Layout.pages`; zijwaarts vegen: links = volgende, rechts = vorige, of de
-  pijltjes onderaan "‹ 3 / 25 ›"), alleen de
+  pijltjes onderaan "‹ 3 / 25 ›", vanaf 6 pagina's ook « » naar de eerste/laatste), alleen de
   huidige pagina wordt gebouwd (300 boeken: openen ~10 ms in de emulator). Past er bijna een rij
   bij, dan krimpen de omslagen (`Layout.fitRows`). Met meer pagina's onderaan klein en grijs
   pijltjes en paginanummer ("‹ 3 / 25 ›"); geen balk rechts (leek op een schuifbalk). Vroeger een

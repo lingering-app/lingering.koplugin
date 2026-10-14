@@ -1,7 +1,7 @@
 --[[--
 Mijn boeken: de OPDS-catalogus als raster met omslagen, in pagina's: zijwaarts vegen (naar
 links: volgende, naar rechts: vorige, zoals in een boek) of de pijltjes onderaan
-("‹ 3 / 25 ›"). Alleen de huidige pagina wordt gebouwd, ook bij een map met honderden boeken.
+("‹ 3 / 25 ›", vanaf 6 pagina's ook « en » naar de eerste en laatste). Alleen de huidige pagina wordt gebouwd, ook bij een map met honderden boeken.
 
 - Toont meteen de gecachete versie (ook zonder wifi).
 - Synchroniseren alleen met de sync-knop (zet zo nodig wifi aan): de huidige map, de mappen
@@ -45,6 +45,8 @@ local PAGE_NUMBER_FACE = Font:getFace("cfont", 13)
 local PAGER_H = Screen:scaleBySize(44)
 local PAGER_BUTTON_W = Screen:scaleBySize(56)
 local PAGER_ICON = Screen:scaleBySize(24)
+-- Vanaf zoveel pagina's ook « en » (naar de eerste en de laatste pagina).
+local PAGER_JUMP_FROM = 6
 
 local function loadCover(library, url, w, h)
     return Widgets.loadCover(library, url, w, h)
@@ -191,37 +193,41 @@ function LibraryScreen:onSwipe(_, ges)
     return true
 end
 
--- "‹ 3 / 25 ›" onderaan: pijltjes (grijs en zonder werking op de eerste/laatste pagina).
+-- "‹ 3 / 25 ›" onderaan, vanaf PAGER_JUMP_FROM pagina's "« ‹ 3 / 25 › »": pijltjes (grijs en
+-- zonder werking op de eerste/laatste pagina).
 function LibraryScreen:pager(width, page, pages)
     local Item = require("lingering.ui.actionbar").Item
-    local function arrow(icon_file, delta, enabled)
+    local function arrow(icon_file, target, enabled)
         return Item:new{
             action = { name = "pagina", icon_file = icon_file, enabled = enabled },
-            on_tap = function() self:turnPage(delta) end,
+            on_tap = function() self:goToPage(target) end,
             width = PAGER_BUTTON_W,
             height = PAGER_H,
             icon_size = PAGER_ICON,
             show_parent = self,
         }
     end
-    return CenterContainer:new{
-        dimen = Geom:new{ w = width, h = PAGER_H },
-        HorizontalGroup:new{
-            align = "center",
-            arrow("chevron_left.svg", -1, page > 1),
-            TextWidget:new{
-                text = T("%1 / %2", page, pages),
-                face = PAGE_NUMBER_FACE,
-                fgcolor = Style.text_secondary,
-            },
-            arrow("chevron_right.svg", 1, page < pages),
-        },
-    }
+    local jump = pages >= PAGER_JUMP_FROM
+    local row = HorizontalGroup:new{ align = "center" }
+    if jump then table.insert(row, arrow("keyboard_double_arrow_left.svg", 1, page > 1)) end
+    table.insert(row, arrow("chevron_left.svg", page - 1, page > 1))
+    table.insert(row, TextWidget:new{
+        text = T("%1 / %2", page, pages),
+        face = PAGE_NUMBER_FACE,
+        fgcolor = Style.text_secondary,
+    })
+    table.insert(row, arrow("chevron_right.svg", page + 1, page < pages))
+    if jump then table.insert(row, arrow("keyboard_double_arrow_right.svg", pages, page < pages)) end
+    return CenterContainer:new{ dimen = Geom:new{ w = width, h = PAGER_H }, row }
 end
 
 function LibraryScreen:turnPage(delta)
+    self:goToPage((self:current().page or 1) + delta)
+end
+
+function LibraryScreen:goToPage(page)
     local current = self:current()
-    local page = math.max(1, math.min((current.page or 1) + delta, self.page_count or 1))
+    page = math.max(1, math.min(page, self.page_count or 1))
     if page == (current.page or 1) then return end
     current.page = page
     self:render(true)
